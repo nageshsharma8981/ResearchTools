@@ -43,6 +43,7 @@
       <span class="chip-row">
         <label class="chip" style="display:inline-flex;align-items:center;cursor:pointer">Load .docx / .txt<input id="file" type="file" accept=".docx,.txt,.md" style="display:none"/></label>
         <button type="button" class="chip" id="example">Load example</button>
+        <button type="button" class="chip" id="clear-doc">Clear</button>
       </span>
       <span id="count"></span>
     </div>
@@ -290,19 +291,31 @@ function buildDocx(text, meta) {
 }
 
 // ---------- file load ----------
+function resetResult() {
+  const old = $('apa-dl-a');
+  if (old) { try { URL.revokeObjectURL(old.href); } catch {} }
+  $('out').innerHTML = EMPTY;
+}
 $('file').addEventListener('change', async (e) => {
   const f = e.target.files[0];
+  e.target.value = ''; // allow re-selecting the same file later
   if (!f) return;
   try {
-    if (f.name.endsWith('.docx')) {
-      $('in').value = await readDocxText(await f.arrayBuffer());
-    } else {
-      $('in').value = await f.text();
-    }
+    const text = f.name.endsWith('.docx') ? await readDocxText(await f.arrayBuffer()) : await f.text();
+    $('in').value = text;
     $('in').dispatchEvent(new Event('input'));
-    if (!$('m-title').value) $('m-title').value = f.name.replace(/\.(docx|txt|md)$/i, '');
-    toast(`Loaded ${f.name}`);
+    $('m-title').value = f.name.replace(/\.(docx|txt|md)$/i, ''); // new doc, new title
+    resetResult(); // previous document's output no longer applies
+    toast(`Loaded ${f.name} — previous document replaced`);
   } catch (err) { toast(err.message, 'error', 5000); }
+});
+$('clear-doc').addEventListener('click', () => {
+  $('in').value = '';
+  $('m-title').value = '';
+  localStorage.removeItem(DRAFT);
+  $('in').dispatchEvent(new Event('input'));
+  resetResult();
+  toast('Document cleared');
 });
 
 // ---------- orchestration ----------

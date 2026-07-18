@@ -603,6 +603,22 @@
       };
     }
 
+    // universal Clear: wipe input, draft, and any previous result
+    const chipRow = exampleBtnId && $(exampleBtnId) ? $(exampleBtnId).parentElement : null;
+    if (chipRow && !$(`${toolId}-clear-chip`)) {
+      chipRow.insertAdjacentHTML('beforeend', `<button type="button" class="chip" id="${toolId}-clear-chip">Clear</button>`);
+      $(`${toolId}-clear-chip`).onclick = () => {
+        if (abort) abort.abort();
+        input.value = '';
+        localStorage.removeItem(draftKey);
+        input.dispatchEvent(new Event('input'));
+        out.innerHTML = emptyState;
+        lastOutput = '';
+        toast('Cleared');
+        input.focus();
+      };
+    }
+
     const setRunning = (running) => {
       if (running) {
         runBtn.innerHTML = `${icon('stop', 15)} Stop`;
