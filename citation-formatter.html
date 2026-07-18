@@ -41,9 +41,10 @@
         <option>APA 7</option><option>MLA 9</option><option>Chicago (author-date)</option>
         <option>Harvard</option><option>IEEE</option><option>Vancouver</option>
       </select>
-      <button id="run"></button>
-      <span class="hint" style="margin:0"><kbd>⌘</kbd>+<kbd>Enter</kbd> to run</span>
+      <button id="precise"></button>
+      <button id="run" class="ghost"></button>
     </div>
+    <p class="hint" style="margin:10px 0 0"><b>Precise</b> matches each reference to its DOI and renders the official Crossref citation — no AI, no API key, no hallucination. <b>AI format</b> (your key) handles references without DOIs: books, reports, and web pages.</p>
   </div>
   <div id="out"></div>
 </main>
@@ -52,6 +53,104 @@
 Rewiseed.renderNav('citation-formatter.html');
 document.getElementById('hero-icon').innerHTML = Rewiseed.icon('book', 26);
 Rewiseed.renderSettingsBar('settings');
+const { esc, icon, toast } = Rewiseed;
+const $id = (i) => document.getElementById(i);
+$id('precise').innerHTML = `${icon('check', 15)} Precise (no key)`;
+
+// ---------- precise keyless mode: DOI-match + official Crossref citation ----------
+const CSL_STYLES = {
+  'APA 7': 'apa', 'MLA 9': 'modern-language-association', 'Chicago (author-date)': 'chicago-author-date',
+  'Harvard': 'harvard-cite-them-right', 'IEEE': 'ieee', 'Vancouver': 'vancouver',
+};
+const extractDoi = (s) => { const m = String(s).match(/10\.\d{4,9}\/[^\s"'<>]+/i); return m ? m[0].replace(/[.,;)\]]+$/, '') : null; };
+const normTitle = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+async function matchDoi(ref) {
+  const direct = extractDoi(ref);
+  if (direct) return { doi: direct, confident: true };
+  const params = new URLSearchParams({ 'query.bibliographic': ref, rows: '5', select: 'DOI,title,author,is-referenced-by-count,type' });
+  const r = await fetch(`https://api.crossref.org/works?${params}`);
+  if (!r.ok) throw new Error(`Crossref ${r.status}`);
+  const items = (await r.json()).message?.items || [];
+  const lref = ref.toLowerCase();
+  const scored = items.map(w => {
+    const title = w.title?.[0] || '';
+    const exactTitle = normTitle(title).length >= 12 && normTitle(ref).includes(normTitle(title));
+    const author = (w.author || []).some(a => a.family && a.family.length >= 4 && lref.includes(a.family.toLowerCase()));
+    const derivative = /^(faculty opinions|correction|erratum|retraction)/i.test(title) || w.type === 'peer-review';
+    return { w, exactTitle, author, derivative, cites: w['is-referenced-by-count'] || 0 };
+  }).sort((a, b) =>
+    (a.derivative !== b.derivative) ? (a.derivative ? 1 : -1)
+    : (a.exactTitle !== b.exactTitle) ? (a.exactTitle ? -1 : 1)
+    : (a.author !== b.author) ? (a.author ? -1 : 1)
+    : (b.cites - a.cites));
+  const best = scored[0];
+  if (!best || best.derivative || (!best.exactTitle && !best.author)) return null;
+  return { doi: best.w.DOI, confident: best.exactTitle && best.author };
+}
+
+async function styledCitation(doi, cslStyle) {
+  const r = await fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}/transform`, {
+    headers: { Accept: `text/x-bibliography; style=${cslStyle}` },
+  });
+  if (!r.ok) throw new Error(`transform ${r.status}`);
+  return (await r.text()).trim().replace(/\s+/g, ' ');
+}
+
+let preciseRunning = false;
+$id('precise').onclick = async () => {
+  if (preciseRunning) return;
+  const lines = $id('in').value.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.length) { toast('Paste at least one reference', 'error'); $id('in').focus(); return; }
+  if (lines.length > 50) { toast('Limiting to the first 50 references', 'error'); lines.length = 50; }
+  preciseRunning = true;
+  const btn = $id('precise'); btn.disabled = true;
+  const styleName = $id('style').value;
+  const csl = CSL_STYLES[styleName] || 'apa';
+  const out = $id('out');
+  out.innerHTML = `
+    <div class="card">
+      <span class="overline">Precise · keyless</span>
+      <h2>Formatted bibliography (${esc(styleName)})</h2>
+      <p class="hint">Each reference is matched to its DOI, then rendered by Crossref's official citation formatter — exact, never invented.</p>
+      <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="${lines.length}" aria-valuenow="0" id="pc-bar"><div class="progress-fill" id="pc-fill"></div></div>
+      <ol class="result" id="pc-list" style="border-top:0;padding-left:22px"></ol>
+      <div class="row" id="pc-actions" hidden>
+        <button class="ghost" id="pc-copy">${icon('copy', 15)} Copy all</button>
+        <button class="ghost" id="pc-dl">${icon('download', 15)} Download .md</button>
+      </div>
+    </div>`;
+  const results = [];
+  for (let i = 0; i < lines.length; i++) {
+    $id('pc-fill').style.width = `${((i + 1) / lines.length) * 100}%`;
+    $id('pc-bar').setAttribute('aria-valuenow', i + 1);
+    let html, text;
+    try {
+      const m = await matchDoi(lines[i]);
+      if (!m) {
+        html = `<span class="hint" style="margin:0">${esc(lines[i].slice(0, 90))}</span><br/><span class="badge warn">${icon('alert', 11)} no DOI found — use AI format for this one</span>`;
+        text = `[unresolved — no DOI] ${lines[i]}`;
+      } else {
+        const cite = await styledCitation(m.doi, csl);
+        html = `${esc(cite)} ${m.confident ? '' : `<span class="badge warn" title="Match not fully confirmed — verify it is the right work">verify match</span>`}`;
+        text = cite + (m.confident ? '' : ' [verify match]');
+      }
+    } catch (e) {
+      html = `<span class="hint" style="margin:0">${esc(lines[i].slice(0, 90))}</span><br/><span class="badge warn">${icon('alert', 11)} lookup failed (${esc(e.message)})</span>`;
+      text = `[lookup failed] ${lines[i]}`;
+    }
+    results.push(text);
+    $id('pc-list').insertAdjacentHTML('beforeend', `<li style="margin:8px 0">${html}</li>`);
+    if (i < lines.length - 1) await new Promise(r => setTimeout(r, 300));
+  }
+  $id('pc-actions').hidden = false;
+  const doc = `# Bibliography (${styleName})\n\n` + results.map((t, i) => `${i + 1}. ${t}`).join('\n');
+  $id('pc-copy').onclick = (e) => Rewiseed.copyText(doc, e.currentTarget);
+  $id('pc-dl').onclick = () => Rewiseed.downloadText('citations.md', doc);
+  Rewiseed.track('run', doc.length);
+  preciseRunning = false;
+  btn.disabled = false;
+};
 
 const EXAMPLE = `vaswani et al attention is all you need neurips 2017
 Kahneman, D. Thinking fast and slow. FSG 2011

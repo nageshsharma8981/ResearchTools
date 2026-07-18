@@ -26,7 +26,57 @@
   function setCfg(cfg) { localStorage.setItem(LS_CFG, JSON.stringify(cfg)); }
 
   function isLocalUrl(u) {
-    return /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:|\/|$)/i.test(u || '');
+    return /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:|\/|$)/i.test(u || '') || isBuiltin(u);
+  }
+  function isBuiltin(u) { return String(u || '').startsWith('webllm:'); }
+
+  // ---------- built-in browser model (WebLLM, WebGPU) ----------
+  let _webllm = null, _webllmModel = '';
+  function webllmStatus(html) {
+    let el = document.getElementById('webllm-status');
+    if (!html) { el?.remove(); return; }
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'webllm-status';
+      el.style.cssText = 'position:fixed;left:20px;bottom:20px;z-index:95;background:var(--surface);border:1px solid var(--border);border-radius:999px;box-shadow:var(--shadow-lg);padding:9px 16px;font-size:12.5px;color:var(--ink-2);max-width:320px';
+      document.body.appendChild(el);
+    }
+    el.innerHTML = html;
+  }
+  async function webllmChat({ system, user, temperature, onStream, signal, model }) {
+    if (!navigator.gpu) {
+      throw new Error('The built-in model needs WebGPU, which this browser does not support. Use Chrome or Edge — or pick another provider in API settings.');
+    }
+    const wanted = model || 'Llama-3.2-3B-Instruct-q4f16_1-MLC';
+    if (!_webllm || _webllmModel !== wanted) {
+      webllmStatus(`<span class="spinner" style="margin-right:7px"></span>Preparing built-in model… <b>0%</b><br/><span style="font-size:11px;color:var(--muted)">First time downloads the model (~2 GB), then it's cached on this device.</span>`);
+      try {
+        const lib = await import('/vendor-web-llm.js');
+        _webllm = await lib.CreateMLCEngine(wanted, {
+          initProgressCallback: (p) => webllmStatus(`<span class="spinner" style="margin-right:7px"></span>Preparing built-in model… <b>${Math.round((p.progress || 0) * 100)}%</b><br/><span style="font-size:11px;color:var(--muted)">${esc((p.text || '').slice(0, 70))}</span>`),
+        });
+        _webllmModel = wanted;
+      } catch (e) {
+        _webllm = null;
+        throw new Error(`Could not load the built-in model: ${String(e.message || e).slice(0, 140)}`);
+      } finally {
+        webllmStatus(null);
+      }
+    }
+    if (signal) signal.addEventListener('abort', () => { try { _webllm.interruptGenerate(); } catch {} }, { once: true });
+    const messages = [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: user }];
+    if (!onStream) {
+      const r = await _webllm.chat.completions.create({ messages, temperature });
+      return r.choices?.[0]?.message?.content || '';
+    }
+    const chunks = await _webllm.chat.completions.create({ messages, temperature, stream: true });
+    let full = '';
+    for await (const c of chunks) {
+      if (signal?.aborted) { const err = new Error('aborted'); err.name = 'AbortError'; throw err; }
+      const delta = c.choices?.[0]?.delta?.content || '';
+      if (delta) { full += delta; onStream(full); }
+    }
+    return full;
   }
 
   // ---------- icons (Lucide outline paths, 24px viewBox) ----------
@@ -216,6 +266,7 @@
     openrouter: { label: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', model: 'anthropic/claude-3.5-haiku' },
     groq: { label: 'Groq', baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
     together: { label: 'Together AI', baseUrl: 'https://api.together.xyz/v1', model: 'meta-llama/Llama-3.3-70B-Instruct-Turbo' },
+    builtin: { label: 'Built-in browser model (free, no key)', baseUrl: 'webllm://', model: 'Llama-3.2-3B-Instruct-q4f16_1-MLC' },
     ollama: { label: 'Ollama (local, free)', baseUrl: 'http://localhost:11434/v1', model: 'llama3.1' },
     lmstudio: { label: 'LM Studio (local, free)', baseUrl: 'http://localhost:1234/v1', model: 'local-model' },
     custom: { label: 'Custom endpoint', baseUrl: '', model: '' },
@@ -267,7 +318,7 @@
             <button id="cfg-test" class="ghost">Test connection</button>
             <span id="cfg-test-result" role="status"></span>
           </div>
-          <p class="hint" style="margin:12px 0 0">Your key never leaves this browser except in requests to the endpoint above. Local endpoints (Ollama, LM Studio) need no key.</p>
+          <p class="hint" style="margin:12px 0 0">Your key never leaves this browser except in requests to the endpoint above. The built-in browser model and local endpoints (Ollama, LM Studio) need no key — the built-in option downloads a ~2 GB model once (needs Chrome/Edge with WebGPU), then runs entirely on your device.</p>
         </div>
       </details>`;
 
@@ -321,6 +372,9 @@
   async function callLLM({ system, user, temperature = 0.2, maxTokens, onStream, signal, cfgOverride }) {
     const cfg = cfgOverride || getCfg();
     const baseUrl = (cfg.baseUrl || PRESETS.openai.baseUrl).replace(/\/+$/, '');
+    if (isBuiltin(baseUrl)) {
+      return webllmChat({ system, user, temperature, onStream, signal, model: cfg.model });
+    }
     if (!cfg.apiKey && !isLocalUrl(baseUrl)) {
       openSettings();
       throw new Error('No API key set. Open “API settings” above and paste one (or point Base URL at a local model — Ollama / LM Studio need no key).');

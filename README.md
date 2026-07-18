@@ -15,13 +15,14 @@ Five standalone research tools that run **entirely in your browser**. No server,
 | Statistical Test Advisor | `stats-advisor.html` | The right statistical test per research question — assumptions with checks, non-parametric fallbacks, effect sizes, APA results templates, starter R/Python/SPSS code. |
 | Qualitative Coding Assistant | `qualitative-coding-assistant.html` | Braun & Clarke reflexive thematic analysis of interview transcripts — codes, themes, thematic map. |
 | Peer Review Simulator | `peer-review-simulator.html` | Structured peer review with selectable reviewer temperament (constructive → adversarial) and a recommendation. |
-| Citation Formatter | `citation-formatter.html` | Convert messy references into APA 7 / MLA 9 / Chicago / Harvard / IEEE / Vancouver. |
+| Citation Formatter | `citation-formatter.html` | Precise keyless mode: DOI-match each reference and render Crossref's official citation (APA 7 / MLA 9 / Chicago / Harvard / IEEE / Vancouver) — exact, never invented. AI mode covers DOI-less references. |
 | APA 7 Paper Formatter | `apa-formatter.html` | Upload a `.docx` (parsed fully in-browser — no upload to any server) or paste text; download a formatted APA 7 Word document: title page, headings, double-spaced TNR 12, page numbers, hanging-indent references. Optional AI pass fixes in-text citations and rebuilds the reference list. |
 
 ## How to use
 
 1. Unzip the folder anywhere and double-click `index.html` (or any tool page).
-2. Open **API settings**, pick a provider preset, and paste a key:
+2. Open **API settings** and pick a provider:
+   - **Built-in browser model — free, no key**: downloads an open model (~2 GB) once via WebGPU (Chrome/Edge), then everything runs on your device
    - **OpenAI** — `https://api.openai.com/v1` (e.g. `gpt-4o-mini`)
    - **OpenRouter** — `https://openrouter.ai/api/v1` (any model slug)
    - **Groq** — `https://api.groq.com/openai/v1` (e.g. `llama-3.3-70b-versatile`)
