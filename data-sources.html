@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Data Source Directory — ReWiseEd</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ReWiseEd Research Tools"/>
+<meta property="og:title" content="Data Source Directory — ReWiseEd"/>
+<meta property="og:description" content="Where to find official statistics: World Bank, IMF, Eurostat, OECD, UN, StatCan, ADB, JETRO and more — what each covers, how far back, and how to get the data."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/data-sources"/>
+<meta name="twitter:card" content="summary"/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.src-card { border-bottom: 1px solid var(--border); padding: 16px 0; }
+.src-card:last-child { border-bottom: 0; }
+.src-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.src-head h3 { margin: 0; font-size: 16.5px; }
+.src-card p { font-size: 14px; color: var(--ink-2); margin: 6px 0; line-height: 1.6; }
+.src-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.src-note { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+.filter-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Data Source Directory</h1>
+  <p class="lede">Where to find official statistics for empirical research — what each source actually covers, how far back it goes, and how to get the numbers out. Curated, not scraped.</p>
+</div>
+<main style="max-width:900px">
+  <div class="card">
+    <div class="filter-row">
+      <input id="q" type="search" placeholder="Filter by topic, region, or name — e.g. trade, Asia, inflation" style="max-width:340px" aria-label="Filter sources"/>
+      <span class="chip-row" id="tag-chips"></span>
+    </div>
+    <p class="hint" style="margin:8px 0 0"><span class="badge ok">in-app</span> means you can pull the data inside ReWiseEd right now · <span class="badge">portal</span> means the source has no open API, so the honest answer is a good link.</p>
+  </div>
+  <div class="card"><div id="list"></div></div>
+  <div class="card">
+    <span class="overline">Citing data</span>
+    <h2>How to cite a dataset in APA 7</h2>
+    <p class="hint" style="margin-bottom:0">Organization. (Year). <i>Title of the dataset</i> [Data set]. Publisher/Database. URL — include the retrieval date when the data is updated over time, which is true of nearly every source on this page. The <a href="data-explorer.html">Statistical Data Explorer</a> generates this automatically for World Bank series.</p>
+  </div>
+</main>
+<script src="shared.js"></script>
+<script>
+const { esc, icon } = Rewiseed;
+Rewiseed.renderNav('data-sources.html');
+document.getElementById('hero-icon').innerHTML = icon('globe', 26);
+
+// Curated. "access" reflects what was actually tested from this platform.
+const SOURCES = [
+  { name: 'World Bank Open Data', url: 'https://data.worldbank.org/', access: 'in-app',
+    tags: ['global', 'economics', 'development', 'social'],
+    covers: 'World Development Indicators — 1,500+ maintained series on GDP, consumption, poverty, education, health, trade, environment, and infrastructure for ~217 countries.',
+    span: 'Mostly 1960–present, though coverage thins for older years and small economies.',
+    note: 'Free public API, no key. Available directly in the Statistical Data Explorer. Recent years are often incomplete and figures are revised retroactively.' },
+  { name: 'World Bank Global Consumption Database', url: 'https://datatopics.worldbank.org/consumption/', access: 'portal',
+    tags: ['consumption', 'development', 'household', 'markets'],
+    covers: 'Household consumption patterns by product category, income segment, and urban/rural split for developing countries.',
+    span: 'Benchmark year 2010 for most countries; a snapshot, not a time series.',
+    note: 'Browse-and-download portal — no API. Excellent for base-of-pyramid market sizing; check the vintage before using it as current.' },
+  { name: 'IMF Data', url: 'https://www.imf.org/en/data', access: 'portal',
+    tags: ['global', 'macroeconomics', 'finance', 'forecasts'],
+    covers: 'World Economic Outlook, International Financial Statistics, Balance of Payments, Government Finance Statistics — plus forecasts, which most sources lack.',
+    span: '1980–present for WEO, with projections several years forward.',
+    note: 'The DataMapper API works but blocks browser requests (CORS), so it is a portal link here rather than an in-app query. Best source when you need projections.' },
+  { name: 'Eurostat', url: 'https://ec.europa.eu/eurostat/web/main/home', access: 'portal',
+    tags: ['europe', 'economics', 'social', 'harmonised'],
+    covers: 'Harmonised statistics across EU/EEA states: national accounts, labour, HICP inflation, household budget surveys, R&D, demography.',
+    span: 'Typically 1995–present; some series to the 1970s.',
+    note: 'Open JSON API with no key, and it does allow browser requests — a strong candidate for a future in-app integration. Harmonisation makes cross-EU comparison genuinely valid.' },
+  { name: 'OECD Data Explorer', url: 'https://data-explorer.oecd.org/', access: 'portal',
+    tags: ['oecd', 'economics', 'social', 'comparative'],
+    covers: 'Productivity, employment, education (PISA/PIAAC), health, taxation, R&D, and wellbeing across member and partner economies.',
+    span: 'Varies by dataset; many series from 1970 onward.',
+    note: 'SDMX API, keyless and browser-accessible, but queries need exact dataflow identifiers — powerful once you know the dataset code you want.' },
+  { name: 'UN Data', url: 'https://data.un.org/', access: 'portal',
+    tags: ['global', 'social', 'demography', 'sdg'],
+    covers: 'A gateway across UN agencies: population, SDG indicators, national accounts, energy, gender, crime.',
+    span: 'Series-dependent, many from 1950 onward.',
+    note: 'SDMX endpoints exist but return XML and block browser requests. Treat the portal as the practical route.' },
+  { name: 'Statistics Canada', url: 'https://www.statcan.gc.ca/en/start', access: 'portal',
+    tags: ['canada', 'north america', 'economics', 'social', 'census'],
+    covers: 'One of the most complete national systems: census, labour force survey, CPI, trade, health, business conditions.',
+    span: 'Long historical series; census back to Confederation for some tables.',
+    note: 'Has a real Web Data Service API for table retrieval. Table-level detail exceeds what global aggregators carry.' },
+  { name: 'Asian Development Bank — Data', url: 'https://www.adb.org/what-we-do/data', access: 'portal',
+    tags: ['asia', 'pacific', 'development', 'economics'],
+    covers: 'Key Indicators for Asia and the Pacific, Asian Development Outlook, poverty and infrastructure statistics for ~49 regional members.',
+    span: 'Roughly 1990–present, with annual outlook forecasts.',
+    note: 'No open public API found during testing — download publications and datasets from the portal. Best regional depth for Asia-Pacific.' },
+  { name: 'JETRO Reports', url: 'https://www.jetro.go.jp/en/reports/', access: 'portal',
+    tags: ['japan', 'asia', 'trade', 'business', 'market entry'],
+    covers: 'Japanese trade and investment statistics, market-entry surveys, and country business reports in English.',
+    span: 'Report-based rather than continuous series; recent years emphasised.',
+    note: 'Reports and PDFs, no API. Strong qualitative-plus-quantitative context for trade and market-entry research.' },
+  { name: 'globalEDGE Statistical Data Sources', url: 'https://globaledge.msu.edu/global-resources/statistical-data-sources/', access: 'portal',
+    tags: ['meta', 'global', 'business', 'directory'],
+    covers: 'Michigan State curated index pointing to hundreds of national and international statistical agencies.',
+    span: 'n/a — it is a directory of directories.',
+    note: 'Start here when you need a country statistical office you have never used before.' },
+  { name: 'US Government Statistics (Michigan guide)', url: 'https://guides.lib.umich.edu/govstatistics', access: 'portal',
+    tags: ['united states', 'meta', 'government', 'directory'],
+    covers: 'Library guide to US federal statistics: Census, BLS, BEA, FRED, data.gov and agency-specific sources.',
+    span: 'n/a — guide.',
+    note: 'The clearest map of the fragmented US federal statistical system. FRED in particular is excellent and has a free API.' },
+  { name: 'GGU DBA Research Guide', url: 'https://ggu.libguides.com/dba', access: 'portal',
+    tags: ['dba', 'methods', 'library', 'directory'],
+    covers: 'Golden Gate University guide for doctoral business research: databases, methodology references, dissertation resources.',
+    span: 'n/a — guide.',
+    note: 'Institution-specific; some databases need GGU credentials.' },
+];
+
+const ALL_TAGS = [...new Set(SOURCES.flatMap(s => s.tags))].sort();
+let activeTag = '';
+
+document.getElementById('tag-chips').innerHTML = ALL_TAGS.slice(0, 10)
+  .map(t => `<button type="button" class="chip" data-tag="${esc(t)}">${esc(t)}</button>`).join('');
+
+function render() {
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const list = SOURCES.filter(s => {
+    const hay = (s.name + ' ' + s.covers + ' ' + s.note + ' ' + s.tags.join(' ')).toLowerCase();
+    return (!q || q.split(/\s+/).every(t => hay.includes(t))) && (!activeTag || s.tags.includes(activeTag));
+  });
+  document.getElementById('list').innerHTML = list.length ? list.map(s => `
+    <div class="src-card">
+      <div class="src-head">
+        <h3><a class="link" style="font-size:16.5px" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.name)} ${icon('external', 12)}</a></h3>
+        <span class="badge ${s.access === 'in-app' ? 'ok' : ''}">${s.access}</span>
+      </div>
+      <p>${esc(s.covers)}</p>
+      <p class="src-note"><b>Coverage:</b> ${esc(s.span)}</p>
+      <p class="src-note">${esc(s.note)}</p>
+      <div class="src-meta">${s.tags.map(t => `<span class="badge">${esc(t)}</span>`).join('')}</div>
+    </div>`).join('')
+    : `<p class="hint" style="margin:0">No source matches that filter. Try a broader term, or clear the tag.</p>`;
+}
+document.getElementById('q').addEventListener('input', render);
+document.getElementById('tag-chips').querySelectorAll('[data-tag]').forEach(b => b.onclick = () => {
+  activeTag = activeTag === b.dataset.tag ? '' : b.dataset.tag;
+  document.querySelectorAll('#tag-chips .chip').forEach(c => c.classList.toggle('on', c.dataset.tag === activeTag));
+  render();
+});
+render();
+</script>
+</body>
+</html>

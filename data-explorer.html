@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Statistical Data Explorer — ReWiseEd</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ReWiseEd Research Tools"/>
+<meta property="og:title" content="Statistical Data Explorer — ReWiseEd"/>
+<meta property="og:description" content="Search 1,500+ World Bank development indicators across countries and years — table, trend chart, CSV export, and a proper APA dataset citation. No API key."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/data-explorer"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Statistical Data Explorer — ReWiseEd"/>
+<meta name="twitter:description" content="Official statistics for your research — keyless, with citations and CSV export."/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.ind-list { max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-top: 8px; }
+.ind-item { display: block; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--border); padding: 10px 12px; font-size: 13.5px; color: var(--ink); min-height: 0; border-radius: 0; }
+button.ind-item:hover:not(:disabled) { background: var(--surface-2); box-shadow: none; transform: none; }
+.ind-item.on { background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
+.ind-item small { display: block; color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+.country-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.country-chips .chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-strong); }
+.data-table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+.data-table th, .data-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); text-align: right; font-variant-numeric: tabular-nums; }
+.data-table th:first-child, .data-table td:first-child { text-align: left; font-weight: 600; }
+.data-table thead th { background: var(--surface-2); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.cite-box { background: var(--surface-2); border-left: 3px solid var(--accent); padding: 12px 14px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; font-size: 13.5px; line-height: 1.6; margin-top: 12px; overflow-wrap: anywhere; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; margin-top: 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); }
+.legend i { width: 12px; height: 3px; border-radius: 2px; display: inline-block; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Statistical Data Explorer</h1>
+  <p class="lede">Search 1,500+ World Bank development indicators, compare countries across years, and take away a table, a trend chart, a CSV, and a properly formatted dataset citation. Free and keyless.</p>
+</div>
+<main style="max-width:1000px">
+  <div class="card">
+    <span class="overline">Step 1 · Indicator</span>
+    <h2>Find an indicator</h2>
+    <p class="hint">Search the World Bank's World Development Indicators — GDP, inflation, consumption, education, health, trade, and more.</p>
+    <div class="search-row">
+      <input id="ind-q" type="search" autocomplete="off" placeholder="e.g. household consumption, GDP growth, literacy rate" aria-label="Indicator search"/>
+      <button id="ind-search"></button>
+    </div>
+    <div class="field-foot">
+      <span class="chip-row">
+        <button type="button" class="chip" data-ind="NE.CON.PRVT.ZS|Household final consumption expenditure (% of GDP)">Consumption % GDP</button>
+        <button type="button" class="chip" data-ind="NY.GDP.MKTP.KD.ZG|GDP growth (annual %)">GDP growth</button>
+        <button type="button" class="chip" data-ind="FP.CPI.TOTL.ZG|Inflation, consumer prices (annual %)">Inflation</button>
+        <button type="button" class="chip" data-ind="IT.NET.USER.ZS|Individuals using the Internet (% of population)">Internet use</button>
+      </span>
+    </div>
+    <div id="ind-results"></div>
+    <div id="ind-chosen" class="hint" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <span class="overline">Step 2 · Countries &amp; years</span>
+    <h2>Choose what to compare</h2>
+    <div class="row" style="gap:14px;margin-top:0">
+      <label class="field-label" style="margin:0" for="c-add">Add country</label>
+      <input id="c-add" list="c-list" placeholder="Type a country…" style="max-width:240px" aria-label="Add country"/>
+      <datalist id="c-list"></datalist>
+      <label class="field-label" style="margin:0" for="y-from">From</label>
+      <input id="y-from" type="number" min="1960" max="2030" value="2014" style="width:92px" aria-label="From year"/>
+      <label class="field-label" style="margin:0" for="y-to">To</label>
+      <input id="y-to" type="number" min="1960" max="2030" value="2023" style="width:92px" aria-label="To year"/>
+    </div>
+    <div class="country-chips" id="c-chips"></div>
+    <div class="row">
+      <button id="run"></button>
+      <span class="hint" style="margin:0">Data: World Bank Open Data · keyless</span>
+    </div>
+  </div>
+
+  <div id="out"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+const { esc, icon, toast } = Rewiseed;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('data-explorer.html');
+$('hero-icon').innerHTML = icon('chart', 26);
+$('ind-search').innerHTML = `${icon('search', 16)} Search`;
+$('run').innerHTML = `${icon('chart', 15)} Get data`;
+
+const WB = 'https://api.worldbank.org/v2';
+// The World Bank API is frequently slow (30-60s). Route through the platform's
+// caching proxy when it's available — repeat queries then return instantly —
+// and fall back to a direct browser call for the offline/static bundle.
+let proxyOk = null;
+async function wbFetch(url, opts = {}) {
+  if (proxyOk !== false) {
+    try {
+      const r = await Rewiseed.fetchWithTimeout(`/api/data?url=${encodeURIComponent(url)}`, { timeout: 80000, ...opts });
+      if (r.ok) { proxyOk = true; return r; }
+      if (r.status === 403 || r.status === 404) proxyOk = false;   // no proxy here
+      else return r;                                              // real upstream error, surface it
+    } catch (e) {
+      if (e?.name === 'AbortError') throw e;
+      proxyOk = false;
+    }
+  }
+  return Rewiseed.fetchWithTimeout(url, { timeout: 80000, ...opts });
+}
+let indicator = null;              // {id, name, sourceNote, sourceOrganization}
+let countries = [];                // [{id, name}]
+let allCountries = [];
+let lastResult = null;
+
+// ---------- countries ----------
+(async function loadCountries() {
+  try {
+    const r = await wbFetch(`${WB}/country?format=json&per_page=400`);
+    const j = await r.json();
+    allCountries = (j[1] || []).filter(c => c.region?.id !== 'NA').map(c => ({ id: c.id, name: c.name }));
+    $('c-list').innerHTML = allCountries.map(c => `<option value="${esc(c.name)}"></option>`).join('');
+    ['United States', 'India', 'Germany'].forEach(n => { const c = allCountries.find(x => x.name === n); if (c) addCountry(c); });
+  } catch { toast('Could not load the country list — check your connection.', 'error'); }
+})();
+
+function addCountry(c) {
+  if (countries.length >= 8) { toast('Up to 8 countries at a time', 'error'); return; }
+  if (countries.some(x => x.id === c.id)) return;
+  countries.push(c);
+  renderChips();
+}
+function renderChips() {
+  $('c-chips').innerHTML = countries.length
+    ? countries.map(c => `<button type="button" class="chip on" data-rm="${esc(c.id)}">${esc(c.name)} ✕</button>`).join('')
+    : `<span class="hint" style="margin:0">No countries selected — add at least one.</span>`;
+  $('c-chips').querySelectorAll('[data-rm]').forEach(b => b.onclick = () => {
+    countries = countries.filter(c => c.id !== b.dataset.rm);
+    renderChips();
+  });
+}
+$('c-add').addEventListener('change', () => {
+  const c = allCountries.find(x => x.name.toLowerCase() === $('c-add').value.trim().toLowerCase());
+  if (c) { addCountry(c); $('c-add').value = ''; }
+  else if ($('c-add').value.trim()) toast('Pick a country from the list', 'error');
+});
+
+// ---------- indicator search ----------
+function chooseIndicator(ind) {
+  indicator = ind;
+  $('ind-chosen').innerHTML = `${icon('check', 13)} Selected: <b>${esc(ind.name)}</b> <span style="color:var(--muted)">(${esc(ind.id)})</span>`;
+  document.querySelectorAll('.ind-item').forEach(b => b.classList.toggle('on', b.dataset.id === ind.id));
+}
+document.querySelectorAll('.chip[data-ind]').forEach(c => c.onclick = () => {
+  const [id, name] = c.dataset.ind.split('|');
+  chooseIndicator({ id, name });
+  $('ind-results').innerHTML = '';
+});
+
+$('ind-search').onclick = async () => {
+  const q = $('ind-q').value.trim().toLowerCase();
+  if (!q) { toast('Type something to search for', 'error'); $('ind-q').focus(); return; }
+  const btn = $('ind-search'); btn.disabled = true;
+  $('ind-results').innerHTML = `<div class="stream-status" style="margin-top:10px"><span class="spinner"></span>Searching indicators…</div>`;
+  try {
+    // WDI source=2 keeps results to the maintained development-indicator set
+    const r = await wbFetch(`${WB}/indicator?format=json&per_page=1500&source=2`);
+    if (!r.ok) throw new Error(`World Bank returned ${r.status}`);
+    const j = await r.json();
+    const terms = q.split(/\s+/);
+    const hits = (j[1] || [])
+      .filter(i => { const hay = (i.name + ' ' + (i.sourceNote || '')).toLowerCase(); return terms.every(t => hay.includes(t)); })
+      .slice(0, 40);
+    if (!hits.length) {
+      $('ind-results').innerHTML = `<p class="hint" style="margin-top:10px">No indicator matched “${esc(q)}”. Try broader words like “consumption”, “GDP”, or “employment”.</p>`;
+      return;
+    }
+    $('ind-results').innerHTML = `<div class="ind-list">${hits.map(i => `
+      <button type="button" class="ind-item" data-id="${esc(i.id)}" data-name="${esc(i.name)}" data-note="${esc((i.sourceNote || '').slice(0, 300))}" data-org="${esc(i.sourceOrganization || '')}">
+        ${esc(i.name)}<small>${esc(i.id)}${i.sourceNote ? ' — ' + esc(i.sourceNote.slice(0, 110)) + '…' : ''}</small>
+      </button>`).join('')}</div>
+      <p class="hint" style="margin:8px 0 0">${hits.length} match${hits.length === 1 ? '' : 'es'} shown${hits.length === 40 ? ' (top 40)' : ''}.</p>`;
+    $('ind-results').querySelectorAll('.ind-item').forEach(b => b.onclick = () => chooseIndicator({
+      id: b.dataset.id, name: b.dataset.name, sourceNote: b.dataset.note, sourceOrganization: b.dataset.org,
+    }));
+  } catch (e) {
+    $('ind-results').innerHTML = `<div class="error-box" style="margin-top:10px">${icon('alert', 16)}<span>${esc(e.message)}. Check your connection and try again.</span></div>`;
+  } finally { btn.disabled = false; }
+};
+$('ind-q').addEventListener('keydown', e => { if (e.key === 'Enter') $('ind-search').click(); });
+
+// ---------- fetch + render ----------
+const fmt = (v) => v === null || v === undefined ? '—' :
+  (Math.abs(v) >= 1e9 ? (v / 1e9).toFixed(2) + 'B' : Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : Math.abs(v) >= 1000 ? v.toLocaleString(undefined, { maximumFractionDigits: 0 }) : v.toFixed(2));
+const COLORS = ['#96600b', '#1e6091', '#7a4e08', '#2a7f62', '#8c3b3b', '#4b3f72', '#a8651a', '#37633b'];
+
+function chartSvg(series, years) {
+  const vals = series.flatMap(s => s.points.map(p => p.value)).filter(v => v !== null && v !== undefined);
+  if (!vals.length) return `<p class="hint">No numeric values to plot for this selection.</p>`;
+  const W = 860, H = 320, P = { l: 62, r: 16, t: 16, b: 36 };
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const pad = (max - min) * 0.08 || Math.abs(max || 1) * 0.1;
+  const lo = min - pad, hi = max + pad;
+  const x = (i) => P.l + (years.length === 1 ? (W - P.l - P.r) / 2 : i * (W - P.l - P.r) / (years.length - 1));
+  const y = (v) => H - P.b - ((v - lo) / (hi - lo || 1)) * (H - P.t - P.b);
+  const ticks = 4;
+  const grid = Array.from({ length: ticks + 1 }, (_, k) => {
+    const v = lo + (hi - lo) * k / ticks;
+    return `<line x1="${P.l}" y1="${y(v)}" x2="${W - P.r}" y2="${y(v)}" stroke="var(--border)" stroke-width="1"/>
+            <text x="${P.l - 8}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${fmt(v)}</text>`;
+  }).join('');
+  const xLabels = years.map((yr, i) => (years.length > 12 && i % 2) ? '' :
+    `<text x="${x(i)}" y="${H - 12}" text-anchor="middle" font-size="11" fill="var(--muted)">${yr}</text>`).join('');
+  const lines = series.map((s, si) => {
+    const pts = s.points.map((p, i) => p.value === null || p.value === undefined ? null : `${x(i)},${y(p.value)}`).filter(Boolean);
+    if (!pts.length) return '';
+    const dots = s.points.map((p, i) => p.value === null || p.value === undefined ? '' :
+      `<circle cx="${x(i)}" cy="${y(p.value)}" r="3" fill="${COLORS[si % COLORS.length]}"><title>${esc(s.name)} ${years[i]}: ${p.value}</title></circle>`).join('');
+    return `<polyline points="${pts.join(' ')}" fill="none" stroke="${COLORS[si % COLORS.length]}" stroke-width="2.5" stroke-linejoin="round"/>${dots}`;
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="Trend chart">${grid}${xLabels}${lines}</svg>
+    <div class="legend">${series.map((s, i) => `<span><i style="background:${COLORS[i % COLORS.length]}"></i>${esc(s.name)}</span>`).join('')}</div>`;
+}
+
+function apaCitation(ind, years) {
+  const yr = new Date().getFullYear();
+  const accessed = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  return `World Bank. (${yr}). <i>${esc(ind.name)}</i> [Data set]. World Development Indicators. Retrieved ${accessed}, from https://data.worldbank.org/indicator/${esc(ind.id)}`;
+}
+
+let inFlight = null;
+$('run').onclick = async () => {
+  if (inFlight) { inFlight.abort(); return; }   // acts as Cancel while running
+  if (!indicator) { toast('Choose an indicator first', 'error'); $('ind-q').focus(); return; }
+  if (!countries.length) { toast('Add at least one country', 'error'); $('c-add').focus(); return; }
+  let from = parseInt($('y-from').value, 10), to = parseInt($('y-to').value, 10);
+  if (!from || !to) { toast('Enter both years', 'error'); return; }
+  if (from > to) { [from, to] = [to, from]; $('y-from').value = from; $('y-to').value = to; toast('Years swapped to run oldest → newest'); }
+  if (to - from > 60) { toast('Range limited to 60 years', 'error'); return; }
+  const btn = $('run');
+  inFlight = new AbortController();
+  btn.innerHTML = `${icon('stop', 15)} Cancel`;
+  btn.classList.add('danger');
+  const out = $('out');
+  out.innerHTML = `<div class="card"><div class="stream-status"><span class="spinner"></span><span id="fetch-status">Fetching from the World Bank…</span></div></div>`;
+  const started = Date.now();
+  const ticker = setInterval(() => {
+    const s = Math.round((Date.now() - started) / 1000);
+    const el = $('fetch-status');
+    if (el) el.textContent = s < 8 ? 'Fetching from the World Bank…'
+      : `Still fetching (${s}s) — the World Bank API is often slow on a first request. Cached afterwards. Cancel anytime.`;
+  }, 1000);
+  try {
+    const iso = countries.map(c => c.id).join(';');
+    const r = await wbFetch(
+      `${WB}/country/${iso}/indicator/${encodeURIComponent(indicator.id)}?format=json&date=${from}:${to}&per_page=2000`,
+      { signal: inFlight.signal });
+    if (!r.ok) {
+      let msg = `World Bank returned ${r.status}`;
+      try { const j = await r.json(); if (j.error) msg = j.error; } catch {}
+      throw new Error(msg);
+    }
+    const j = await r.json();
+    if (j[0] && j[0].message) throw new Error(j[0].message[0]?.value || 'The World Bank rejected that query.');
+    const rows = j[1] || [];
+    const years = []; for (let y = from; y <= to; y++) years.push(String(y));
+    const series = countries.map(c => ({
+      id: c.id, name: c.name,
+      points: years.map(y => {
+        const hit = rows.find(x => (x.countryiso3code === c.id || x.country?.id === c.id) && x.date === y);
+        return { year: y, value: hit && hit.value !== null ? hit.value : null };
+      }),
+    }));
+    const anyData = series.some(s => s.points.some(p => p.value !== null));
+    lastResult = { indicator, series, years };
+
+    out.innerHTML = `
+      <div class="card">
+        <span class="overline">Result · World Bank Open Data</span>
+        <h2>${esc(indicator.name)}</h2>
+        <p class="hint">${esc(indicator.id)} · ${countries.length} ${countries.length === 1 ? 'country' : 'countries'} · ${from}–${to}${indicator.sourceOrganization ? ' · Source: ' + esc(indicator.sourceOrganization.slice(0, 120)) : ''}</p>
+        ${anyData ? '' : `<div class="error-box" style="margin:12px 0">${icon('alert', 16)}<span>The World Bank has no values for this indicator, country, and period combination. Try a wider year range or different countries — coverage varies a lot by indicator.</span></div>`}
+        ${anyData ? `<div class="graph-wrap" style="padding:10px 4px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)">${chartSvg(series, years)}</div>` : ''}
+        <div class="tbl-wrap" style="margin-top:14px"><table class="data-table">
+          <thead><tr><th>Country</th>${years.map(y => `<th>${y}</th>`).join('')}</tr></thead>
+          <tbody>${series.map(s => `<tr><td>${esc(s.name)}</td>${s.points.map(p => `<td>${p.value === null ? '<span style="color:var(--muted)">—</span>' : fmt(p.value)}</td>`).join('')}</tr>`).join('')}</tbody>
+        </table></div>
+        <p class="hint" style="margin:8px 0 0">“—” means the World Bank reports no value for that country-year (not zero). Recent years are often incomplete, and some series are revised retroactively.</p>
+        <span class="overline" style="margin-top:16px;display:block">Cite this dataset</span>
+        <div class="cite-box" id="cite-apa">${apaCitation(indicator, years)}</div>
+        <div class="row">
+          <button class="ghost" id="dl-csv">${icon('download', 15)} Download CSV</button>
+          <button class="ghost" id="copy-cite">${icon('copy', 15)} Copy citation</button>
+          <button class="ghost" id="save-lib">${icon('library', 15)} Save to library</button>
+        </div>
+      </div>`;
+
+    $('dl-csv').onclick = () => {
+      const head = ['Country', 'ISO3', ...years].join(',');
+      const body = series.map(s => [`"${s.name.replace(/"/g, '""')}"`, s.id, ...s.points.map(p => p.value === null ? '' : p.value)].join(',')).join('\n');
+      const meta = `# ${indicator.name} (${indicator.id})\n# Source: World Bank World Development Indicators\n# Retrieved: ${new Date().toISOString().slice(0, 10)}\n`;
+      Rewiseed.downloadText(`${indicator.id}-${from}-${to}.csv`, meta + head + '\n' + body);
+    };
+    $('copy-cite').onclick = (e) => Rewiseed.copyText($('cite-apa').textContent.trim(), e.currentTarget);
+    $('save-lib').onclick = (e) => Rewiseed.saveToLibrary({
+      title: `${indicator.name} [Data set] — ${countries.map(c => c.name).join(', ')}, ${from}–${to}`,
+      authors: 'World Bank', year: new Date().getFullYear(),
+      venue: 'World Development Indicators',
+      url: `https://data.worldbank.org/indicator/${indicator.id}`,
+    }, e.currentTarget);
+    Rewiseed.track('search');
+  } catch (e) {
+    const cancelled = e?.name === 'AbortError' && !String(e.message).includes('longer than');
+    out.innerHTML = cancelled
+      ? `<div class="card"><p class="hint" style="margin:0">Request cancelled.</p></div>`
+      : `<div class="card"><div class="error-box">${icon('alert', 18)}<span>${esc(e.message)}</span></div></div>`;
+  } finally {
+    clearInterval(ticker);
+    inFlight = null;
+    btn.classList.remove('danger');
+    btn.innerHTML = `${icon('chart', 15)} Get data`;
+  }
+};
+</script>
+</body>
+</html>

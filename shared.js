@@ -116,6 +116,8 @@
     pen: 'M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z',
     library: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5zM9 7h6M9 11h6',
     graph: 'M12 3v6m0 6v6M5 8l4 3m6 2l4 3M5 16l4-3m6-2l4-3M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 3a1.5 1.5 0 1 0 0.01 0zM12 21a1.5 1.5 0 1 0 .01 0zM5 8a1.5 1.5 0 1 0 .01 0zM19 8a1.5 1.5 0 1 0 .01 0zM5 16a1.5 1.5 0 1 0 .01 0zM19 16a1.5 1.5 0 1 0 .01 0z',
+    chart: 'M3 3v16a2 2 0 0 0 2 2h16M7 16l4-6 4 3 5-8',
+    globe: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z',
   };
 
   function icon(name, size = 20) {
@@ -140,6 +142,21 @@
     return theme;
   }
   initTheme();
+
+  // ---------- fetch with timeout (external APIs can hang indefinitely) ----------
+  async function fetchWithTimeout(url, { timeout = 20000, signal } = {}) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(new DOMException('timeout', 'TimeoutError')), timeout);
+    if (signal) signal.addEventListener('abort', () => ctrl.abort(signal.reason), { once: true });
+    try {
+      return await fetch(url, { signal: ctrl.signal });
+    } catch (e) {
+      if (e?.name === 'TimeoutError' || ctrl.signal.reason?.name === 'TimeoutError') {
+        throw new Error(`The request took longer than ${Math.round(timeout / 1000)}s and was stopped. The data service may be busy — try a narrower query.`);
+      }
+      throw e;
+    } finally { clearTimeout(timer); }
+  }
 
   // ---------- reference library save (available on any page) ----------
   async function saveToLibrary(paper, btn) {
@@ -196,6 +213,8 @@
     { href: 'doi-finder.html', icon: 'doi', name: 'DOI Finder & Lookup' },
     { href: 'originality-checker.html', icon: 'shield', name: 'Originality & AI Checker' },
     { href: 'literature-matrix.html', icon: 'grid', name: 'Literature Synthesis Matrix' },
+    { href: 'data-explorer.html', icon: 'chart', name: 'Statistical Data Explorer' },
+    { href: 'data-sources.html', icon: 'globe', name: 'Data Source Directory' },
     { href: 'research-gap-identifier.html', icon: 'gap', name: 'Research Gap Identifier' },
     { href: 'research-question-generator.html', icon: 'flask', name: 'Research Question Generator' },
     { href: 'instrument-designer.html', icon: 'clipboard', name: 'Survey & Interview Designer' },
@@ -795,6 +814,6 @@
     renderNav, renderSettingsBar, openSettings,
     callLLM, md, esc, icon, toast, track,
     downloadText, copyText, getCfg, isLocalUrl,
-    mountStreamingTool, playIntro, saveToLibrary,
+    mountStreamingTool, playIntro, saveToLibrary, fetchWithTimeout,
   };
 })();

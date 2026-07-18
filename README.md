@@ -9,6 +9,8 @@ Five standalone research tools that run **entirely in your browser**. No server,
 | Smart Literature Finder | `smart-literature-finder.html` | Search 240M+ scholarly works via OpenAlex (keyless). Year/open-access filters, citation sorting, BibTeX export, optional AI relevance rerank. |
 | DOI Finder & Lookup | `doi-finder.html` | Paste a DOI to get the full paper record (metadata, abstract, citation, BibTeX) — or paste messy references and find their DOIs via Crossref, with match-confidence checks. Keyless. |
 | Originality & AI Checker | `originality-checker.html` | Stylometric signals (burstiness, vocabulary variety, stock phrases), scholarly-overlap scan against OpenAlex, and an optional LLM forensic AI-writing assessment. Honest about limits — signals, not verdicts. |
+| Statistical Data Explorer | `data-explorer.html` | Search 1,500+ World Bank indicators, compare countries/years, trend chart, CSV export with provenance, APA dataset citation. Keyless; routed through a caching proxy for speed. |
+| Data Source Directory | `data-sources.html` | Curated guide to official statistics (World Bank, IMF, Eurostat, OECD, UN, StatCan, ADB, JETRO, globalEDGE, US federal) with coverage and access notes. |
 | Citation Graph Explorer | `citation-graph.html` | Walk a paper's citation network — references and citing works — as a clickable graph. Keyless via OpenAlex. |
 | Academic Writing Polisher | `writing-polisher.html` | Polish tone, tighten clarity, generate abstracts or title options — with every substantive edit explained. |
 | My Library | `library.html` | Signed-in users save papers from any finder tool, add notes, export BibTeX, and send the set into the pipeline. |

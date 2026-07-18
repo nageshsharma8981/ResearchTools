@@ -82,6 +82,7 @@ const TOOL_IDS = new Set([
   'research-gap-identifier', 'research-question-generator', 'instrument-designer',
   'qualitative-coding-assistant', 'peer-review-simulator', 'citation-formatter', 'apa-formatter',
   'stats-advisor', 'literature-matrix', 'writing-polisher', 'citation-graph',
+  'data-explorer', 'data-sources',
 ]);
 // things that report usage but are not grantable/gateable pages
 const TRACKABLE = new Set([...TOOL_IDS, 'assistant', 'library']);
@@ -480,6 +481,47 @@ app.put('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
   db.prepare(`UPDATE users SET ${sets} WHERE id=?`).run(...Object.values(updates), target.id);
   if (updates.disabled) db.prepare('DELETE FROM sessions WHERE user_id = ?').run(target.id);
   res.json({ user: publicUser(db.prepare('SELECT * FROM users WHERE id=?').get(target.id), true) });
+});
+
+// ---------- statistics proxy (public data only, cached) ----------
+// The World Bank API has been observed at 38-60s per query; caching here makes
+// repeat queries instant and shields users from upstream slowness. Only public
+// statistical data passes through — never user content.
+const statsCache = new Map();          // url -> { at, body }
+const STATS_TTL = 6 * 3600_000;
+const STATS_HOSTS = new Set(['api.worldbank.org', 'ec.europa.eu', 'sdmx.oecd.org']);
+setInterval(() => {
+  const t = now();
+  for (const [k, v] of statsCache) if (t - v.at > STATS_TTL) statsCache.delete(k);
+}, 3600_000).unref();
+
+app.get('/api/data', async (req, res) => {
+  if (!rateLimit('data:' + req.ip, 120, 15 * 60_000)) return res.status(429).json({ error: 'Too many data requests — wait a few minutes.' });
+  const target = String(req.query.url || '');
+  let u;
+  try { u = new URL(target); } catch { return res.status(400).json({ error: 'Invalid url parameter.' }); }
+  if (u.protocol !== 'https:' || !STATS_HOSTS.has(u.hostname)) {
+    return res.status(403).json({ error: 'Only approved public statistics hosts are proxied.' });
+  }
+  const key = u.toString();
+  const hit = statsCache.get(key);
+  if (hit && now() - hit.at < STATS_TTL) {
+    res.setHeader('X-Cache', 'HIT');
+    return res.type('application/json').send(hit.body);
+  }
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 75_000);
+    const r = await fetch(key, { signal: ctrl.signal, headers: { 'User-Agent': 'ReWiseEd-Research/1.0 (+https://www.itsmyresearch.com)' } });
+    clearTimeout(timer);
+    const body = await r.text();
+    if (!r.ok) return res.status(r.status).json({ error: `Upstream returned ${r.status}.` });
+    if (body.length < 5_000_000) statsCache.set(key, { at: now(), body });
+    res.setHeader('X-Cache', 'MISS');
+    res.type('application/json').send(body);
+  } catch (e) {
+    res.status(504).json({ error: 'The statistics service did not respond in time. It is often slow — please try again shortly.' });
+  }
 });
 
 // ---------- reference library ----------

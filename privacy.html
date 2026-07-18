@@ -49,6 +49,7 @@
       <li><b>Railway</b> hosts the Service (application and database).</li>
       <li><b>Resend</b> delivers our transactional email (confirmation and password reset) from noreply@rewiseed.com. They process your email address for that purpose.</li>
       <li><b>OpenAlex and Crossref</b> receive search queries directly from your browser when you use the keyless scholarly tools. Those queries are subject to their policies.</li>
+      <li><b>Statistical data services</b> (World Bank, and in future Eurostat and OECD) are reached through a caching proxy on our server, because those APIs are often too slow to call directly. Only the public statistical query passes through — an indicator code, country codes, and years. No document, transcript, or personal content is ever sent, and responses are cached briefly to speed up repeat queries.</li>
       <li><b>Your AI provider</b> (OpenAI, OpenRouter, Groq, Together, or a local model) receives the content you submit through BYOK tools, directly from your browser, under your agreement with them.</li>
       <li><b>Hugging Face's CDN</b> serves the model weights (~2 GB, one time, then cached on your device) if you choose the free built-in browser model. With that option your content is processed entirely on your own device — no AI provider receives it at all.</li>
       <li>We do not sell personal data, and we do not share it with anyone else except as required by law.</li>
