@@ -119,6 +119,7 @@
     nav.className = 'topnav';
     nav.innerHTML = `
       <a class="brand" href="index.html">${icon('logo', 22)}<span>ReWiseEd Research</span></a>
+      ${activeHref !== 'index.html' ? `<a class="nav-home" href="index.html">${icon('home', 16)}<span>Home</span></a>` : ''}
       <div class="spacer"></div>
       <details class="tool-menu">
         <summary aria-label="Switch tool">Tools ${icon('chevron', 15)}</summary>

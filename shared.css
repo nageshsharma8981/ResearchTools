@@ -541,6 +541,16 @@ button.cap-item:hover:not(:disabled) { background: var(--surface); border-color:
 .avatar-btn:hover { border-color: var(--accent); }
 .nav-signin { font-size: 13.5px; font-weight: 600; color: var(--ink-2); text-decoration: none; padding: 8px 12px; border-radius: var(--radius-sm); }
 .nav-signin:hover { background: var(--surface-2); color: var(--ink); }
+.nav-home {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13.5px; font-weight: 600; color: var(--ink-2);
+  text-decoration: none; padding: 8px 12px; margin-left: 4px;
+  border: 1px solid var(--border); border-radius: 999px;
+  transition: border-color var(--transition), color var(--transition), background var(--transition);
+}
+.nav-home:hover { border-color: var(--accent); color: var(--accent-strong); background: var(--surface-2); }
+.nav-home svg { color: var(--accent); }
+@media (max-width: 640px) { .nav-home span { display: none; } .nav-home { padding: 8px 10px; } }
 
 /* ---------- Progress bar (batch operations) ---------- */
 .progress-track {
