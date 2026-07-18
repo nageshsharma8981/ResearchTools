@@ -37,6 +37,13 @@
       </label>
       <label><input id="oa-only" type="checkbox" style="width:auto;vertical-align:-2px"/> Open access only</label>
     </div>
+    <div class="field-foot" style="margin-top:12px">
+      <span class="chip-row">
+        <button type="button" class="chip" data-q="transformer architectures for low-resource machine translation">Try: low-resource MT</button>
+        <button type="button" class="chip" data-q="microplastics effects on human health">Try: microplastics &amp; health</button>
+        <button type="button" class="chip" data-q="spaced repetition long-term retention">Try: spaced repetition</button>
+      </span>
+    </div>
   </div>
   <div id="toolbar"></div>
   <div id="out"></div>
@@ -61,6 +68,13 @@ function reconstructAbstract(inv) {
 
 const $ = (id) => document.getElementById(id);
 $('q').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('search').click(); });
+document.querySelectorAll('.chip[data-q]').forEach(c => c.onclick = () => { $('q').value = c.dataset.q; $('search').click(); });
+$('out').innerHTML = `
+  <div class="empty-state-card">
+    ${icon('search', 30)}
+    <span class="es-title">Search 240M+ scholarly works</span>
+    <p>Results appear here with citation counts, open-access links, year filters, BibTeX export, and optional AI reranking. Try one of the sample queries above.</p>
+  </div>`;
 
 function skeletons(n = 5) {
   return Array.from({ length: n }, () =>
