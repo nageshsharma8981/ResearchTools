@@ -15,9 +15,19 @@
 </script>
 </head>
 <body>
-<div class="hero">
-  <h1 style="font-size:clamp(30px,5vw,44px)">ReWiseEd Research Tools</h1>
-  <p class="lede">A private research workbench that runs entirely in your browser. No server, no account, no tracking — bring your own AI key, or run a free local model.</p>
+<div class="hero landing">
+  <h1>Research, done <span class="accent-word">properly.</span></h1>
+  <p class="lede">ReWiseEd Research Tools is a private research workbench that runs entirely in your browser. No server, no account, no tracking — bring your own AI key, or run a free local model.</p>
+  <div class="stat-row">
+    <div class="stat"><b>240M+</b><span>papers searchable</span></div>
+    <div class="stat"><b>6</b><span>research tools</span></div>
+    <div class="stat"><b>100%</b><span>private &amp; local</span></div>
+    <div class="stat"><b>$0</b><span>with a local model</span></div>
+  </div>
+  <div class="provider-strip" aria-label="Works with">
+    <span class="pill">OpenAI</span><span class="pill">OpenRouter</span><span class="pill">Groq</span>
+    <span class="pill">Together</span><span class="pill">Ollama · free</span><span class="pill">LM Studio · free</span>
+  </div>
 </div>
 <main>
   <div id="tools" class="tools-grid"></div>
@@ -38,7 +48,30 @@
     <p class="hint" style="margin-bottom:0">No analytics, no telemetry, no backend. Your API key and drafts live only in this browser's local storage. The only network traffic is to the LLM endpoint you configure — and, for the literature finder, the free OpenAlex scholarly index.</p>
   </div>
 </main>
-<footer class="site">ReWiseEd Research Tools · offline bundle · works with OpenAI, OpenRouter, Groq, Together, Ollama &amp; LM Studio</footer>
+<footer class="site-foot">
+  <div class="foot-grid">
+    <div>
+      <span class="foot-brand" id="foot-brand"></span>
+      <p>A quietly powerful suite for serious research. Everything runs in your browser; your keys and drafts never leave it.</p>
+    </div>
+    <div>
+      <h4>Tools</h4>
+      <ul>
+        <li><a href="smart-literature-finder.html">Literature Finder</a></li>
+        <li><a href="doi-finder.html">DOI Finder &amp; Lookup</a></li>
+        <li><a href="research-gap-identifier.html">Gap Identifier</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>&nbsp;</h4>
+      <ul>
+        <li><a href="qualitative-coding-assistant.html">Qualitative Coding</a></li>
+        <li><a href="peer-review-simulator.html">Peer Review Simulator</a></li>
+        <li><a href="citation-formatter.html">Citation Formatter</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
 <script src="shared.js"></script>
 <script>
 Rewiseed.renderNav('index.html');
@@ -56,6 +89,7 @@ const TILES = [
   { href: 'citation-formatter.html', icon: 'book', name: 'Citation Formatter',
     desc: 'Turn messy references into clean APA, MLA, Chicago, Harvard, IEEE, or Vancouver bibliographies.' },
 ];
+document.getElementById('foot-brand').innerHTML = `${Rewiseed.icon('logo', 20)} ReWiseEd Research`;
 document.getElementById('tools').innerHTML = TILES.map(t => `
   <a class="tool-tile" href="${t.href}">
     <span class="tile-icon">${Rewiseed.icon(t.icon, 22)}</span>

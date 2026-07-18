@@ -493,6 +493,15 @@
     let lastOutput = '';
     let abort = null;
 
+    // designed empty state so the output column never sits blank
+    const emptyState = `
+      <div class="empty-state-card">
+        ${icon('sparkle', 30)}
+        <span class="es-title">${esc(resultTitle)}</span>
+        <p>Paste your material, press <b>${esc(runLabel)}</b>, and the analysis will stream in right here.</p>
+      </div>`;
+    if (!out.innerHTML.trim()) out.innerHTML = emptyState;
+
     // restore + persist draft
     const draftKey = LS_DRAFT_PREFIX + toolId;
     const saved = localStorage.getItem(draftKey);
@@ -578,7 +587,7 @@
             $(`${toolId}-copy`).onclick = (e) => copyText(lastOutput, e.currentTarget);
             $(`${toolId}-dl`).onclick = () => downloadText(downloadName, lastOutput);
           } else {
-            out.innerHTML = '';
+            out.innerHTML = emptyState;
           }
         } else {
           streamEl.innerHTML = `<div class="error-box">${icon('alert', 18)}<span>${esc(e.message)}</span></div>`;
