@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Smart Literature Finder — Offline</title>
+<link rel="stylesheet" href="shared.css"/>
+<style>
+.paper{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:10px}
+.paper h3{margin:0 0 4px;font-size:15px}
+.meta{font-size:12px;color:#64748b;margin:2px 0 6px}
+.abstract{font-size:13px;color:#334155;margin:6px 0}
+.badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.badge{font-size:11px;background:#e0e7ff;color:#1e3a8a;padding:2px 8px;border-radius:999px;font-weight:600}
+.badge.cites{background:#fef3c7;color:#92400e}
+a.link{color:#1e40af;text-decoration:none;font-weight:600;font-size:12px;margin-right:10px}
+a.link:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<header><h1>🔎 Smart Literature Finder</h1><p>Search 240M+ scholarly works via OpenAlex — no API key needed. Optional AI relevance ranking.</p></header>
+<main>
+  <div id="settings"></div>
+  <div class="card">
+    <h2>Search</h2>
+    <p class="hint">Type a topic, question, or paste an abstract. OpenAlex is free & keyless. AI ranking uses your BYOK key.</p>
+    <input id="q" placeholder="e.g. Transformer architectures for low-resource machine translation"/>
+    <div class="row">
+      <button id="search">Search OpenAlex</button>
+      <button id="rank" class="ghost" disabled>AI relevance rerank</button>
+    </div>
+  </div>
+  <div id="out"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+let results = [];
+const MAILTO = 'you@example.com';
+function reconstruct(inv){if(!inv)return'';const p=[];for(const w of Object.keys(inv))for(const i of inv[w])p.push({w,i});p.sort((a,b)=>a.i-b.i);return p.map(x=>x.w).join(' ');}
+Rewiseed.renderSettingsBar('settings');
+document.getElementById('q').addEventListener('keydown',(e)=>{if(e.key==='Enter')document.getElementById('search').click();});
+
+document.getElementById('search').onclick = async () => {
+  const q = document.getElementById('q').value.trim();
+  if (!q) return;
+  const out = document.getElementById('out');
+  out.innerHTML = '<div class="card"><span class="spinner"></span>Searching OpenAlex…</div>';
+  try {
+    const url = `https://api.openalex.org/works?search=${encodeURIComponent(q)}&per_page=15&mailto=${MAILTO}&select=id,doi,title,authorships,publication_year,primary_location,cited_by_count,abstract_inverted_index,relevance_score,open_access`;
+    const r = await fetch(url);
+    const j = await r.json();
+    results = (j.results||[]).map(w=>({
+      id:w.id, doi:w.doi?.replace('https://doi.org/',''),
+      title:w.title, year:w.publication_year,
+      authors:(w.authorships||[]).slice(0,5).map(a=>a.author?.display_name).filter(Boolean),
+      venue:w.primary_location?.source?.display_name||'',
+      citedBy:w.cited_by_count||0, relevance:w.relevance_score,
+      abstract:reconstruct(w.abstract_inverted_index).slice(0,600),
+      oa:w.open_access?.oa_url||null,
+    }));
+    render();
+    document.getElementById('rank').disabled = results.length===0 || !Rewiseed.getCfg().apiKey;
+  } catch (e) { out.innerHTML = '<div class="card"><b style="color:#dc2626">Search failed: '+e.message+'</b></div>'; }
+};
+
+function render(aiOrder){
+  const list = aiOrder ? aiOrder.map(i=>results[i]).filter(Boolean) : results;
+  const out = document.getElementById('out');
+  if (!list.length) { out.innerHTML='<div class="card">No results. Try different terms.</div>'; return; }
+  out.innerHTML = `<div class="card"><h2>${list.length} papers${aiOrder?' · AI ranked':' · OpenAlex relevance'}</h2></div>` +
+    list.map(p=>`<div class="paper">
+      <h3>${p.title||'(untitled)'}</h3>
+      <div class="meta">${(p.authors||[]).join(', ')||'Unknown authors'} · ${p.venue||'Unknown venue'} · ${p.year||'n.d.'}</div>
+      ${p.abstract?`<div class="abstract">${p.abstract}…</div>`:''}
+      <div class="badges">
+        <span class="badge cites">${(p.citedBy||0).toLocaleString()} cites</span>
+        ${p.relevance?`<span class="badge">relevance ${p.relevance.toFixed(1)}</span>`:''}
+      </div>
+      <div style="margin-top:8px">
+        ${p.doi?`<a class="link" href="https://doi.org/${p.doi}" target="_blank" rel="noreferrer">DOI ↗</a>`:''}
+        ${p.oa?`<a class="link" href="${p.oa}" target="_blank" rel="noreferrer">Open Access PDF ↗</a>`:''}
+        <a class="link" href="${p.id}" target="_blank" rel="noreferrer">OpenAlex ↗</a>
+      </div>
+    </div>`).join('');
+}
+
+document.getElementById('rank').onclick = async () => {
+  if (!results.length) return;
+  const q = document.getElementById('q').value.trim();
+  const btn = document.getElementById('rank'); btn.disabled = true;
+  const payload = results.map((p,i)=>`[${i}] ${p.title}\n${(p.abstract||'').slice(0,300)}`).join('\n\n');
+  try {
+    const txt = await Rewiseed.callLLM({
+      system: `You are a research assistant reranking papers by semantic relevance to a user query. Return ONLY a JSON array of paper indices in best-first order, no prose. Example: [3,0,7,1,2]`,
+      user: `Query: ${q}\n\nPapers:\n${payload}`,
+      temperature: 0,
+    });
+    const m = txt.match(/\[[\d,\s]+\]/);
+    if (!m) throw new Error('No JSON array returned');
+    render(JSON.parse(m[0]));
+  } catch (e) { alert('Rerank failed: '+e.message); }
+  finally { btn.disabled = false; }
+};
+</script>
+</body></html>

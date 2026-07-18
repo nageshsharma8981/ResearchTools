@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Peer Review Simulator — Offline</title>
+<link rel="stylesheet" href="shared.css"/></head>
+<body>
+<header><h1>🎓 Peer Review Simulator</h1><p>Rigorous structured peer review with major/minor concerns and a recommendation.</p></header>
+<main>
+  <div id="settings"></div>
+  <div class="card">
+    <h2>Paste your manuscript draft</h2>
+    <p class="hint">Abstract + introduction + methods + findings ideally. Full drafts work too.</p>
+    <textarea id="in" placeholder="Paste manuscript…"></textarea>
+    <div class="row"><button id="run">Get peer review</button><button id="dl" class="ghost" disabled>Download .md</button></div>
+  </div>
+  <div id="out"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+Rewiseed.renderSettingsBar('settings');
+const SYS = `You are simulating a rigorous but constructive academic peer reviewer for a top journal in the manuscript's field.
+Output a Markdown review with these sections:
+1. **Summary of contribution** (3-5 sentences the authors would recognise as fair).
+2. **Strengths** (bullet list).
+3. **Major concerns** — numbered, each with (a) the issue, (b) why it matters, (c) concrete revision to address it. Cover novelty, framing, theory, methods, analysis, threats to validity, ethics, and evidence for claims.
+4. **Minor concerns** — clarity, structure, references, missing citations, figures/tables.
+5. **Reproducibility & data availability** notes.
+6. **Recommendation** — one of: Accept · Minor revisions · Major revisions · Reject-and-resubmit · Reject. Justify in 2-3 sentences.
+Ground every point in the text; do not invent methods or results not in the manuscript. If key sections are missing, list them under "Cannot fully assess".`;
+let last = '';
+document.getElementById('run').onclick = async () => {
+  const input = document.getElementById('in').value.trim();
+  if (!input) return;
+  const btn = document.getElementById('run'); btn.disabled = true;
+  const out = document.getElementById('out');
+  out.innerHTML = '<div class="card"><h2>Peer review report</h2><div class="result" id="stream"><span class="spinner"></span>Reviewing…</div></div>';
+  try {
+    last = await Rewiseed.callLLM({ system: SYS, user: input, temperature: 0.2,
+      onStream: (t) => { document.getElementById('stream').innerHTML = Rewiseed.md(t); } });
+    document.getElementById('dl').disabled = false;
+  } catch (e) { document.getElementById('stream').innerHTML = '<b style="color:#dc2626">'+e.message+'</b>'; }
+  finally { btn.disabled = false; }
+};
+document.getElementById('dl').onclick = () => Rewiseed.downloadText('peer-review.md', last);
+</script>
+</body></html>

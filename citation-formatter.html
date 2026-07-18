@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Citation Formatter — Offline</title>
+<link rel="stylesheet" href="shared.css"/></head>
+<body>
+<header><h1>📚 Citation Formatter</h1><p>Convert messy references into APA, MLA, Chicago, Harvard, or IEEE.</p></header>
+<main>
+  <div id="settings"></div>
+  <div class="card">
+    <h2>Paste references (one per line, any format)</h2>
+    <textarea id="in" placeholder="e.g.\nsmith j 2023 attention is all you need arxiv 1706.03762\nJones, R. (2024) Something on climate. Nature 605."></textarea>
+    <div class="row">
+      <label>Style:
+        <select id="style"><option>APA 7</option><option>MLA 9</option><option>Chicago (author-date)</option><option>Harvard</option><option>IEEE</option><option>Vancouver</option></select>
+      </label>
+      <button id="run">Format</button>
+      <button id="dl" class="ghost" disabled>Download .md</button>
+    </div>
+  </div>
+  <div id="out"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+Rewiseed.renderSettingsBar('settings');
+let last = '';
+document.getElementById('run').onclick = async () => {
+  const input = document.getElementById('in').value.trim();
+  const style = document.getElementById('style').value;
+  if (!input) return;
+  const sys = `You are a citation formatter. Convert every input line into a correctly formatted ${style} reference. If a field is missing or ambiguous, mark it as [missing X] rather than inventing it. Return one reference per line in Markdown as a numbered list. Then append a "Notes" section listing any ambiguous entries.`;
+  const btn = document.getElementById('run'); btn.disabled = true;
+  const out = document.getElementById('out');
+  out.innerHTML = `<div class="card"><h2>Formatted (${style})</h2><div class="result" id="stream"><span class="spinner"></span>Formatting…</div></div>`;
+  try {
+    last = await Rewiseed.callLLM({ system: sys, user: input, temperature: 0.1,
+      onStream: (t) => { document.getElementById('stream').innerHTML = Rewiseed.md(t); } });
+    document.getElementById('dl').disabled = false;
+  } catch (e) { document.getElementById('stream').innerHTML = '<b style="color:#dc2626">'+e.message+'</b>'; }
+  finally { btn.disabled = false; }
+};
+document.getElementById('dl').onclick = () => Rewiseed.downloadText('citations.md', last);
+</script>
+</body></html>

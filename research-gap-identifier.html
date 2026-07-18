@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Research Gap Identifier — Offline</title>
+<link rel="stylesheet" href="shared.css"/></head>
+<body>
+<header><h1>🕳️ Research Gap Identifier</h1><p>Paste a literature set → get unexplored gaps, contradictions, and methodological weaknesses.</p></header>
+<main>
+  <div id="settings"></div>
+  <div class="card">
+    <h2>Paste your literature set</h2>
+    <p class="hint">A list of paper titles + abstracts, or a literature review draft.</p>
+    <textarea id="in" placeholder="1. Smith et al. (2023). &quot;Title&quot;. Abstract: ...\n2. Jones (2024). &quot;Title&quot;. Abstract: ..."></textarea>
+    <div class="row"><button id="run">Identify gaps</button><button id="dl" class="ghost" disabled>Download .md</button></div>
+  </div>
+  <div id="out"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+Rewiseed.renderSettingsBar('settings');
+const SYS = `You are a senior academic research advisor. Given a set of papers, identify:
+1. Unexplored research gaps (grouped by theme)
+2. Contradictory or conflicting findings across studies
+3. Methodological weaknesses (sample size, design, generalizability)
+4. Underrepresented populations, contexts, or time periods
+5. Concrete follow-up research questions worth pursuing
+Cite papers by number/first-author. Be specific and grounded — do not invent findings not present in the input. Output well-structured Markdown.`;
+let last = '';
+document.getElementById('run').onclick = async () => {
+  const input = document.getElementById('in').value.trim();
+  if (!input) return;
+  const btn = document.getElementById('run'); btn.disabled = true;
+  const out = document.getElementById('out');
+  out.innerHTML = '<div class="card"><h2>🔍 Identified research gaps</h2><div class="result" id="stream"><span class="spinner"></span>Analysing…</div></div>';
+  try {
+    last = await Rewiseed.callLLM({ system: SYS, user: input, temperature: 0.2,
+      onStream: (t) => { document.getElementById('stream').innerHTML = Rewiseed.md(t); } });
+    document.getElementById('dl').disabled = false;
+  } catch (e) { document.getElementById('stream').innerHTML = '<b style="color:#dc2626">'+e.message+'</b>'; }
+  finally { btn.disabled = false; }
+};
+document.getElementById('dl').onclick = () => Rewiseed.downloadText('research-gaps.md', last);
+</script>
+</body></html>
