@@ -72,7 +72,7 @@ document.getElementById('form').addEventListener('submit', async (e) => {
       password: document.getElementById('password').value,
       captchaToken,
     }});
-    location.href = 'profile.html';
+    location.href = 'index.html';
   } catch (err) {
     toast(err.message, 'error', 5000);
     captcha.reset();

@@ -324,6 +324,7 @@ $('run').onclick = async () => {
 
   running = false;
   btn.disabled = false;
+  Rewiseed.track('run', lastReport.length);
 };
 
 $('in').addEventListener('keydown', (e) => {

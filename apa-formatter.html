@@ -366,6 +366,7 @@ $('run').onclick = async () => {
         <div class="row"><button class="ghost" id="apa-copy">${icon('copy', 15)} Copy cleaned text</button></div>
       </div>`);
     $('apa-copy').onclick = (ev) => Rewiseed.copyText(finalText, ev.currentTarget);
+    Rewiseed.track('export', finalText.length);
   } catch (e) {
     out.insertAdjacentHTML('beforeend', `<div class="card"><div class="error-box">${icon('alert', 18)}<span>Could not build the document: ${esc(e.message)}</span></div></div>`);
   }

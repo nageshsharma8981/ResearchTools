@@ -150,10 +150,20 @@
     // account chip: shows when the accounts backend is present; silent otherwise
     fetch('/api/me', { credentials: 'same-origin' }).then(async (r) => {
       const slot = document.createElement('span');
+      slot.style.cssText = 'display:inline-flex;align-items:center;gap:8px';
       if (r.ok) {
         const { user } = await r.json();
-        slot.innerHTML = `<a class="avatar-btn" href="profile.html" title="${esc(user.name || user.email)} — profile">${
+        const adminBtn = ['admin', 'superadmin'].includes(user.role)
+          ? `<a class="nav-home" href="admin.html" title="Admin console">${icon('shield', 15)}<span>Admin</span></a>` : '';
+        slot.innerHTML = `${adminBtn}<a class="avatar-btn" href="profile.html" title="${esc(user.name || user.email)} — profile">${
           user.photo ? `<img src="${esc(user.photo)}" alt="Profile"/>` : esc((user.name || user.email)[0].toUpperCase())}</a>`;
+        // menu shows only granted tools when the account is restricted
+        if (user.tool_access && user.tool_access.length) {
+          nav.querySelectorAll('.tool-menu .menu a').forEach(a => {
+            const id = (a.getAttribute('href') || '').replace('.html', '');
+            if (id !== 'index' && !user.tool_access.includes(id)) a.remove();
+          });
+        }
       } else if (r.status === 401) {
         slot.innerHTML = `<a class="nav-signin" href="signin.html">Sign in</a>`;
       } else return;
@@ -472,6 +482,18 @@
     return ok;
   }
 
+  // fire-and-forget usage metric (tool id + output size only); no-op offline
+  function track(kind, outChars = 0) {
+    try {
+      const tool = location.pathname.replace(/^\//, '').replace(/\.html$/, '') || 'index';
+      fetch('/api/track', {
+        method: 'POST', keepalive: true, credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tool, kind, outChars }),
+      }).catch(() => {});
+    } catch { /* offline bundle */ }
+  }
+
   async function copyText(text, btn) {
     try {
       try {
@@ -601,6 +623,7 @@
         streamEl.insertAdjacentHTML('afterend', actionsHtml);
         $(`${toolId}-copy`).onclick = (e) => copyText(lastOutput, e.currentTarget);
         $(`${toolId}-dl`).onclick = () => downloadText(downloadName, lastOutput);
+        track('run', lastOutput.length);
       } catch (e) {
         if (e.name === 'AbortError') {
           if (pending) {
@@ -630,7 +653,7 @@
 
   window.Rewiseed = {
     renderNav, renderSettingsBar, openSettings,
-    callLLM, md, esc, icon, toast,
+    callLLM, md, esc, icon, toast, track,
     downloadText, copyText, getCfg, isLocalUrl,
     mountStreamingTool,
   };

@@ -134,6 +134,7 @@ $('search').onclick = async () => {
       };
     });
     render();
+    Rewiseed.track('search');
   } catch (e) {
     out.innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>Search failed: ${esc(e.message)}. Check your connection and try again.</span></div></div>`;
   } finally { btn.disabled = false; }

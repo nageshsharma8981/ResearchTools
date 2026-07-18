@@ -49,10 +49,27 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 `);
 // migrations for pre-existing databases
-for (const col of ["terms_version TEXT NOT NULL DEFAULT ''", 'terms_accepted_at INTEGER NOT NULL DEFAULT 0']) {
+for (const col of ["terms_version TEXT NOT NULL DEFAULT ''", 'terms_accepted_at INTEGER NOT NULL DEFAULT 0', "tool_access TEXT NOT NULL DEFAULT ''"]) {
   try { db.exec(`ALTER TABLE users ADD COLUMN ${col}`); } catch { /* already present */ }
 }
+db.exec(`CREATE TABLE IF NOT EXISTS events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts INTEGER NOT NULL,
+  user_id INTEGER,
+  tool TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'run',
+  out_chars INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts);`);
 const TERMS_VERSION = '2026-07-18';
+
+// tool ids = page filenames without .html
+const TOOL_IDS = new Set([
+  'smart-literature-finder', 'doi-finder', 'originality-checker',
+  'research-gap-identifier', 'research-question-generator', 'instrument-designer',
+  'qualitative-coding-assistant', 'peer-review-simulator', 'citation-formatter', 'apa-formatter',
+]);
+const parseToolAccess = (s) => String(s || '').split(',').map(x => x.trim()).filter(x => TOOL_IDS.has(x));
 
 // ---------- helpers ----------
 const now = () => Date.now();
@@ -72,7 +89,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const cap = (s, n) => String(s ?? '').slice(0, n).trim();
 
 function publicUser(u, includePrivate = false) {
-  const base = { id: u.id, email: u.email, name: u.name, role: u.role, org: u.org, photo: u.photo, linkedin: u.linkedin, twitter: u.twitter, about: u.about };
+  const base = { id: u.id, email: u.email, name: u.name, role: u.role, org: u.org, photo: u.photo, linkedin: u.linkedin, twitter: u.twitter, about: u.about, tool_access: parseToolAccess(u.tool_access) };
   if (includePrivate) { base.confirmed = !!u.confirmed; base.disabled = !!u.disabled; base.created_at = u.created_at; }
   return base;
 }
@@ -419,14 +436,21 @@ app.put('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
   if (!target) return res.status(404).json({ error: 'User not found.' });
   if (target.role === 'superadmin') return res.status(403).json({ error: 'Super admin accounts cannot be modified.' });
   if (target.id === req.user.id) return res.status(400).json({ error: 'Use your profile page to edit your own account.' });
-  const { role, disabled, org } = req.body || {};
+  const { role, disabled, org, toolAccess } = req.body || {};
   if (req.user.role === 'admin') {
-    // admins: only students in their own org, only enable/disable
+    // admins: only students in their own org — enable/disable and tool access
     if (target.org !== req.user.org || target.role !== 'student') return res.status(403).json({ error: 'You can only manage students of your own institution.' });
     if (role !== undefined || org !== undefined) return res.status(403).json({ error: 'Only super admins can change roles or institutions.' });
   }
   const updates = {};
   if (disabled !== undefined) updates.disabled = disabled ? 1 : 0;
+  if (toolAccess !== undefined) {
+    if (!Array.isArray(toolAccess) || !toolAccess.length || toolAccess.some(t => !TOOL_IDS.has(String(t)))) {
+      return res.status(400).json({ error: 'Select at least one tool — to block everything, disable the account instead.' });
+    }
+    // full selection = unrestricted (stored as ''); partial = CSV of granted ids
+    updates.tool_access = toolAccess.length === TOOL_IDS.size ? '' : toolAccess.join(',');
+  }
   if (req.user.role === 'superadmin') {
     if (role !== undefined) {
       if (!['student', 'admin'].includes(role)) return res.status(400).json({ error: 'Role must be student or admin.' });
@@ -441,6 +465,49 @@ app.put('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
   res.json({ user: publicUser(db.prepare('SELECT * FROM users WHERE id=?').get(target.id), true) });
 });
 
+// ---------- usage metrics (privacy-respecting: tool id + output size only) ----------
+app.post('/api/track', (req, res) => {
+  if (!rateLimit('track:' + req.ip, 120, 15 * 60_000)) return res.status(429).json({});
+  const { tool, kind, outChars } = req.body || {};
+  if (!TOOL_IDS.has(String(tool))) return res.status(400).json({});
+  const u = currentUser(req);
+  db.prepare('INSERT INTO events (ts, user_id, tool, kind, out_chars) VALUES (?,?,?,?,?)')
+    .run(now(), u ? u.id : null, String(tool), ['run', 'search', 'export'].includes(kind) ? kind : 'run', Math.max(0, Math.min(2_000_000, Number(outChars) || 0)));
+  res.json({ ok: true });
+});
+
+app.get('/api/admin/analytics', requireAuth, requireAdmin, (req, res) => {
+  const since30 = now() - 30 * 24 * 3600_000;
+  const since7 = now() - 7 * 24 * 3600_000;
+  let orgFilter = '', orgArgs = [];
+  if (req.user.role === 'admin') {
+    // org admins see aggregate for their institution's signed-in users only
+    orgFilter = 'AND user_id IN (SELECT id FROM users WHERE org = ?)';
+    orgArgs = [req.user.org];
+  }
+  const byTool = db.prepare(`
+    SELECT tool, COUNT(*) runs, SUM(out_chars) chars, COUNT(DISTINCT user_id) users
+    FROM events WHERE ts > ? ${orgFilter} GROUP BY tool ORDER BY runs DESC`).all(since30, ...orgArgs);
+  const totals = db.prepare(`SELECT COUNT(*) runs, SUM(out_chars) chars FROM events WHERE ts > ? ${orgFilter}`).get(since30, ...orgArgs);
+  const anonRuns = req.user.role === 'superadmin'
+    ? db.prepare('SELECT COUNT(*) c FROM events WHERE ts > ? AND user_id IS NULL').get(since30).c : null;
+  const users = req.user.role === 'superadmin' ? {
+    total: db.prepare('SELECT COUNT(*) c FROM users').get().c,
+    confirmed: db.prepare('SELECT COUNT(*) c FROM users WHERE confirmed = 1').get().c,
+    newLast30d: db.prepare('SELECT COUNT(*) c FROM users WHERE created_at > ?').get(since30).c,
+    activeLast7d: db.prepare('SELECT COUNT(DISTINCT user_id) c FROM sessions WHERE expires > ?').get(now()).c,
+  } : {
+    total: db.prepare('SELECT COUNT(*) c FROM users WHERE org = ?').get(req.user.org).c,
+  };
+  res.json({
+    windowDays: 30,
+    byTool: byTool.map(r => ({ tool: r.tool, runs: r.runs, estTokens: Math.round((r.chars || 0) / 4), users: r.users })),
+    totals: { runs: totals.runs || 0, estTokens: Math.round((totals.chars || 0) / 4), anonRuns },
+    users,
+    note: 'Token figures are estimates derived from output length (~4 chars/token). BYOK requests go directly from the browser to the AI provider, so exact provider token counts are not visible to this server.',
+  });
+});
+
 app.delete('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
   if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Only super admins can delete accounts.' });
   const target = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(req.params.id));
@@ -449,6 +516,22 @@ app.delete('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
   if (target.id === req.user.id) return res.status(400).json({ error: 'Use your profile page to delete your own account.' });
   deleteUserCascade(target.id);
   res.json({ ok: true });
+});
+
+// ---------- tool access gate ----------
+// When a signed-in user has a restricted tool list, block ungranted tool
+// pages. Anonymous visitors keep public access (the product default).
+app.use((req, res, next) => {
+  const name = req.path.replace(/^\//, '').replace(/\.html$/, '');
+  if (!TOOL_IDS.has(name)) return next();
+  const u = currentUser(req);
+  if (!u) return next();
+  const allowed = parseToolAccess(u.tool_access);
+  if (!allowed.length || allowed.includes(name)) return next();
+  res.status(403).send(`<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Tool not enabled — ReWiseEd</title><link rel="stylesheet" href="/shared.css"/></head>
+<body><div class="hero"><h1>Tool not enabled</h1><p class="lede">Your administrator hasn't enabled this tool for your account. If you think that's a mistake, contact your institution's admin.</p></div>
+<main style="max-width:480px;text-align:center"><div class="card"><a href="/index.html"><button type="button">Back to home</button></a></div></main>
+<script src="/shared.js"></script><script>Rewiseed.renderNav('');</script></body></html>`);
 });
 
 // ---------- static suite ----------
