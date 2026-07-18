@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Reset password — ReWiseEd</title>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Reset your password</h1>
+  <p class="lede">Enter your account email and we'll send a one-time reset link from <b>noreply@rewiseed.com</b>.</p>
+</div>
+<main style="max-width:480px">
+  <div class="card">
+    <form id="form" novalidate>
+      <label class="field-label" for="email">Email</label>
+      <input id="email" type="email" autocomplete="email" required maxlength="254" placeholder="you@university.edu"/>
+      <div id="captcha" style="margin-top:16px"></div>
+      <div class="row">
+        <button type="submit" id="submit" style="width:100%;justify-content:center"></button>
+      </div>
+      <p class="hint" style="text-align:center;margin:14px 0 0"><a href="signin.html">Back to sign in</a></p>
+    </form>
+    <div id="done" hidden></div>
+  </div>
+</main>
+<script src="shared.js"></script>
+<script src="account.js"></script>
+<script>
+const { esc, icon, toast } = Rewiseed;
+const { api, mountCaptcha } = RewiseedAccount;
+Rewiseed.renderNav('forgot.html');
+document.getElementById('hero-icon').innerHTML = icon('logo', 26);
+document.getElementById('submit').innerHTML = `${icon('play', 15)} Send reset link`;
+const captcha = mountCaptcha('captcha');
+
+document.getElementById('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const captchaToken = captcha.getToken();
+  if (!captchaToken) return toast('Please complete the puzzle first.', 'error');
+  const btn = document.getElementById('submit'); btn.disabled = true;
+  try {
+    const r = await api('/api/auth/forgot', { method: 'POST', body: { email: document.getElementById('email').value.trim(), captchaToken } });
+    document.getElementById('form').hidden = true;
+    const done = document.getElementById('done'); done.hidden = false;
+    done.innerHTML = `
+      <div style="text-align:center;padding:10px 0">
+        <span class="tool-icon" style="width:48px;height:48px">${icon('check', 24)}</span>
+        <h2 style="margin:12px 0 6px">Check your inbox</h2>
+        <p class="hint">${esc(r.message)}</p>
+        ${r.devResetLink ? `<div class="result" style="border:0;background:var(--warn-soft);border-radius:var(--radius-sm);padding:12px 14px;text-align:left"><b style="font-size:13px">Developer mode</b><p class="hint" style="margin:4px 0 8px">Email sending not configured — use this link.</p><a class="link" href="${esc(r.devResetLink)}">Reset now ${icon('arrow', 13)}</a></div>` : ''}
+      </div>`;
+  } catch (err) { toast(err.message, 'error', 5000); captcha.reset(); btn.disabled = false; }
+});
+</script>
+</body>
+</html>

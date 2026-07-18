@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Choose a new password — ReWiseEd</title>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Choose a new password</h1>
+  <p class="lede">This link works once. After saving, sign in with your new password everywhere — other devices are signed out.</p>
+</div>
+<main style="max-width:480px">
+  <div class="card">
+    <form id="form" novalidate>
+      <label class="field-label" for="password">New password</label>
+      <span class="key-wrap">
+        <input id="password" type="password" autocomplete="new-password" required minlength="8" maxlength="200" placeholder="At least 8 characters"/>
+        <button type="button" class="icon-btn" id="eye" aria-label="Show or hide password"></button>
+      </span>
+      <div class="row">
+        <button type="submit" id="submit" style="width:100%;justify-content:center"></button>
+      </div>
+    </form>
+  </div>
+</main>
+<script src="shared.js"></script>
+<script src="account.js"></script>
+<script>
+const { esc, icon, toast } = Rewiseed;
+const { api } = RewiseedAccount;
+Rewiseed.renderNav('reset.html');
+document.getElementById('hero-icon').innerHTML = icon('logo', 26);
+document.getElementById('submit').innerHTML = `${icon('check', 15)} Save new password`;
+document.getElementById('eye').innerHTML = icon('eye', 16);
+document.getElementById('eye').onclick = () => {
+  const p = document.getElementById('password');
+  const show = p.type === 'password';
+  p.type = show ? 'text' : 'password';
+  document.getElementById('eye').innerHTML = icon(show ? 'eyeOff' : 'eye', 16);
+};
+const token = new URLSearchParams(location.search).get('token') || '';
+document.getElementById('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const pw = document.getElementById('password').value;
+  if (pw.length < 8) return toast('Password must be at least 8 characters.', 'error');
+  const btn = document.getElementById('submit'); btn.disabled = true;
+  try {
+    await api('/api/auth/reset', { method: 'POST', body: { token, password: pw } });
+    toast('Password updated');
+    location.href = 'signin.html?confirmed=1';
+  } catch (err) { toast(err.message, 'error', 6000); btn.disabled = false; }
+});
+</script>
+</body>
+</html>

@@ -83,6 +83,13 @@ async function sendEmail(to, subject, html) {
   if (!r.ok) throw new Error(`email provider ${r.status}: ${(await r.text()).slice(0, 200)}`);
   return { dev: false };
 }
+const resetEmailHtml = (link) => `
+<div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;padding:24px">
+  <h2 style="color:#1c1a17">Reset your ReWiseEd Research password</h2>
+  <p style="color:#44403a;line-height:1.6">Someone (hopefully you) asked to reset the password for this account. This link works once and expires in 1 hour:</p>
+  <p><a href="${link}" style="background:#211e1a;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Choose a new password</a></p>
+  <p style="color:#716b60;font-size:13px">If you didn't request this, you can safely ignore it — your password is unchanged.</p>
+</div>`;
 const confirmEmailHtml = (name, link) => `
 <div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;padding:24px">
   <h2 style="color:#1c1a17">Welcome to ReWiseEd Research${name ? ', ' + name.replace(/[<>&]/g, '') : ''}</h2>
@@ -273,6 +280,64 @@ app.post('/api/auth/signin', (req, res) => {
   res.json({ ok: true, user: publicUser(u) });
 });
 
+app.post('/api/auth/forgot', async (req, res) => {
+  if (!rateLimit('forgot:' + req.ip, 6, 15 * 60_000)) return res.status(429).json({ error: 'Too many attempts — wait a few minutes.' });
+  const { email, captchaToken } = req.body || {};
+  if (!consumeCaptcha(captchaToken)) return res.status(400).json({ error: 'Please complete the puzzle first.' });
+  const em = cap(email, 254).toLowerCase();
+  if (!EMAIL_RE.test(em)) return res.status(400).json({ error: 'Enter a valid email address.' });
+  if (IS_PROD && !RESEND_API_KEY) return res.status(503).json({ error: 'Email delivery is being configured — try again soon.' });
+  const genericOk = { ok: true, message: 'If that address has an account, a reset link is on its way.' };
+  if (!rateLimit('forgotE:' + em, 3, 3600_000)) return res.json(genericOk); // silent per-email cap
+  const u = db.prepare('SELECT * FROM users WHERE email = ?').get(em);
+  if (!u) return res.json(genericOk);
+  const token = rand(32);
+  db.prepare("DELETE FROM tokens WHERE user_id = ? AND kind = 'reset'").run(u.id);
+  db.prepare('INSERT INTO tokens (token, user_id, kind, expires) VALUES (?,?,?,?)').run(sha(token), u.id, 'reset', now() + 3600_000);
+  const link = `${BASE_URL}/reset.html?token=${token}`;
+  try {
+    const sent = await sendEmail(em, 'Reset your ReWiseEd Research password', resetEmailHtml(link));
+    if (sent.dev) { console.log(`[dev-email] reset for ${em}: ${link}`); return res.json({ ...genericOk, devResetLink: link }); }
+  } catch (e) {
+    console.error('reset email failed:', e.message);
+    return res.status(502).json({ error: 'Could not send the reset email. Try again shortly.' });
+  }
+  res.json(genericOk);
+});
+
+app.post('/api/auth/reset', (req, res) => {
+  if (!rateLimit('reset:' + req.ip, 10, 15 * 60_000)) return res.status(429).json({ error: 'Too many attempts — wait a few minutes.' });
+  const { token, password } = req.body || {};
+  if (typeof password !== 'string' || password.length < 8 || password.length > 200) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+  }
+  const row = token && db.prepare("SELECT * FROM tokens WHERE token = ? AND kind = 'reset' AND expires > ?").get(sha(cap(token, 200)), now());
+  if (!row) return res.status(400).json({ error: 'This reset link is invalid or expired — request a new one.' });
+  db.prepare('DELETE FROM tokens WHERE token = ?').run(sha(cap(token, 200)));
+  const salt = rand(16);
+  // proving control of the inbox also confirms the address
+  db.prepare('UPDATE users SET pass_hash = ?, salt = ?, confirmed = 1 WHERE id = ?').run(hashPassword(password, salt), salt, row.user_id);
+  db.prepare('DELETE FROM sessions WHERE user_id = ?').run(row.user_id);
+  res.json({ ok: true, message: 'Password updated — sign in with it now.' });
+});
+
+app.post('/api/auth/password', requireAuth, (req, res) => {
+  if (!rateLimit('pwchange:' + req.user.id, 8, 15 * 60_000)) return res.status(429).json({ error: 'Too many attempts — wait a few minutes.' });
+  const { currentPassword, newPassword } = req.body || {};
+  if (!verifyPassword(String(currentPassword || ''), req.user.salt, req.user.pass_hash)) {
+    return res.status(401).json({ error: 'Current password is incorrect.' });
+  }
+  if (typeof newPassword !== 'string' || newPassword.length < 8 || newPassword.length > 200) {
+    return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+  }
+  const salt = rand(16);
+  db.prepare('UPDATE users SET pass_hash = ?, salt = ? WHERE id = ?').run(hashPassword(newPassword, salt), salt, req.user.id);
+  // sign out every other device, keep this session
+  const current = sha(parseCookies(req).rw_session);
+  db.prepare('DELETE FROM sessions WHERE user_id = ? AND token != ?').run(req.user.id, current);
+  res.json({ ok: true });
+});
+
 app.post('/api/auth/signout', requireAuth, (req, res) => {
   const tok = parseCookies(req).rw_session;
   if (tok) db.prepare('DELETE FROM sessions WHERE token = ?').run(sha(tok));
@@ -309,6 +374,26 @@ app.put('/api/me', requireAuth, (req, res) => {
   db.prepare('UPDATE users SET name=?, org=?, linkedin=?, twitter=?, about=?, photo=? WHERE id=?')
     .run(clean.name, clean.org, clean.linkedin, clean.twitter, clean.about, clean.photo, req.user.id);
   res.json({ user: publicUser(db.prepare('SELECT * FROM users WHERE id=?').get(req.user.id), true) });
+});
+
+function deleteUserCascade(id) {
+  db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id);
+  db.prepare('DELETE FROM tokens WHERE user_id = ?').run(id);
+  db.prepare('DELETE FROM users WHERE id = ?').run(id);
+}
+
+app.delete('/api/me', requireAuth, (req, res) => {
+  const { password } = req.body || {};
+  if (!verifyPassword(String(password || ''), req.user.salt, req.user.pass_hash)) {
+    return res.status(401).json({ error: 'Password is incorrect.' });
+  }
+  if (req.user.role === 'superadmin') {
+    const others = db.prepare("SELECT COUNT(*) c FROM users WHERE role = 'superadmin' AND id != ?").get(req.user.id).c;
+    if (!others) return res.status(400).json({ error: 'You are the last super admin — promote another before deleting this account.' });
+  }
+  deleteUserCascade(req.user.id);
+  clearSession(res);
+  res.json({ ok: true });
 });
 
 // ---------- admin ----------
@@ -348,6 +433,16 @@ app.put('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
   db.prepare(`UPDATE users SET ${sets} WHERE id=?`).run(...Object.values(updates), target.id);
   if (updates.disabled) db.prepare('DELETE FROM sessions WHERE user_id = ?').run(target.id);
   res.json({ user: publicUser(db.prepare('SELECT * FROM users WHERE id=?').get(target.id), true) });
+});
+
+app.delete('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
+  if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Only super admins can delete accounts.' });
+  const target = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(req.params.id));
+  if (!target) return res.status(404).json({ error: 'User not found.' });
+  if (target.role === 'superadmin') return res.status(403).json({ error: 'Super admin accounts cannot be deleted here.' });
+  if (target.id === req.user.id) return res.status(400).json({ error: 'Use your profile page to delete your own account.' });
+  deleteUserCascade(target.id);
+  res.json({ ok: true });
 });
 
 // ---------- static suite ----------

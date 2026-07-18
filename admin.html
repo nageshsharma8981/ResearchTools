@@ -61,7 +61,8 @@ async function load() {
             : `<span class="badge ${u.role === 'superadmin' ? 'gold' : ''}">${esc(u.role)}</span>`}</td>
         <td>${u.disabled ? `<span class="badge warn">disabled</span>` : u.confirmed ? `<span class="badge ok">active</span>` : `<span class="badge">unconfirmed</span>`}</td>
         <td>${u.role !== 'superadmin' && u.id !== me.id
-            ? `<button type="button" class="${u.disabled ? '' : 'danger'}" data-toggle="${u.id}" data-disabled="${u.disabled ? 1 : 0}">${u.disabled ? 'Enable' : 'Disable'}</button>`
+            ? `<button type="button" class="${u.disabled ? '' : 'danger'}" data-toggle="${u.id}" data-disabled="${u.disabled ? 1 : 0}">${u.disabled ? 'Enable' : 'Disable'}</button>${
+              su ? ` <button type="button" class="danger" data-del="${u.id}" data-email="${esc(u.email)}">Delete</button>` : ''}`
             : ''}</td>
       </tr>`).join('')}
     </tbody></table></div>
@@ -77,6 +78,15 @@ async function load() {
     try {
       await api(`/api/admin/users/${b.dataset.toggle}`, { method: 'PUT', body: { disabled: b.dataset.disabled !== '1' } });
       toast('Updated');
+      load();
+    } catch (e) { toast(e.message, 'error', 5000); b.disabled = false; }
+  });
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+    if (!confirm(`Permanently delete ${b.dataset.email}? This cannot be undone.`)) return;
+    b.disabled = true;
+    try {
+      await api(`/api/admin/users/${b.dataset.del}`, { method: 'DELETE' });
+      toast('Account deleted');
       load();
     } catch (e) { toast(e.message, 'error', 5000); b.disabled = false; }
   });
