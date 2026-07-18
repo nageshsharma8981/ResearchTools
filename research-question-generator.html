@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Research Question Generator — ReWiseEd</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ReWiseEd Research Tools"/>
+<meta property="og:title" content="Research Question Generator — ReWiseEd"/>
+<meta property="og:description" content="Turn a topic into precise, testable research questions — each with independent, dependent, and control variables, hypotheses, and a suggested design."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/research-question-generator"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Research Question Generator — ReWiseEd"/>
+<meta name="twitter:description" content="Turn a topic into precise, testable research questions — each with independent, dependent, and control variables, hypotheses, and a suggested design."/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Research Question Generator</h1>
+  <p class="lede">Turn a topic into precise, testable research questions — each with its independent variable, dependent variable, control variables, hypotheses, and a suggested study design.</p>
+</div>
+<main class="split">
+  <div id="settings"></div>
+  <div class="card input-card">
+    <h2>Your topic</h2>
+    <p class="hint">Describe your area of interest — a broad topic, a phenomenon you've observed, or a rough idea. Constraints (population, context, what you can measure) make the questions sharper.</p>
+    <label class="field-label" for="in">Topic or area of interest</label>
+    <textarea id="in" style="min-height:140px" placeholder="e.g. How social media use affects sleep quality among university students. I have access to ~200 undergraduates and can run surveys but not lab studies."></textarea>
+    <div class="field-foot">
+      <span class="chip-row"><button type="button" class="chip" id="example">Load example</button></span>
+      <span id="count"></span>
+    </div>
+    <div class="row" style="gap:14px">
+      <label class="field-label" style="margin:0" for="design">Design</label>
+      <select id="design">
+        <option value="any">Any / mixed</option>
+        <option value="experimental">Experimental</option>
+        <option value="quasi-experimental">Quasi-experimental</option>
+        <option value="correlational">Correlational / survey</option>
+        <option value="longitudinal">Longitudinal</option>
+        <option value="cross-sectional">Cross-sectional</option>
+        <option value="qualitative">Qualitative</option>
+      </select>
+      <label class="field-label" style="margin:0" for="qty">Questions</label>
+      <select id="qty"><option>3</option><option selected>5</option><option>8</option></select>
+    </div>
+    <div class="row">
+      <button id="run"></button>
+      <span class="hint" style="margin:0"><kbd>⌘</kbd>+<kbd>Enter</kbd> to run</span>
+    </div>
+  </div>
+  <div id="out"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+Rewiseed.renderNav('research-question-generator.html');
+document.getElementById('hero-icon').innerHTML = Rewiseed.icon('flask', 26);
+Rewiseed.renderSettingsBar('settings');
+
+const EXAMPLE = `Topic: the effect of remote and hybrid work arrangements on early-career employees' skill development and career progression.
+
+Context: I'm a management student with access to alumni of my university's business school (roughly 500 people, 0-8 years post-graduation, across industries). I can run online surveys and about 20 interviews; I cannot access company HR records. I'm particularly curious whether mentoring quality explains any of the effects.`;
+
+Rewiseed.mountStreamingTool({
+  toolId: 'rqgen',
+  inputId: 'in', runId: 'run', outId: 'out',
+  resultTitle: 'Generated research questions',
+  downloadName: 'research-questions.md',
+  buildSystem: () => {
+    const design = document.getElementById('design').value;
+    const qty = document.getElementById('qty').value;
+    return `You are a research methods advisor who turns topics into precise, testable research questions.
+Generate exactly ${qty} research questions${design === 'any' ? ', varying the study design across them' : ` suited to a ${design} design`}.
+
+For EACH question output this Markdown structure:
+## RQ<n>: <the research question, phrased precisely>
+| Variable role | Variable | Operationalisation (how to measure it) |
+|---|---|---|
+| Independent (IV) | … | … |
+| Dependent (DV) | … | … |
+| Control | … | … |
+(include every IV, DV, and 2-4 control variables as separate rows; add Moderator/Mediator rows only when genuinely useful)
+
+**Hypotheses:** H1 (directional if justified) and H0.
+**Design:** the study design and why it fits; note the key threat to validity.
+**Feasibility:** one or two sentences honoring any constraints the user stated (sample access, methods available).
+
+Rules:
+- Questions must be answerable with data — no vague "what is the impact of X" phrasing; specify population, comparison, and outcome.
+- Respect the user's stated constraints; do not propose methods they said they cannot run.
+- Variables must be genuinely measurable; name real instruments or metrics where standard ones exist (e.g. PSQI for sleep quality).
+- Vary the angle across questions (different DVs, populations, mechanisms) rather than rephrasing one idea.
+- End with a short "### Where to start" note recommending which single question is the strongest first study and why.`;
+  },
+  runLabel: 'Generate questions',
+  runningLabel: 'Designing testable questions…',
+  example: EXAMPLE, exampleBtnId: 'example',
+  countId: 'count',
+});
+</script>
+</body>
+</html>
