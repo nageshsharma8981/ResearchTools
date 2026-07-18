@@ -86,6 +86,17 @@
   }
   initTheme();
 
+  // ---------- intro loader (playable from any page) ----------
+  function playIntro() {
+    const go = () => window.RewiseedIntro && window.RewiseedIntro.play('');
+    if (window.RewiseedIntro) return go();
+    const s = document.createElement('script');
+    s.src = 'intro.js';
+    s.onload = go;
+    s.onerror = () => toast('Could not load the intro', 'error');
+    document.body.appendChild(s);
+  }
+
   // ---------- toasts ----------
 
   function toast(msg, kind = 'info', ms = 3200) {
@@ -131,6 +142,8 @@
           <a href="index.html" class="${activeHref === 'index.html' ? 'active' : ''}">${icon('home', 17)}Home — all tools</a>
           <div class="menu-rule"></div>
           ${TOOLS.map(t => `<a href="${t.href}" class="${t.href === activeHref ? 'active' : ''}">${icon(t.icon, 17)}${esc(t.name)}</a>`).join('')}
+          <div class="menu-rule"></div>
+          <a href="#" id="menu-intro">${icon('play', 17)}Platform intro</a>
         </div>
       </details>
       <button id="theme-toggle" class="icon-btn" aria-label="Toggle theme"></button>`;
@@ -171,6 +184,12 @@
       } else return;
       nav.insertBefore(slot, $('theme-toggle'));
     }).catch(() => { /* static/offline bundle — no accounts */ });
+    // replayable platform intro from any page
+    nav.querySelector('#menu-intro').addEventListener('click', (e) => {
+      e.preventDefault();
+      nav.querySelector('.tool-menu').open = false;
+      playIntro();
+    });
     // load the grounded assistant widget on every page (no-op offline)
     if (!document.getElementById('assistant-fab') && location.protocol.startsWith('http')) {
       const s = document.createElement('script');
@@ -676,6 +695,6 @@
     renderNav, renderSettingsBar, openSettings,
     callLLM, md, esc, icon, toast, track,
     downloadText, copyText, getCfg, isLocalUrl,
-    mountStreamingTool,
+    mountStreamingTool, playIntro,
   };
 })();

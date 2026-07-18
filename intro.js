@@ -58,7 +58,8 @@
         <div class="intro-dots">${S.map(() => '<span></span>').join('')}</div>`;
       document.body.appendChild(ov);
       document.body.style.overflow = 'hidden';
-      requestAnimationFrame(() => ov.classList.add('on'));
+      void ov.offsetWidth; // force reflow so the fade-in transition runs even in throttled tabs
+      ov.classList.add('on');
 
       let i = -1, timer = null;
       const els = ov.querySelectorAll('.intro-scene');
