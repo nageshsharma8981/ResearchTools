@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Author &amp; Institution Profiles — ReWiseEd</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ReWiseEd Research Tools"/>
+<meta property="og:title" content="Author &amp; Institution Profiles — ReWiseEd"/>
+<meta property="og:description" content="Look up any researcher or institution — works count, citations, h-index, affiliations, and their most-cited papers. Keyless via OpenAlex."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/scholar-profiles"/>
+<meta name="twitter:card" content="summary"/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.mode-tabs { display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+.mode-tab { background: var(--surface); color: var(--ink-2); border: 1px solid var(--border-strong); border-radius: 999px; padding: 9px 20px; min-height: 44px; font-size: 14px; font-weight: 600; cursor: pointer; }
+button.mode-tab:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); box-shadow: none; transform: none; }
+button.mode-tab.active { background: var(--accent-soft); color: var(--accent-strong); border-color: var(--accent); }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin: 12px 0; }
+.stat-grid .s { background: var(--surface-2); border-radius: var(--radius); padding: 12px 14px; }
+.stat-grid b { display: block; font-family: var(--font-serif); font-size: 24px; font-variant-numeric: tabular-nums; }
+.stat-grid span { font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.result-pick { display:block; width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--border); padding:12px; min-height:0; border-radius:0; font-size:14px; color:var(--ink); }
+button.result-pick:hover:not(:disabled){ background:var(--surface-2); box-shadow:none; transform:none; }
+.result-pick small { display:block; color:var(--muted); font-size:12px; margin-top:2px; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Author &amp; Institution Profiles</h1>
+  <p class="lede">Look up any researcher or institution — output, citations, h-index, affiliations, and most-cited work. Free and keyless via OpenAlex.</p>
+</div>
+<main style="max-width:840px">
+  <div class="mode-tabs" role="tablist">
+    <button class="mode-tab active" id="tab-author" role="tab">Authors</button>
+    <button class="mode-tab" id="tab-inst" role="tab">Institutions</button>
+  </div>
+  <div class="card">
+    <h2 id="search-h">Find a researcher</h2>
+    <p class="hint" id="search-hint">Search by name. Names aren't unique — pick the right profile from the matches.</p>
+    <div class="search-row">
+      <input id="q" type="search" autocomplete="off" placeholder="e.g. Yann LeCun" aria-label="Search"/>
+      <button id="go"></button>
+    </div>
+    <div class="field-foot"><span class="chip-row" id="examples"></span></div>
+  </div>
+  <div id="out"></div>
+</main>
+<script src="shared.js"></script>
+<script src="discovery.js"></script>
+<script>
+const { esc, icon, toast } = Rewiseed;
+const D = RewiseedDiscovery;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('scholar-profiles.html');
+$('hero-icon').innerHTML = icon('user', 26);
+$('go').innerHTML = `${icon('search', 16)} Search`;
+
+let mode = 'author';
+function setMode(m) {
+  mode = m;
+  $('tab-author').classList.toggle('active', m === 'author');
+  $('tab-inst').classList.toggle('active', m === 'inst');
+  $('search-h').textContent = m === 'author' ? 'Find a researcher' : 'Find an institution';
+  $('search-hint').textContent = m === 'author'
+    ? "Search by name. Names aren't unique — pick the right profile from the matches."
+    : 'Search by institution name — universities, labs, agencies.';
+  $('q').placeholder = m === 'author' ? 'e.g. Yann LeCun' : 'e.g. Golden Gate University';
+  $('examples').innerHTML = (m === 'author'
+    ? ['Elinor Ostrom', 'Daniel Kahneman', 'Geoffrey Hinton']
+    : ['Golden Gate University', 'Stanford University', 'World Bank'])
+    .map(x => `<button type="button" class="chip" data-ex="${esc(x)}">${esc(x)}</button>`).join('');
+  $('examples').querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { $('q').value = b.dataset.ex; $('go').click(); });
+  $('out').innerHTML = '';
+}
+$('tab-author').onclick = () => setMode('author');
+$('tab-inst').onclick = () => setMode('inst');
+
+const num = (n) => (n || 0).toLocaleString();
+
+async function search() {
+  const q = $('q').value.trim();
+  if (!q) { toast('Type a name to search', 'error'); $('q').focus(); return; }
+  const btn = $('go'); btn.disabled = true;
+  $('out').innerHTML = `<div class="card"><div class="stream-status"><span class="spinner"></span>Searching…</div></div>`;
+  try {
+    const results = mode === 'author' ? await D.authorSearch(q) : await D.institutionSearch(q);
+    if (!results.length) { $('out').innerHTML = `<div class="card"><div class="empty-state">${icon('user', 30)}<br/>No ${mode === 'author' ? 'researcher' : 'institution'} matched “${esc(q)}”.</div></div>`; return; }
+    if (results.length === 1) return showProfile(results[0]);
+    $('out').innerHTML = `<div class="card"><span class="overline">${results.length} matches — pick one</span>${
+      results.map((r, i) => `<button type="button" class="result-pick" data-i="${i}">
+        <b>${esc(r.display_name)}</b>${r.orcid ? ' ✓' : ''}
+        <small>${mode === 'author'
+          ? `${num(r.works_count)} works · h-index ${r.summary_stats?.h_index ?? '—'} · ${esc((r.last_known_institutions || [])[0]?.display_name || 'no current affiliation')}`
+          : `${esc(r.country_code || '')} · ${num(r.works_count)} works · ${esc(r.type || '')}`}</small>
+      </button>`).join('')}</div>`;
+    $('out').querySelectorAll('.result-pick').forEach(b => b.onclick = () => showProfile(results[+b.dataset.i]));
+  } catch (e) {
+    $('out').innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>${esc(e.message)}</span></div></div>`;
+  } finally { btn.disabled = false; }
+}
+
+async function showProfile(r) {
+  const s = r.summary_stats || {};
+  $('out').innerHTML = `<div class="card"><div class="stream-status"><span class="spinner"></span>Loading top papers…</div></div>`;
+  const works = await D.topWorks(mode === 'author' ? 'author.id' : 'institutions.id', r.id, 6);
+  const affil = mode === 'author'
+    ? (r.affiliations || []).slice(0, 4).map(a => a.institution?.display_name).filter(Boolean)
+    : [];
+  $('out').innerHTML = `
+    <div class="card">
+      <span class="overline">${mode === 'author' ? 'Researcher' : 'Institution'} · OpenAlex</span>
+      <h2>${esc(r.display_name)}${r.orcid ? ` <a class="link" style="font-size:13px" href="${esc(r.orcid)}" target="_blank" rel="noopener noreferrer">ORCID ${icon('external', 11)}</a>` : ''}</h2>
+      ${mode === 'author' && (r.last_known_institutions || [])[0] ? `<p class="hint" style="margin:2px 0 0">${esc(r.last_known_institutions[0].display_name)}</p>` : ''}
+      ${mode === 'inst' ? `<p class="hint" style="margin:2px 0 0">${esc(r.country_code || '')}${r.type ? ' · ' + esc(r.type) : ''}${r.homepage_url ? ` · <a class="link" href="${esc(r.homepage_url)}" target="_blank" rel="noopener noreferrer">Website ${icon('external', 11)}</a>` : ''}</p>` : ''}
+      <div class="stat-grid">
+        <div class="s"><b>${num(r.works_count)}</b><span>works</span></div>
+        <div class="s"><b>${num(r.cited_by_count)}</b><span>citations</span></div>
+        <div class="s"><b>${s.h_index ?? '—'}</b><span>h-index</span></div>
+        <div class="s"><b>${s.i10_index ?? '—'}</b><span>i10-index</span></div>
+        ${s['2yr_mean_citedness'] !== undefined ? `<div class="s"><b>${(s['2yr_mean_citedness'] || 0).toFixed(1)}</b><span>2yr mean cites</span></div>` : ''}
+      </div>
+      ${affil.length ? `<p class="hint" style="margin:0 0 8px">Affiliations: ${affil.map(a => `<span class="badge">${esc(a)}</span>`).join(' ')}</p>` : ''}
+      <a class="link" href="${esc(r.id)}" target="_blank" rel="noopener noreferrer">Full profile on OpenAlex ${icon('external', 12)}</a>
+    </div>
+    <div class="card">
+      <span class="overline">Most-cited work</span>
+      <h2 style="font-size:17px">Top papers</h2>
+      ${works.length ? `<div id="tw">${works.map(w => D.paperCard(w)).join('')}</div>` : `<p class="hint" style="margin:0">No indexed works found.</p>`}
+    </div>
+    <p class="hint" style="max-width:100%">Metrics are OpenAlex's and update as their index grows; h-index and citation counts run lower than Google Scholar's because coverage differs. Name matches can conflate distinct people — check the affiliation and ORCID.</p>`;
+  const tw = $('tw'); if (tw) D.wireSaveButtons(tw);
+}
+
+$('go').onclick = search;
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+setMode('author');
+const initial = new URLSearchParams(location.search).get('q');
+if (initial) { $('q').value = initial; search(); }
+</script>
+</body>
+</html>

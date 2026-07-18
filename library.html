@@ -25,6 +25,7 @@
 </main>
 <script src="shared.js"></script>
 <script src="account.js"></script>
+<script src="discovery.js"></script>
 <script>
 const { esc, icon, toast } = Rewiseed;
 const { api } = RewiseedAccount;
@@ -61,11 +62,13 @@ function render() {
     <div class="card" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px">
       <span class="badge gold">${papers.length} paper${papers.length === 1 ? '' : 's'}</span>
       <input id="lib-filter" placeholder="Filter…" style="max-width:260px"/>
-      <span class="push" style="margin-left:auto;display:flex;gap:10px">
+      <span class="push" style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="ghost" id="lib-recommend">${icon('graph', 15)} More like my library</button>
         <button class="ghost" id="lib-bib">${icon('download', 15)} BibTeX (all)</button>
         <button id="lib-analyze">Analyze in pipeline ${icon('arrow', 15)}</button>
       </span>
     </div>
+    <div id="lib-recs"></div>
     ${papers.map(p => `
     <article class="paper" data-lib="${p.id}" data-text="${esc((p.title + ' ' + p.authors + ' ' + p.venue + ' ' + p.notes).toLowerCase())}">
       <h3>${esc(p.title)}</h3>
@@ -85,6 +88,7 @@ function render() {
     const q = e.target.value.toLowerCase();
     document.querySelectorAll('[data-lib]').forEach(el => { el.hidden = q && !el.dataset.text.includes(q); });
   });
+  document.getElementById('lib-recommend').onclick = (e) => recommend(e.currentTarget);
   document.getElementById('lib-bib').onclick = () => Rewiseed.downloadText('library.bib', papers.map(bibtex).join('\n\n'));
   document.getElementById('lib-analyze').onclick = () => {
     const text = 'My saved library (from ReWiseEd):\n\n' + papers.map((p, i) =>
@@ -110,6 +114,41 @@ function render() {
       render();
     } catch (e) { toast(e.message, 'error'); }
   });
+}
+
+async function recommend(btn) {
+  const recs = document.getElementById('lib-recs');
+  const withDoi = papers.filter(p => p.doi).slice(0, 8);
+  if (!withDoi.length) {
+    recs.innerHTML = `<p class="hint" style="margin:10px 0 0">Recommendations use the topics of your saved papers, which need a DOI. Save some papers from the Literature or DOI Finder first.</p>`;
+    return;
+  }
+  btn.disabled = true;
+  recs.innerHTML = `<div class="stream-status" style="margin-top:12px"><span class="spinner"></span>Reading your library's topics…</div>`;
+  try {
+    // gather topic ids across saved papers (sample up to 6 to stay light)
+    const topicCounts = new Map();
+    for (const p of withDoi.slice(0, 6)) {
+      try {
+        const { topics } = await RewiseedDiscovery.relatedFor(p.doi);
+        for (const t of topics) topicCounts.set(t.id, { id: t.id, name: t.display_name, n: (topicCounts.get(t.id)?.n || 0) + 1 });
+      } catch { /* skip a paper that won't resolve */ }
+    }
+    const top = [...topicCounts.values()].sort((a, b) => b.n - a.n).slice(0, 4);
+    if (!top.length) { recs.innerHTML = `<p class="hint" style="margin:10px 0 0">Couldn't derive topics from your saved papers — their DOIs may not be indexed in OpenAlex.</p>`; return; }
+    const exclude = [...papers.map(p => p.doi).filter(Boolean), ...papers.map(p => p.url).filter(Boolean)];
+    const works = await RewiseedDiscovery.byTopics(top.map(t => t.id), exclude, 10);
+    recs.innerHTML = `
+      <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+        <span class="overline">More like my library</span>
+        <p class="hint" style="margin:4px 0 10px">Based on your library's top topics: ${top.map(t => `<span class="badge">${esc(t.name)}</span>`).join(' ')}</p>
+        ${works.length ? works.map(w => RewiseedDiscovery.paperCard(w)).join('') : '<p class="hint" style="margin:0">No new papers found beyond what you already have.</p>'}
+        <p class="hint" style="margin:8px 0 0">Topic-based suggestions from OpenAlex, ranked by citations — a discovery aid, not a systematic search.</p>
+      </div>`;
+    RewiseedDiscovery.wireSaveButtons(recs);
+  } catch (e) {
+    recs.innerHTML = `<div class="error-box" style="margin-top:12px">${icon('alert', 16)}<span>${esc(e.message)}</span></div>`;
+  } finally { btn.disabled = false; }
 }
 
 api('/api/library').then(r => { papers = r.papers; render(); }).catch(() => {

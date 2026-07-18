@@ -176,6 +176,9 @@ async function explore(seedInput) {
 }
 
 $('go').onclick = () => { const q = $('q').value.trim(); if (!q) { toast('Enter a DOI or paper title', 'error'); return; } explore(q); };
+// deep link: /citation-graph?q=DOI-or-id (used by 'Map citations' across the suite)
+const initialQ = new URLSearchParams(location.search).get('q');
+if (initialQ) { $('q').value = initialQ; explore(initialQ); }
 $('q').addEventListener('keydown', e => { if (e.key === 'Enter') $('go').click(); });
 document.querySelectorAll('.chip[data-ex]').forEach(c => c.onclick = () => { $('q').value = c.dataset.ex; $('go').click(); });
 $('out').innerHTML = `<div class="empty-state-card">${icon('graph', 30)}<span class="es-title">Map a paper's lineage</span><p>Enter a DOI or title to see what it builds on and what has built on it since — then click through the network paper by paper.</p></div>`;

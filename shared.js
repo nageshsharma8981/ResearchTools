@@ -118,6 +118,7 @@
     graph: 'M12 3v6m0 6v6M5 8l4 3m6 2l4 3M5 16l4-3m6-2l4-3M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 3a1.5 1.5 0 1 0 0.01 0zM12 21a1.5 1.5 0 1 0 .01 0zM5 8a1.5 1.5 0 1 0 .01 0zM19 8a1.5 1.5 0 1 0 .01 0zM5 16a1.5 1.5 0 1 0 .01 0zM19 16a1.5 1.5 0 1 0 .01 0z',
     chart: 'M3 3v16a2 2 0 0 0 2 2h16M7 16l4-6 4 3 5-8',
     globe: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z',
+    user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
   };
 
   function icon(name, size = 20) {
@@ -225,6 +226,7 @@
     { href: 'citation-formatter.html', icon: 'book', name: 'Citation Formatter' },
     { href: 'apa-formatter.html', icon: 'doc', name: 'APA 7 Paper Formatter' },
     { href: 'citation-graph.html', icon: 'graph', name: 'Citation Graph Explorer' },
+    { href: 'scholar-profiles.html', icon: 'user', name: 'Author & Institution Profiles' },
   ];
 
   function renderNav(activeHref) {

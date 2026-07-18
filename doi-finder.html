@@ -85,6 +85,7 @@ button.mode-tab.active { background: var(--accent-soft); color: var(--accent-str
   </section>
 </main>
 <script src="shared.js"></script>
+<script src="discovery.js"></script>
 <script>
 const { esc, icon, toast } = Rewiseed;
 const $ = (id) => document.getElementById(id);
@@ -203,6 +204,7 @@ $('lookup').onclick = async () => {
         ${p.abstract ? `<h3 style="font-size:15px;margin:14px 0 4px">Abstract</h3><p style="font-size:14px;color:var(--ink-2);margin:0">${esc(p.abstract.length > 1200 ? p.abstract.slice(0, 1200).replace(/\s+\S*$/, '') + '…' : p.abstract)}</p>` : ''}
         <div class="row">
           ${oaUrl ? `<a class="link" href="${esc(oaUrl)}" target="_blank" rel="noreferrer" style="margin-right:6px">Open access PDF ${icon('external', 12)}</a>` : ''}
+          <button class="ghost" id="show-related">${icon('graph', 15)} Papers like this</button>
           <span class="push"></span>
           <button class="ghost" id="save-lib">${icon('library', 15)} Save to library</button>
           <button class="ghost" id="copy-cite">${icon('copy', 15)} Copy citation</button>
@@ -211,6 +213,16 @@ $('lookup').onclick = async () => {
         </div>
       </article>`;
     Rewiseed.track('search');
+    $('show-related').onclick = (e) => {
+      e.currentTarget.disabled = true;
+      let panel = document.getElementById('related-panel');
+      if (!panel) {
+        e.currentTarget.closest('.card').insertAdjacentHTML('beforeend',
+          `<span class="overline" style="display:block;margin-top:18px">Papers like this</span><div id="related-panel"></div>`);
+        panel = document.getElementById('related-panel');
+      }
+      RewiseedDiscovery.renderRelated(panel, p.doi);
+    };
     $('save-lib').onclick = (e) => Rewiseed.saveToLibrary({ doi: p.doi, title: p.title, authors: p.authors, year: p.year, venue: p.venue || p.publisher, url: p.doi ? `https://doi.org/${p.doi}` : '' }, e.currentTarget);
     $('copy-cite').onclick = (e) => Rewiseed.copyText(apaish(p).replace(/\*/g, ''), e.currentTarget);
     $('copy-bib').onclick = (e) => Rewiseed.copyText(bibtex(p), e.currentTarget);
