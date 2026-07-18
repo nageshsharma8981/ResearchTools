@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Survey &amp; Interview Designer — ReWiseEd</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ReWiseEd Research Tools"/>
+<meta property="og:title" content="Survey &amp; Interview Designer — ReWiseEd"/>
+<meta property="og:description" content="Turn a research question into a rigorous survey questionnaire or semi-structured interview guide — scales, validated instruments, probes, and pilot notes."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/instrument-designer"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Survey &amp; Interview Designer — ReWiseEd"/>
+<meta name="twitter:description" content="Turn a research question into a rigorous survey questionnaire or semi-structured interview guide."/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Survey &amp; Interview Designer</h1>
+  <p class="lede">Turn a research question into a data-collection instrument — a survey questionnaire with proper scales and validated-instrument suggestions, or a semi-structured interview guide with probes.</p>
+</div>
+<main class="split">
+  <div id="settings"></div>
+  <div class="card input-card">
+    <h2>Your study</h2>
+    <p class="hint">Paste your research question(s) — output from the <a href="research-question-generator.html">Question Generator</a> drops straight in. Add constraints (population, length limits, sensitive topics) for a sharper instrument.</p>
+    <label class="field-label" for="in">Research question(s) and context</label>
+    <textarea id="in" style="min-height:150px" placeholder="RQ: Does daily social media time predict poorer sleep quality among undergraduates?&#10;Population: first-year students, online survey, must take under 10 minutes."></textarea>
+    <div class="field-foot">
+      <span class="chip-row"><button type="button" class="chip" id="example">Load example</button></span>
+      <span id="count"></span>
+    </div>
+    <div class="row" style="gap:14px">
+      <label class="field-label" style="margin:0" for="kind">Instrument</label>
+      <select id="kind">
+        <option value="survey" selected>Survey questionnaire</option>
+        <option value="interview">Interview guide</option>
+        <option value="both">Both</option>
+      </select>
+      <label class="field-label" style="margin:0" for="len">Length</label>
+      <select id="len">
+        <option value="short">Short (~5 min)</option>
+        <option value="standard" selected>Standard (~10 min)</option>
+        <option value="deep">In-depth</option>
+      </select>
+    </div>
+    <div class="row">
+      <button id="run"></button>
+      <span class="hint" style="margin:0"><kbd>⌘</kbd>+<kbd>Enter</kbd> to run</span>
+    </div>
+  </div>
+  <div id="out"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+Rewiseed.renderNav('instrument-designer.html');
+document.getElementById('hero-icon').innerHTML = Rewiseed.icon('clipboard', 26);
+Rewiseed.renderSettingsBar('settings');
+
+const EXAMPLE = `RQ1: Does daily social media time predict poorer sleep quality among first-year undergraduates?
+RQ2: Does fear of missing out (FoMO) mediate this relationship?
+
+Constraints: online self-report survey, anonymous, must take under 10 minutes, participants are 18+ students at one university. IRB requires no collection of identifying data. I would also like 4-5 interview questions for a small follow-up study.`;
+
+Rewiseed.mountStreamingTool({
+  toolId: 'instr',
+  inputId: 'in', runId: 'run', outId: 'out',
+  resultTitle: 'Your instrument',
+  downloadName: 'research-instrument.md',
+  buildSystem: () => {
+    const kind = document.getElementById('kind').value;
+    const len = document.getElementById('len').value;
+    const parts = [];
+    if (kind !== 'interview') parts.push(`## Survey questionnaire
+- **Screening & consent note** — one short paragraph including eligibility items.
+- **Sections** grouped by construct. For each construct: name it, then list items.
+- Every closed item states its response scale explicitly (e.g., 5-point Likert: Strongly disagree … Strongly agree; frequency scales; numeric entry with units).
+- **Prefer validated instruments** where they exist (e.g., PSQI, GAD-7, UCLA Loneliness, FoMO Scale) — name the instrument, its item count, and licensing note, rather than inventing items for well-measured constructs. Write original items only for constructs without standard scales.
+- Include 1-2 attention-check items and note where demographic items go (end, optional).
+- **Design notes** table: construct | measure | # items | scale | source.
+- **Pilot & validity notes** — order effects, social desirability risks, estimated completion time${len === 'short' ? ' (keep total under ~15 items)' : len === 'deep' ? '' : ' (keep total under ~30 items)'}.`);
+    if (kind !== 'survey') parts.push(`## Semi-structured interview guide
+- **Opening script** — consent reminder, recording notice, rapport question.
+- **Core questions** (${len === 'short' ? '4-5' : len === 'deep' ? '10-12' : '6-8'}) ordered from broad to specific; each with 2-3 follow-up probes and a note on what the question is designed to surface.
+- **Sensitive-topic handling** and closing questions.
+- **Interviewer notes** — pacing, neutrality reminders, saturation guidance.`);
+    return `You are a research methods expert designing data-collection instruments. Produce Markdown with exactly these sections:
+${parts.join('\n')}
+Rules:
+- Ground everything in the user's research questions and constraints; respect stated limits (time, anonymity, IRB, population) strictly.
+- Items must be single-barreled, neutral, and jargon-free at the stated population's level. No leading or double-negative items.
+- Never invent citations for validated instruments — name only real, widely used scales, and add [verify licensing] where a scale may require permission.
+- End with "### Next steps" — 3 bullets: pilot testing, reliability checks (e.g., Cronbach's alpha), and ethics/IRB reminders.`;
+  },
+  runLabel: 'Design instrument',
+  runningLabel: 'Drafting your instrument…',
+  example: EXAMPLE, exampleBtnId: 'example',
+  countId: 'count',
+});
+</script>
+</body>
+</html>

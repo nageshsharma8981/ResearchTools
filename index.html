@@ -28,7 +28,7 @@
   <p class="lede">ReWiseEd Research Tools is a private research workbench that runs entirely in your browser. No server, no account, no tracking — bring your own AI key, or run a free local model.</p>
   <div class="stat-row">
     <div class="stat"><b>240M+</b><span>papers searchable</span></div>
-    <div class="stat"><b>9</b><span>research tools</span></div>
+    <div class="stat"><b>10</b><span>research tools</span></div>
     <div class="stat"><b>100%</b><span>private &amp; local</span></div>
     <div class="stat"><b>$0</b><span>with a local model</span></div>
   </div>
@@ -70,6 +70,7 @@
         <li><a href="originality-checker.html">Originality &amp; AI Checker</a></li>
         <li><a href="research-gap-identifier.html">Gap Identifier</a></li>
         <li><a href="research-question-generator.html">Question Generator</a></li>
+        <li><a href="instrument-designer.html">Survey &amp; Interview Designer</a></li>
       </ul>
     </div>
     <div>
@@ -92,34 +93,50 @@
 <script src="shared.js"></script>
 <script>
 Rewiseed.renderNav('index.html');
-const TILES = [
-  { href: 'smart-literature-finder.html', icon: 'search', name: 'Smart Literature Finder',
-    desc: 'Search 240M+ scholarly works via OpenAlex — no key needed. Filter by year, sort by citations, export BibTeX, optionally rerank with AI.' },
-  { href: 'doi-finder.html', icon: 'doi', name: 'DOI Finder & Lookup',
-    desc: 'Paste a DOI to pull up the full paper record — or paste messy references and discover their DOIs via Crossref. Fully keyless.' },
-  { href: 'originality-checker.html', icon: 'shield', name: 'Originality & AI Checker',
-    desc: 'Stylometric signals, overlap checks against 240M scholarly works, and a forensic AI-writing assessment — signals, not verdicts.' },
-  { href: 'research-gap-identifier.html', icon: 'gap', name: 'Research Gap Identifier',
-    desc: 'Paste a literature set and surface unexplored gaps, contradictory findings, and methodological weaknesses.' },
-  { href: 'research-question-generator.html', icon: 'flask', name: 'Research Question Generator',
-    desc: 'Turn a topic into testable research questions — each with IV, DV, control variables, hypotheses, and a suggested design.' },
-  { href: 'qualitative-coding-assistant.html', icon: 'dna', name: 'Qualitative Coding Assistant',
-    desc: 'Braun & Clarke reflexive thematic analysis over interview transcripts — codes, themes, and a thematic map.' },
-  { href: 'peer-review-simulator.html', icon: 'grad', name: 'Peer Review Simulator',
-    desc: 'A rigorous but constructive reviewer: strengths, major and minor concerns, and a publication recommendation.' },
-  { href: 'citation-formatter.html', icon: 'book', name: 'Citation Formatter',
-    desc: 'Turn messy references into clean APA, MLA, Chicago, Harvard, IEEE, or Vancouver bibliographies.' },
-  { href: 'apa-formatter.html', icon: 'doc', name: 'APA 7 Paper Formatter',
-    desc: 'Upload a .docx or paste your paper — download it back as a properly formatted APA 7 Word document, with optional AI citation cleanup.' },
+const PHASES = [
+  { label: 'Discover', tiles: [
+    { href: 'smart-literature-finder.html', icon: 'search', name: 'Smart Literature Finder',
+      desc: 'Search 240M+ scholarly works via OpenAlex — no key needed. Filters, citation sorting, BibTeX export, optional AI rerank.' },
+    { href: 'doi-finder.html', icon: 'doi', name: 'DOI Finder & Lookup',
+      desc: 'Paste a DOI for the full paper record — or paste messy references and discover their DOIs via Crossref. Fully keyless.' },
+    { href: 'research-gap-identifier.html', icon: 'gap', name: 'Research Gap Identifier',
+      desc: 'Paste a literature set and surface unexplored gaps, contradictory findings, and methodological weaknesses.' },
+  ]},
+  { label: 'Design', tiles: [
+    { href: 'research-question-generator.html', icon: 'flask', name: 'Research Question Generator',
+      desc: 'Turn a topic into testable research questions — each with IV, DV, control variables, hypotheses, and a suggested design.' },
+    { href: 'instrument-designer.html', icon: 'clipboard', name: 'Survey & Interview Designer',
+      desc: 'Turn research questions into a survey with proper scales and validated instruments, or a semi-structured interview guide with probes.' },
+  ]},
+  { label: 'Analyze', tiles: [
+    { href: 'qualitative-coding-assistant.html', icon: 'dna', name: 'Qualitative Coding Assistant',
+      desc: 'Braun & Clarke reflexive thematic analysis over interview transcripts — codes, themes, and a thematic map.' },
+    { href: 'originality-checker.html', icon: 'shield', name: 'Originality & AI Checker',
+      desc: 'Stylometric signals, overlap checks against 240M scholarly works, and a forensic AI-writing assessment — signals, not verdicts.' },
+  ]},
+  { label: 'Write & Review', tiles: [
+    { href: 'peer-review-simulator.html', icon: 'grad', name: 'Peer Review Simulator',
+      desc: 'A rigorous but constructive reviewer: strengths, major and minor concerns, and a publication recommendation.' },
+    { href: 'citation-formatter.html', icon: 'book', name: 'Citation Formatter',
+      desc: 'Turn messy references into clean APA, MLA, Chicago, Harvard, IEEE, or Vancouver bibliographies.' },
+    { href: 'apa-formatter.html', icon: 'doc', name: 'APA 7 Paper Formatter',
+      desc: 'Upload a .docx or paste your paper — download it back as a properly formatted APA 7 Word document, with optional AI citation cleanup.' },
+  ]},
 ];
 document.getElementById('foot-brand').innerHTML = `${Rewiseed.icon('logo', 20)} ReWiseEd Research`;
-document.getElementById('tools').innerHTML = TILES.map(t => `
-  <a class="tool-tile" href="${t.href}">
-    <span class="tile-icon">${Rewiseed.icon(t.icon, 22)}</span>
-    <h3>${t.name}</h3>
-    <p>${t.desc}</p>
-    <span class="tile-go">Open tool ${Rewiseed.icon('arrow', 14)}</span>
-  </a>`).join('');
+document.getElementById('tools').outerHTML = PHASES.map(ph => `
+  <section class="phase-section">
+    <span class="overline">${ph.label}</span>
+    <div class="tools-grid">
+      ${ph.tiles.map(t => `
+      <a class="tool-tile" href="${t.href}">
+        <span class="tile-icon">${Rewiseed.icon(t.icon, 22)}</span>
+        <h3>${t.name}</h3>
+        <p>${t.desc}</p>
+        <span class="tile-go">Open tool ${Rewiseed.icon('arrow', 14)}</span>
+      </a>`).join('')}
+    </div>
+  </section>`).join('');
 </script>
 </body>
 </html>

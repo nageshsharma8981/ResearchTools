@@ -433,6 +433,10 @@ details.settings[open] .settings-body { animation: rise 240ms cubic-bezier(.2, .
 
 /* ---------- Landing page ---------- */
 .tools-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); gap: 16px; margin-top: 24px; }
+.phase-section { margin-top: 26px; }
+.phase-section .overline { font-size: 12px; }
+.phase-section .tools-grid { margin-top: 10px; }
+.phase-section:first-of-type { margin-top: 0; }
 .tool-tile {
   display: flex; flex-direction: column; gap: 8px;
   text-decoration: none; color: inherit;

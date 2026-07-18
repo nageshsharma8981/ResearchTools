@@ -11,6 +11,7 @@ Five standalone research tools that run **entirely in your browser**. No server,
 | Originality & AI Checker | `originality-checker.html` | Stylometric signals (burstiness, vocabulary variety, stock phrases), scholarly-overlap scan against OpenAlex, and an optional LLM forensic AI-writing assessment. Honest about limits — signals, not verdicts. |
 | Research Gap Identifier | `research-gap-identifier.html` | Find unexplored gaps, contradictions, and methodological weaknesses in a literature set. |
 | Research Question Generator | `research-question-generator.html` | Turn a topic into precise, testable research questions — each with independent, dependent, and control variables, hypotheses, and a suggested design. |
+| Survey & Interview Designer | `instrument-designer.html` | Turn research questions into a survey questionnaire (proper scales, validated instruments, attention checks, pilot notes) or a semi-structured interview guide with probes. |
 | Qualitative Coding Assistant | `qualitative-coding-assistant.html` | Braun & Clarke reflexive thematic analysis of interview transcripts — codes, themes, thematic map. |
 | Peer Review Simulator | `peer-review-simulator.html` | Structured peer review with selectable reviewer temperament (constructive → adversarial) and a recommendation. |
 | Citation Formatter | `citation-formatter.html` | Convert messy references into APA 7 / MLA 9 / Chicago / Harvard / IEEE / Vancouver. |
