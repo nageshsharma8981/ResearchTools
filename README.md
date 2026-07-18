@@ -8,6 +8,7 @@ Five standalone research tools that run **entirely in your browser**. No server,
 |---|---|---|
 | Smart Literature Finder | `smart-literature-finder.html` | Search 240M+ scholarly works via OpenAlex (keyless). Year/open-access filters, citation sorting, BibTeX export, optional AI relevance rerank. |
 | DOI Finder & Lookup | `doi-finder.html` | Paste a DOI to get the full paper record (metadata, abstract, citation, BibTeX) — or paste messy references and find their DOIs via Crossref, with match-confidence checks. Keyless. |
+| Originality & AI Checker | `originality-checker.html` | Stylometric signals (burstiness, vocabulary variety, stock phrases), scholarly-overlap scan against OpenAlex, and an optional LLM forensic AI-writing assessment. Honest about limits — signals, not verdicts. |
 | Research Gap Identifier | `research-gap-identifier.html` | Find unexplored gaps, contradictions, and methodological weaknesses in a literature set. |
 | Qualitative Coding Assistant | `qualitative-coding-assistant.html` | Braun & Clarke reflexive thematic analysis of interview transcripts — codes, themes, thematic map. |
 | Peer Review Simulator | `peer-review-simulator.html` | Structured peer review with selectable reviewer temperament (constructive → adversarial) and a recommendation. |

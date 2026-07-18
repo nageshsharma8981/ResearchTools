@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Originality &amp; AI Checker — ReWiseEd</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ReWiseEd Research Tools"/>
+<meta property="og:title" content="Originality &amp; AI Checker — ReWiseEd"/>
+<meta property="og:description" content="Stylometric signals, scholarly-overlap checks against 240M works, and an AI-writing forensic assessment — private, in your browser."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/originality-checker"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Originality &amp; AI Checker — ReWiseEd"/>
+<meta name="twitter:description" content="Stylometric signals, scholarly-overlap checks against 240M works, and an AI-writing forensic assessment — private, in your browser."/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 14px; margin-top: 6px; }
+.metric-tile { background: var(--surface-2); border-radius: var(--radius); padding: 12px 14px; }
+.metric-tile b { display: block; font-family: var(--font-serif); font-size: 22px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.metric-tile span { font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.metric-tile .note { display: block; font-size: 11.5px; color: var(--muted); text-transform: none; letter-spacing: 0; font-weight: 500; margin-top: 2px; }
+.overlap-chunk { border-top: 1px solid var(--border); padding: 12px 0; }
+.overlap-chunk:first-of-type { border-top: 0; }
+.overlap-chunk .snippet { font-size: 13px; color: var(--ink-2); font-style: italic; }
+.file-note { font-size: 12.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Originality &amp; AI Checker</h1>
+  <p class="lede">Three independent lenses on a document: stylometric signals, overlap with 240M scholarly works, and an AI-writing forensic assessment. Everything stays in your browser.</p>
+</div>
+<main class="split">
+  <div id="settings"></div>
+  <div class="card input-card">
+    <h2>Document to check</h2>
+    <p class="hint">Paste text or load a <code>.txt</code> / <code>.md</code> file. Stylometry and the scholarly-overlap scan are free and keyless; the AI-writing assessment uses your configured key. Signals are evidence, never proof — treat them accordingly.</p>
+    <label class="field-label" for="in">Text</label>
+    <textarea id="in" placeholder="Paste the essay, article, or manuscript to check…"></textarea>
+    <div class="field-foot">
+      <span class="chip-row">
+        <button type="button" class="chip" id="example">Load example</button>
+        <label class="chip" style="display:inline-flex;align-items:center;cursor:pointer">Load .txt file<input id="file" type="file" accept=".txt,.md,text/plain" style="display:none"/></label>
+      </span>
+      <span id="count"></span>
+    </div>
+    <div class="row">
+      <button id="run"></button>
+      <span class="hint" style="margin:0"><kbd>⌘</kbd>+<kbd>Enter</kbd> to run</span>
+    </div>
+  </div>
+  <div id="out"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+const { esc, icon, toast, md } = Rewiseed;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('originality-checker.html');
+$('hero-icon').innerHTML = icon('shield', 26);
+Rewiseed.renderSettingsBar('settings');
+
+const EMPTY = `
+  <div class="empty-state-card">
+    ${icon('shield', 30)}
+    <span class="es-title">Originality report</span>
+    <p>Run a check and three sections appear here: stylometric signals, scholarly-overlap matches with links, and (with an API key) a forensic AI-writing assessment.</p>
+  </div>`;
+$('out').innerHTML = EMPTY;
+
+// ---------- input plumbing ----------
+const DRAFT_KEY = 'rewiseed_draft_originality';
+const saved = localStorage.getItem(DRAFT_KEY);
+if (saved) $('in').value = saved;
+let saveTimer;
+const updateCount = () => {
+  const w = $('in').value.trim() ? $('in').value.trim().split(/\s+/).length : 0;
+  $('count').textContent = w ? `${w.toLocaleString()} words` : '';
+};
+$('in').addEventListener('input', () => {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => localStorage.setItem(DRAFT_KEY, $('in').value), 400);
+  updateCount();
+});
+updateCount();
+
+$('file').addEventListener('change', (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  if (f.size > 2_000_000) { toast('File too large (2 MB max)', 'error'); return; }
+  f.text().then(t => { $('in').value = t; $('in').dispatchEvent(new Event('input')); toast(`Loaded ${f.name}`); });
+});
+
+const EXAMPLE = `The impact of social media on adolescent wellbeing has become an increasingly important area of research. It is important to note that social media platforms play a crucial role in shaping the daily experiences of young people. Furthermore, these platforms offer both opportunities and challenges in the ever-evolving digital landscape.
+
+Numerous studies have delved into the relationship between screen time and mental health outcomes. The findings paint a complex tapestry of effects that vary across individuals and contexts. Moreover, it is essential to recognize that correlation does not imply causation in these studies.
+
+Honestly though, when I asked my little sister about it she just shrugged and said her group chat is the only reason she survived moving schools twice. Hard to fit that into a regression table. The kids two doors down seem fine; the one upstairs doesn't. Nobody's spreadsheet captures why.
+
+In conclusion, the multifaceted nature of social media's impact underscores the need for a nuanced approach. Ultimately, stakeholders must work together to foster healthy digital environments for the younger generation.`;
+
+$('example').onclick = () => { $('in').value = EXAMPLE; $('in').dispatchEvent(new Event('input')); toast('Example loaded — press Run'); };
+
+// ---------- 1. stylometry (client-side, instant) ----------
+
+const AI_PHRASES = ['delve', 'delves', 'tapestry', 'it is important to note', 'it is essential to', 'in conclusion', 'furthermore', 'moreover', 'ever-evolving', 'landscape', 'multifaceted', 'underscores', 'crucial role', 'plays a vital role', 'in today’s', "in today's", 'navigate the complexities', 'foster', 'stakeholders', 'paradigm', 'holistic', 'ultimately', 'seamlessly', 'boasts', 'testament to'];
+
+function stylometry(text) {
+  const words = text.toLowerCase().match(/[a-zÀ-ɏ']+/g) || [];
+  const sentences = text.split(/[.!?]+[\s\n]+|[.!?]+$/).map(s => s.trim()).filter(s => s.split(/\s+/).length > 2);
+  const sLens = sentences.map(s => s.split(/\s+/).length);
+  const mean = sLens.reduce((a, b) => a + b, 0) / (sLens.length || 1);
+  const sd = Math.sqrt(sLens.reduce((a, b) => a + (b - mean) ** 2, 0) / (sLens.length || 1));
+  const burstiness = mean ? sd / mean : 0;
+  const sample = words.slice(0, 2000);
+  const ttr = sample.length ? new Set(sample).size / sample.length : 0;
+  // repeated 8-grams = self-duplication
+  const grams = new Set(); let dupes = 0;
+  for (let i = 0; i + 8 <= words.length; i++) {
+    const g = words.slice(i, i + 8).join(' ');
+    if (grams.has(g)) dupes++; else grams.add(g);
+  }
+  const lower = text.toLowerCase();
+  let phraseHits = 0;
+  const hitList = [];
+  for (const p of AI_PHRASES) {
+    const n = lower.split(p).length - 1;
+    if (n) { phraseHits += n; hitList.push(`${p} ×${n}`); }
+  }
+  return { words: words.length, sentences: sentences.length, mean, burstiness, ttr, dupes, phraseHits, hitList };
+}
+
+const rate = (v, lo, hi, lowLabel, midLabel, highLabel) =>
+  v < lo ? lowLabel : v > hi ? highLabel : midLabel;
+
+function metricsHtml(m) {
+  return `
+  <div class="card">
+    <span class="overline">Section 1 · Instant</span>
+    <h2>Stylometric signals</h2>
+    <p class="hint">Statistical fingerprints of the text. Uniform sentences, low vocabulary variety, and stock phrases are <em>weak</em> AI indicators; human text tends to be burstier.</p>
+    <div class="metric-grid">
+      <div class="metric-tile"><b>${m.words.toLocaleString()}</b><span>words</span><span class="note">${m.sentences} sentences</span></div>
+      <div class="metric-tile"><b>${m.mean.toFixed(1)}</b><span>avg sentence</span><span class="note">words per sentence</span></div>
+      <div class="metric-tile"><b>${m.burstiness.toFixed(2)}</b><span>burstiness</span><span class="note">${rate(m.burstiness, .35, .55, 'low — uniform, AI-ish', 'moderate', 'high — human-ish')}</span></div>
+      <div class="metric-tile"><b>${(m.ttr * 100).toFixed(0)}%</b><span>vocab variety</span><span class="note">${rate(m.ttr, .38, .5, 'low', 'typical', 'rich')}</span></div>
+      <div class="metric-tile"><b>${m.dupes}</b><span>repeated passages</span><span class="note">8-word self-repeats</span></div>
+      <div class="metric-tile"><b>${m.phraseHits}</b><span>stock phrases</span><span class="note">${m.phraseHits ? esc(m.hitList.slice(0, 3).join(', ')) : 'none found'}</span></div>
+    </div>
+  </div>`;
+}
+
+// ---------- 2. scholarly overlap (keyless, OpenAlex) ----------
+
+const STOP = new Set('the a an and or of to in on for with by is are was were be been this that those these it its as at from we our their his her they you your not no'.split(' '));
+const contentWords = (t) => (t.toLowerCase().match(/[a-z']+/g) || []).filter(w => w.length > 3 && !STOP.has(w));
+
+function pickChunks(text) {
+  return text.split(/\n\s*\n/)
+    .map(p => p.trim().replace(/\s+/g, ' '))
+    .filter(p => p.split(' ').length >= 25)
+    .sort((a, b) => b.length - a.length)
+    .slice(0, 6);
+}
+
+async function overlapScan(text, container) {
+  const chunks = pickChunks(text);
+  if (!chunks.length) {
+    container.innerHTML += `<div class="card"><span class="overline">Section 2 · Keyless</span><h2>Scholarly overlap</h2><p class="hint" style="margin:0">Text too short for an overlap scan (needs paragraphs of 25+ words).</p></div>`;
+    return [];
+  }
+  container.insertAdjacentHTML('beforeend', `
+    <div class="card" id="overlap-card">
+      <span class="overline">Section 2 · Keyless</span>
+      <h2>Scholarly overlap</h2>
+      <p class="hint">The ${chunks.length} most distinctive passages, checked against OpenAlex's index of 240M works (titles, abstracts, and indexed full text). This is a scholarly-literature check, not a whole-web search.</p>
+      <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="${chunks.length}" aria-valuenow="0" id="ov-bar"><div class="progress-fill" id="ov-fill"></div></div>
+      <div id="ov-results"></div>
+    </div>`);
+  const results = [];
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    $('ov-fill').style.width = `${((i + 1) / chunks.length) * 100}%`;
+    $('ov-bar').setAttribute('aria-valuenow', i + 1);
+    try {
+      const q = chunk.split(' ').slice(0, 30).join(' ');
+      const params = new URLSearchParams({ search: q, per_page: '2', select: 'id,doi,display_name,publication_year,authorships,abstract_inverted_index' });
+      const r = await fetch(`https://api.openalex.org/works?${params}`);
+      if (!r.ok) throw new Error(`OpenAlex ${r.status}`);
+      const works = (await r.json()).results || [];
+      const cw = new Set(contentWords(chunk));
+      let best = null;
+      for (const w of works) {
+        const abs = [];
+        for (const [word, pos] of Object.entries(w.abstract_inverted_index || {})) for (const p of pos) abs[p] = word;
+        const aw = new Set(contentWords(abs.filter(Boolean).join(' ') + ' ' + (w.display_name || '')));
+        const shared = [...cw].filter(x => aw.has(x)).length;
+        const score = cw.size ? shared / cw.size : 0;
+        if (!best || score > best.score) best = { work: w, score };
+      }
+      if (best && best.score >= 0.3) results.push({ chunk, ...best });
+    } catch { /* skip chunk on network hiccup */ }
+    if (i < chunks.length - 1) await new Promise(r => setTimeout(r, 250));
+  }
+  const el = $('ov-results');
+  if (!results.length) {
+    el.innerHTML = `<p class="hint" style="margin:8px 0 0">${icon('check', 14)} No significant overlap with indexed scholarly literature found in the passages checked.</p>`;
+  } else {
+    el.innerHTML = results.map(r => `
+      <div class="overlap-chunk">
+        <div class="snippet">“${esc(r.chunk.slice(0, 180))}…”</div>
+        <div class="paper-foot" style="margin-top:8px">
+          <span class="badge ${r.score >= 0.45 ? 'warn' : ''}">${Math.round(r.score * 100)}% word overlap</span>
+          <span class="links"><a class="link" href="${esc(r.work.doi || r.work.id)}" target="_blank" rel="noreferrer">${esc((r.work.display_name || 'source').slice(0, 70))} (${r.work.publication_year || 'n.d.'}) ${icon('external', 12)}</a></span>
+        </div>
+      </div>`).join('');
+  }
+  $('ov-bar').remove();
+  return results;
+}
+
+// ---------- 3. AI-writing assessment (BYOK) ----------
+
+const SYS = `You are a forensic linguist assessing whether a document reads as AI-generated, human-written, or mixed. You are rigorous and honest: stylistic evidence is suggestive, never conclusive, and you say so.
+Output Markdown with exactly these sections:
+## Verdict
+One of: Likely human · Possibly AI-assisted · Likely substantially AI-generated — with a confidence (low/medium/high) and a 2-3 sentence rationale.
+## Evidence
+A table with columns Signal | Observation | Direction (AI-ish / human-ish / neutral). Use both the text itself and the stylometric metrics provided.
+## Passages that read most AI-generated
+Quote 1-3 short passages verbatim and explain the tells.
+## Passages that read most human
+Quote 1-2 short passages verbatim and explain why.
+## Caveats
+Honest limits: detectors are unreliable, editing blurs signals, never make high-stakes decisions on this alone.`;
+
+// ---------- orchestration ----------
+
+let running = false;
+let lastReport = '';
+
+$('run').innerHTML = `${icon('play', 15)} Run originality check`;
+$('run').onclick = async () => {
+  if (running) return;
+  const text = $('in').value.trim();
+  if (!text) { toast('Paste some text first', 'error'); $('in').focus(); return; }
+  if (text.split(/\s+/).length < 40) { toast('Need at least ~40 words for meaningful signals', 'error'); return; }
+  running = true;
+  const btn = $('run'); btn.disabled = true;
+  const out = $('out');
+
+  // 1. stylometry
+  const m = stylometry(text);
+  out.innerHTML = metricsHtml(m);
+
+  // 2. scholarly overlap
+  const matches = await overlapScan(text, out);
+
+  // 3. LLM assessment (only if configured)
+  const cfg = Rewiseed.getCfg();
+  let aiSection = '';
+  if (cfg.apiKey || Rewiseed.isLocalUrl(cfg.baseUrl)) {
+    out.insertAdjacentHTML('beforeend', `
+      <div class="card">
+        <span class="overline">Section 3 · Uses your key</span>
+        <h2>AI-writing assessment</h2>
+        <div class="result" id="ai-stream" aria-live="polite"><div class="stream-status"><span class="spinner"></span>Reading like a forensic linguist…</div></div>
+      </div>`);
+    try {
+      const metricsNote = `Stylometric metrics: ${JSON.stringify({ words: m.words, avg_sentence_len: +m.mean.toFixed(1), burstiness: +m.burstiness.toFixed(2), vocab_variety: +(m.ttr).toFixed(2), repeated_8grams: m.dupes, stock_phrase_hits: m.phraseHits, stock_phrases: m.hitList.slice(0, 8) })}`;
+      let raf = 0, pending = '';
+      const paint = () => { $('ai-stream').innerHTML = `<div class="cursor-blink">${md(pending)}</div>`; raf = 0; };
+      aiSection = await Rewiseed.callLLM({
+        system: SYS,
+        user: `${metricsNote}\n\nDocument:\n${text.slice(0, 24000)}`,
+        temperature: 0.2,
+        onStream: (t) => { pending = t; if (!raf) raf = requestAnimationFrame(paint); },
+      });
+      if (raf) cancelAnimationFrame(raf);
+      $('ai-stream').innerHTML = md(aiSection);
+    } catch (e) {
+      $('ai-stream').innerHTML = `<div class="error-box">${icon('alert', 18)}<span>${esc(e.message)}</span></div>`;
+    }
+  } else {
+    out.insertAdjacentHTML('beforeend', `
+      <div class="card">
+        <span class="overline">Section 3 · Optional</span>
+        <h2>AI-writing assessment</h2>
+        <p class="hint" style="margin:0">Add an API key in <b>API settings</b> (or point at a free local model) to get a forensic AI-writing assessment with quoted evidence.</p>
+      </div>`);
+  }
+
+  // report download
+  lastReport = [
+    `# Originality report`,
+    `\n## Stylometric signals\n`,
+    `- Words: ${m.words} · Sentences: ${m.sentences} · Avg sentence: ${m.mean.toFixed(1)} words`,
+    `- Burstiness: ${m.burstiness.toFixed(2)} · Vocabulary variety: ${(m.ttr * 100).toFixed(0)}% · Repeated 8-word passages: ${m.dupes} · Stock phrases: ${m.phraseHits}${m.hitList.length ? ` (${m.hitList.join(', ')})` : ''}`,
+    `\n## Scholarly overlap\n`,
+    matches.length
+      ? matches.map(r => `- ${Math.round(r.score * 100)}% overlap with ${r.work.display_name} (${r.work.publication_year || 'n.d.'}) — ${r.work.doi || r.work.id}\n  > ${r.chunk.slice(0, 200)}…`).join('\n')
+      : `No significant overlap with indexed scholarly literature in the passages checked.`,
+    aiSection ? `\n## AI-writing assessment\n\n${aiSection}` : '',
+    `\n---\n*Signals, not proof. Generated locally by ReWiseEd Originality & AI Checker.*`,
+  ].join('\n');
+  out.insertAdjacentHTML('beforeend', `
+    <div class="row">
+      <button class="ghost" id="rep-copy">${icon('copy', 15)} Copy report</button>
+      <button class="ghost" id="rep-dl">${icon('download', 15)} Download .md</button>
+    </div>`);
+  $('rep-copy').onclick = (e) => Rewiseed.copyText(lastReport, e.currentTarget);
+  $('rep-dl').onclick = () => Rewiseed.downloadText('originality-report.md', lastReport);
+
+  running = false;
+  btn.disabled = false;
+};
+
+$('in').addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); $('run').click(); }
+});
+</script>
+</body>
+</html>
