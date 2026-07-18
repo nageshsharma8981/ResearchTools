@@ -126,10 +126,15 @@
     $('theme-toggle').onclick = () => {
       applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
     };
-    // close the menu when clicking outside
+    // close the menu when clicking outside or pressing Escape
     document.addEventListener('click', (e) => {
       const menu = nav.querySelector('.tool-menu');
       if (menu?.open && !menu.contains(e.target)) menu.open = false;
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const menu = nav.querySelector('.tool-menu');
+      if (menu?.open) { menu.open = false; menu.querySelector('summary')?.focus(); }
     });
     // elevate the nav once content scrolls beneath it
     let navRaf = 0;
