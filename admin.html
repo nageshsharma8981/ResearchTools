@@ -46,6 +46,7 @@ const TOOL_LABELS = {
   'qualitative-coding-assistant': 'Qualitative Coding', 'peer-review-simulator': 'Peer Review',
   'citation-formatter': 'Citation Formatter', 'apa-formatter': 'APA 7 Formatter',
 };
+const USAGE_LABELS = { ...TOOL_LABELS, assistant: 'Assistant (chatbot)' };
 
 async function loadAnalytics() {
   try {
@@ -64,7 +65,7 @@ async function loadAnalytics() {
           ${a.totals.anonRuns !== null && a.totals.anonRuns !== undefined ? `<div style="background:var(--surface-2);border-radius:var(--radius);padding:12px 14px"><b style="font-family:var(--font-serif);font-size:22px;display:block">${a.totals.anonRuns.toLocaleString()}</b><span class="hint" style="margin:0">anonymous runs</span></div>` : ''}
         </div>
         ${a.byTool.length ? `<div class="users-wrap"><table class="users"><thead><tr><th>Tool</th><th>Runs</th><th>Est. tokens</th><th>Signed-in users</th></tr></thead><tbody>
-          ${a.byTool.map(t => `<tr><td><b>${esc(TOOL_LABELS[t.tool] || t.tool)}</b></td><td>${t.runs.toLocaleString()}</td><td>~${t.estTokens.toLocaleString()}</td><td>${t.users || 0}</td></tr>`).join('')}
+          ${a.byTool.map(t => `<tr><td><b>${esc(USAGE_LABELS[t.tool] || t.tool)}</b></td><td>${t.runs.toLocaleString()}</td><td>~${t.estTokens.toLocaleString()}</td><td>${t.users || 0}</td></tr>`).join('')}
         </tbody></table></div>` : `<p class="hint" style="margin:0">No usage recorded yet — metrics appear as tools get used.</p>`}
         <p class="hint" style="margin:10px 0 0">${esc(a.note)}</p>
       </div>`;

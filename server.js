@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 `);
 // migrations for pre-existing databases
-for (const col of ["terms_version TEXT NOT NULL DEFAULT ''", 'terms_accepted_at INTEGER NOT NULL DEFAULT 0', "tool_access TEXT NOT NULL DEFAULT ''"]) {
+for (const col of ["terms_version TEXT NOT NULL DEFAULT ''", 'terms_accepted_at INTEGER NOT NULL DEFAULT 0', "tool_access TEXT NOT NULL DEFAULT ''", 'seen_intro INTEGER NOT NULL DEFAULT 0']) {
   try { db.exec(`ALTER TABLE users ADD COLUMN ${col}`); } catch { /* already present */ }
 }
 db.exec(`CREATE TABLE IF NOT EXISTS events (
@@ -69,6 +69,8 @@ const TOOL_IDS = new Set([
   'research-gap-identifier', 'research-question-generator', 'instrument-designer',
   'qualitative-coding-assistant', 'peer-review-simulator', 'citation-formatter', 'apa-formatter',
 ]);
+// things that report usage but are not grantable/gateable pages
+const TRACKABLE = new Set([...TOOL_IDS, 'assistant']);
 const parseToolAccess = (s) => String(s || '').split(',').map(x => x.trim()).filter(x => TOOL_IDS.has(x));
 
 // ---------- helpers ----------
@@ -89,7 +91,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const cap = (s, n) => String(s ?? '').slice(0, n).trim();
 
 function publicUser(u, includePrivate = false) {
-  const base = { id: u.id, email: u.email, name: u.name, role: u.role, org: u.org, photo: u.photo, linkedin: u.linkedin, twitter: u.twitter, about: u.about, tool_access: parseToolAccess(u.tool_access) };
+  const base = { id: u.id, email: u.email, name: u.name, role: u.role, org: u.org, photo: u.photo, linkedin: u.linkedin, twitter: u.twitter, about: u.about, tool_access: parseToolAccess(u.tool_access), seen_intro: !!u.seen_intro };
   if (includePrivate) { base.confirmed = !!u.confirmed; base.disabled = !!u.disabled; base.created_at = u.created_at; }
   return base;
 }
@@ -372,7 +374,8 @@ app.post('/api/auth/signout', requireAuth, (req, res) => {
 app.get('/api/me', requireAuth, (req, res) => res.json({ user: publicUser(req.user, true) }));
 
 app.put('/api/me', requireAuth, (req, res) => {
-  const { name, org, linkedin, twitter, about, photo } = req.body || {};
+  const { name, org, linkedin, twitter, about, photo, introSeen } = req.body || {};
+  if (introSeen === true) db.prepare('UPDATE users SET seen_intro = 1 WHERE id = ?').run(req.user.id);
   const clean = {
     name: cap(name ?? req.user.name, 80),
     org: cap(org ?? req.user.org, 120),
@@ -469,7 +472,7 @@ app.put('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
 app.post('/api/track', (req, res) => {
   if (!rateLimit('track:' + req.ip, 120, 15 * 60_000)) return res.status(429).json({});
   const { tool, kind, outChars } = req.body || {};
-  if (!TOOL_IDS.has(String(tool))) return res.status(400).json({});
+  if (!TRACKABLE.has(String(tool))) return res.status(400).json({});
   const u = currentUser(req);
   db.prepare('INSERT INTO events (ts, user_id, tool, kind, out_chars) VALUES (?,?,?,?,?)')
     .run(now(), u ? u.id : null, String(tool), ['run', 'search', 'export'].includes(kind) ? kind : 'run', Math.max(0, Math.min(2_000_000, Number(outChars) || 0)));

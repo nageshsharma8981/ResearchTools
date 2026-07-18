@@ -84,6 +84,7 @@
       <h4 style="margin-top:16px">Company</h4>
       <ul>
         <li><a href="about.html">About us</a></li>
+        <li><a href="#" id="replay-intro">Replay the intro</a></li>
         <li><a href="terms.html">Terms of Service</a></li>
         <li><a href="privacy.html">Privacy Policy</a></li>
       </ul>
@@ -91,8 +92,20 @@
   </div>
 </footer>
 <script src="shared.js"></script>
+<script src="intro.js"></script>
 <script>
 Rewiseed.renderNav('index.html');
+// cinematic intro on first sign-in; replayable from the footer
+fetch('/api/me', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).then(d => {
+  if (d && d.user && !d.user.seen_intro) {
+    RewiseedIntro.play(d.user.name).then(() => {
+      fetch('/api/me', { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ introSeen: true }) }).catch(() => {});
+    });
+  }
+}).catch(() => {});
+document.addEventListener('click', (e) => {
+  if (e.target.closest('#replay-intro')) { e.preventDefault(); RewiseedIntro.play(''); }
+});
 const PHASES = [
   { label: 'Discover', tiles: [
     { href: 'smart-literature-finder.html', icon: 'search', name: 'Smart Literature Finder',

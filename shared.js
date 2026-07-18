@@ -59,6 +59,8 @@
     flask: 'M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2M6.453 15h11.094M8.5 2h7',
     doc: 'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7zM14 2v4a2 2 0 0 0 2 2h4M16 13H8M16 17H8M10 9H8',
     clipboard: 'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M12 11h4M12 16h4M8 11h.01M8 16h.01M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z',
+    key: 'M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4',
+    chat: 'M7.9 20A9 9 0 1 0 4 16.1L2 22z',
   };
 
   function icon(name, size = 20) {
@@ -169,6 +171,12 @@
       } else return;
       nav.insertBefore(slot, $('theme-toggle'));
     }).catch(() => { /* static/offline bundle — no accounts */ });
+    // load the grounded assistant widget on every page (no-op offline)
+    if (!document.getElementById('assistant-fab') && location.protocol.startsWith('http')) {
+      const s = document.createElement('script');
+      s.src = 'assistant.js'; s.defer = true;
+      document.body.appendChild(s);
+    }
     // elevate the nav once content scrolls beneath it
     let navRaf = 0;
     addEventListener('scroll', () => {
