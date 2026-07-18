@@ -182,6 +182,7 @@ async function overlapScan(text, container) {
       <div id="ov-results"></div>
     </div>`);
   const results = [];
+  let failed = 0;
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
     $('ov-fill').style.width = `${((i + 1) / chunks.length) * 100}%`;
@@ -203,12 +204,17 @@ async function overlapScan(text, container) {
         if (!best || score > best.score) best = { work: w, score };
       }
       if (best && best.score >= 0.3) results.push({ chunk, ...best });
-    } catch { /* skip chunk on network hiccup */ }
+    } catch { failed++; }
     if (i < chunks.length - 1) await new Promise(r => setTimeout(r, 250));
   }
   const el = $('ov-results');
+  if (failed === chunks.length) {
+    el.innerHTML = `<div class="error-box" style="margin-top:10px">${icon('alert', 18)}<span>The scholarly index (api.openalex.org) could not be reached — overlap was <b>not</b> checked. Check your connection and run again.</span></div>`;
+    $('ov-bar').remove();
+    return [];
+  }
   if (!results.length) {
-    el.innerHTML = `<p class="hint" style="margin:8px 0 0">${icon('check', 14)} No significant overlap with indexed scholarly literature found in the passages checked.</p>`;
+    el.innerHTML = `<p class="hint" style="margin:8px 0 0">${icon('check', 14)} No significant overlap with indexed scholarly literature found in the passages checked.${failed ? ` <b>(${failed} of ${chunks.length} passages could not be checked — network errors.)</b>` : ''}</p>`;
   } else {
     el.innerHTML = results.map(r => `
       <div class="overlap-chunk">
@@ -218,6 +224,7 @@ async function overlapScan(text, container) {
           <span class="links"><a class="link" href="${esc(r.work.doi || r.work.id)}" target="_blank" rel="noreferrer">${esc((r.work.display_name || 'source').slice(0, 70))} (${r.work.publication_year || 'n.d.'}) ${icon('external', 12)}</a></span>
         </div>
       </div>`).join('');
+    if (failed) el.insertAdjacentHTML('beforeend', `<p class="hint" style="margin:8px 0 0"><b>${failed} of ${chunks.length} passages could not be checked (network errors)</b> — coverage is partial.</p>`);
   }
   $('ov-bar').remove();
   return results;
