@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DOI Finder &amp; Lookup — Rewiseed</title>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.mode-tabs { display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+.mode-tab {
+  background: var(--surface); color: var(--ink-2);
+  border: 1px solid var(--border-strong); border-radius: 999px;
+  padding: 9px 20px; min-height: 44px; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+button.mode-tab:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); box-shadow: none; }
+button.mode-tab.active { background: var(--accent-soft); color: var(--accent-strong); border-color: var(--accent); }
+.kv { display:grid; grid-template-columns: 130px 1fr; gap: 6px 14px; font-size: 14px; margin: 12px 0; }
+.kv dt { color: var(--muted); font-weight: 600; }
+.kv dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.match { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
+.match .alt { font-size: 13px; color: var(--muted); margin-top: 8px; padding-left: 12px; border-left: 2px solid var(--border); }
+.ref-input { font-size: 13px; color: var(--muted); font-family: var(--font-mono); overflow-wrap: anywhere; }
+@media (max-width: 640px) { .kv { grid-template-columns: 1fr; gap: 2px 0; } .kv dt { margin-top: 8px; } }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>DOI Finder &amp; Lookup</h1>
+  <p class="lede">Two directions, both free and keyless: paste a DOI to pull up the full paper record, or paste messy references to discover their DOIs via Crossref.</p>
+</div>
+<main>
+  <div class="mode-tabs" role="tablist">
+    <button class="mode-tab active" id="tab-lookup" role="tab" aria-selected="true">DOI → Paper</button>
+    <button class="mode-tab" id="tab-find" role="tab" aria-selected="false">Reference → DOI</button>
+  </div>
+
+  <section id="panel-lookup">
+    <div class="card">
+      <h2>Look up a DOI</h2>
+      <p class="hint">Any format works: <code>10.1038/nature14539</code>, <code>https://doi.org/10.1038/…</code>, or <code>doi:10.1038/…</code>. Data comes from Crossref, with the abstract filled in from OpenAlex when Crossref lacks one.</p>
+      <div class="search-row">
+        <input id="doi-in" type="search" autocomplete="off" spellcheck="false" placeholder="e.g. 10.1038/s41586-021-03819-2" aria-label="DOI"/>
+        <button id="lookup"></button>
+      </div>
+      <div class="field-foot">
+        <span class="chip-row">
+          <button type="button" class="chip" data-ex="10.1038/s41586-021-03819-2">Try: AlphaFold (Nature)</button>
+          <button type="button" class="chip" data-ex="10.1017/CBO9780511807763">Try: Ostrom (book)</button>
+        </span>
+      </div>
+    </div>
+    <div id="lookup-out"></div>
+  </section>
+
+  <section id="panel-find" hidden>
+    <div class="card">
+      <h2>Find DOIs for references</h2>
+      <p class="hint">One reference per line, any format — even partial or messy. Each line is matched against Crossref's 160M+ records. Results show a confidence check so you can trust (or reject) each match.</p>
+      <label class="field-label" for="refs-in">References</label>
+      <textarea id="refs-in" style="min-height:140px" placeholder="vaswani attention is all you need 2017&#10;Kahneman thinking fast and slow&#10;Jumper et al. highly accurate protein structure prediction alphafold nature 2021"></textarea>
+      <div class="field-foot">
+        <span class="chip-row"><button type="button" class="chip" id="refs-example">Load example</button></span>
+        <span id="refs-count"></span>
+      </div>
+      <div class="row">
+        <button id="find"></button>
+        <span class="hint" style="margin:0">Looked up one at a time to stay polite to the free API</span>
+      </div>
+    </div>
+    <div id="find-toolbar"></div>
+    <div id="find-out"></div>
+  </section>
+</main>
+<script src="shared.js"></script>
+<script>
+const { esc, icon, toast } = Rewiseed;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('doi-finder.html');
+$('hero-icon').innerHTML = icon('doi', 26);
+$('lookup').innerHTML = `${icon('search', 16)} Look up`;
+$('find').innerHTML = `${icon('play', 15)} Find DOIs`;
+
+// ---------- shared helpers ----------
+
+function extractDoi(s) {
+  const m = String(s).match(/10\.\d{4,9}\/[^\s"'<>]+/i);
+  return m ? m[0].replace(/[.,;)\]]+$/, '') : null;
+}
+function stripJats(x) { // Crossref abstracts arrive as JATS XML
+  return String(x || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function crossrefAuthors(a) {
+  return (a || []).map(x => [x.given, x.family].filter(Boolean).join(' ') || x.name).filter(Boolean);
+}
+function crossrefYear(msg) {
+  return msg.issued?.['date-parts']?.[0]?.[0] || msg.published?.['date-parts']?.[0]?.[0] || null;
+}
+function apaish(p) {
+  const names = p.authors.length > 3 ? p.authors.slice(0, 3).join(', ') + ', et al.' : p.authors.join(', ');
+  return `${names || '[unknown authors]'} (${p.year || 'n.d.'}). ${p.title}. ${p.venue ? `*${p.venue}*. ` : ''}https://doi.org/${p.doi}`;
+}
+function bibtex(p) {
+  const key = ((p.authors[0] || 'ref').split(' ').pop().toLowerCase().replace(/[^a-z]/g, '') || 'ref') + (p.year || '');
+  const f = [
+    `  title = {${p.title}}`,
+    p.authors.length ? `  author = {${p.authors.join(' and ')}}` : null,
+    p.year ? `  year = {${p.year}}` : null,
+    p.venue ? `  journal = {${p.venue}}` : null,
+    p.volume ? `  volume = {${p.volume}}` : null,
+    p.pages ? `  pages = {${p.pages}}` : null,
+    p.publisher ? `  publisher = {${p.publisher}}` : null,
+    `  doi = {${p.doi}}`,
+  ].filter(Boolean).join(',\n');
+  return `@${p.bibType || 'article'}{${key},\n${f}\n}`;
+}
+function normalizeCrossref(msg) {
+  return {
+    doi: msg.DOI,
+    title: (msg.title?.[0] || '(untitled)').replace(/\s+/g, ' '),
+    authors: crossrefAuthors(msg.author),
+    year: crossrefYear(msg),
+    venue: msg['container-title']?.[0] || '',
+    publisher: msg.publisher || '',
+    volume: msg.volume || '', pages: msg.page || '',
+    type: msg.type || '',
+    bibType: /book/.test(msg.type || '') ? 'book' : (msg.type === 'proceedings-article' ? 'inproceedings' : 'article'),
+    citedBy: msg['is-referenced-by-count'] ?? null,
+    abstract: stripJats(msg.abstract),
+    score: msg.score,
+  };
+}
+
+// ---------- tabs ----------
+
+function setMode(mode) {
+  const lookup = mode === 'lookup';
+  $('panel-lookup').hidden = !lookup;
+  $('panel-find').hidden = lookup;
+  $('tab-lookup').classList.toggle('active', lookup);
+  $('tab-find').classList.toggle('active', !lookup);
+  $('tab-lookup').setAttribute('aria-selected', lookup);
+  $('tab-find').setAttribute('aria-selected', !lookup);
+}
+$('tab-lookup').onclick = () => setMode('lookup');
+$('tab-find').onclick = () => setMode('find');
+
+// ---------- mode 1: DOI → paper ----------
+
+document.querySelectorAll('.chip[data-ex]').forEach(c => c.onclick = () => { $('doi-in').value = c.dataset.ex; $('lookup').click(); });
+$('doi-in').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('lookup').click(); });
+
+$('lookup').onclick = async () => {
+  const doi = extractDoi($('doi-in').value);
+  const out = $('lookup-out');
+  if (!doi) { toast('That does not look like a DOI (expected 10.xxxx/…)', 'error'); $('doi-in').focus(); return; }
+  const btn = $('lookup'); btn.disabled = true;
+  out.innerHTML = `<div class="card"><div class="stream-status"><span class="spinner"></span>Fetching ${esc(doi)}…</div></div>`;
+  try {
+    const r = await fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`);
+    if (r.status === 404) throw new Error(`No record found for ${doi}. Check the DOI for typos.`);
+    if (!r.ok) throw new Error(`Crossref returned ${r.status}. Try again in a moment.`);
+    const p = normalizeCrossref((await r.json()).message);
+
+    // abstract + open-access fallback from OpenAlex (best-effort)
+    let oaUrl = null;
+    try {
+      const r2 = await fetch(`https://api.openalex.org/works/doi:${encodeURIComponent(p.doi)}?select=abstract_inverted_index,open_access,cited_by_count`);
+      if (r2.ok) {
+        const w = await r2.json();
+        oaUrl = w.open_access?.oa_url || null;
+        if (p.citedBy == null) p.citedBy = w.cited_by_count ?? null;
+        if (!p.abstract && w.abstract_inverted_index) {
+          const words = [];
+          for (const [word, pos] of Object.entries(w.abstract_inverted_index)) for (const i of pos) words[i] = word;
+          p.abstract = words.filter(Boolean).join(' ');
+        }
+      }
+    } catch { /* OpenAlex is optional enrichment */ }
+
+    out.innerHTML = `
+      <article class="card">
+        <h2 style="font-size:21px">${esc(p.title)}</h2>
+        <dl class="kv">
+          <dt>Authors</dt><dd>${esc(p.authors.join(', ')) || '<span class="hint" style="margin:0">not recorded</span>'}</dd>
+          <dt>Published</dt><dd>${esc([p.venue, p.year].filter(Boolean).join(' · ')) || '—'}${p.publisher && !p.venue ? esc(p.publisher) : ''}</dd>
+          <dt>Type</dt><dd>${esc(p.type || '—')}${p.volume ? ` · vol. ${esc(p.volume)}` : ''}${p.pages ? ` · pp. ${esc(p.pages)}` : ''}</dd>
+          <dt>Citations</dt><dd>${p.citedBy == null ? '—' : p.citedBy.toLocaleString()}</dd>
+          <dt>DOI</dt><dd><a class="link" href="https://doi.org/${esc(p.doi)}" target="_blank" rel="noreferrer">${esc(p.doi)} ${icon('external', 12)}</a></dd>
+        </dl>
+        ${p.abstract ? `<h3 style="font-size:15px;margin:14px 0 4px">Abstract</h3><p style="font-size:14px;color:var(--ink-2);margin:0">${esc(p.abstract.length > 1200 ? p.abstract.slice(0, 1200).replace(/\s+\S*$/, '') + '…' : p.abstract)}</p>` : ''}
+        <div class="row">
+          ${oaUrl ? `<a class="link" href="${esc(oaUrl)}" target="_blank" rel="noreferrer" style="margin-right:6px">Open access PDF ${icon('external', 12)}</a>` : ''}
+          <span class="push"></span>
+          <button class="ghost" id="copy-cite">${icon('copy', 15)} Copy citation</button>
+          <button class="ghost" id="copy-bib">${icon('copy', 15)} Copy BibTeX</button>
+          <button class="ghost" id="dl-bib">${icon('download', 15)} .bib</button>
+        </div>
+      </article>`;
+    $('copy-cite').onclick = () => Rewiseed.copyText(apaish(p).replace(/\*/g, ''));
+    $('copy-bib').onclick = () => Rewiseed.copyText(bibtex(p));
+    $('dl-bib').onclick = () => Rewiseed.downloadText(`${p.doi.replace(/[^\w.-]+/g, '_')}.bib`, bibtex(p));
+  } catch (e) {
+    out.innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>${esc(e.message)}</span></div></div>`;
+  } finally { btn.disabled = false; }
+};
+
+// ---------- mode 2: references → DOIs ----------
+
+const EXAMPLE_REFS = `vaswani attention is all you need neurips 2017
+Kahneman, D. Thinking, fast and slow. 2011
+Jumper et al. Highly accurate protein structure prediction with AlphaFold. Nature 2021
+ostrom governing the commons 1990
+lecun bengio hinton deep learning nature 2015`;
+
+$('refs-example').onclick = () => { $('refs-in').value = EXAMPLE_REFS; $('refs-in').dispatchEvent(new Event('input')); toast('Example loaded — press Find DOIs'); };
+$('refs-in').addEventListener('input', () => {
+  const n = $('refs-in').value.split('\n').filter(l => l.trim()).length;
+  $('refs-count').textContent = n ? `${n} reference${n === 1 ? '' : 's'}` : '';
+});
+
+// crude match confidence: how many words of the input reappear in the found record
+function confidence(ref, p) {
+  const hay = `${p.title} ${p.authors.join(' ')} ${p.venue} ${p.year}`.toLowerCase();
+  const words = ref.toLowerCase().match(/[a-z]{3,}/g) || [];
+  if (!words.length) return 0;
+  return words.filter(w => hay.includes(w)).length / words.length;
+}
+
+// Crossref relevance often surfaces derivative records (recommendations,
+// errata, third-party re-postings) above the original paper — sometimes
+// exclusively. So candidates come from BOTH Crossref and OpenAlex, then
+// get re-ranked: originals before derivatives, author-confirmed before
+// not, and among comparable text matches the most-cited (canonical) wins.
+const DERIVATIVE_TITLE = /^(faculty opinions recommendation|correction( to)?|erratum|retraction|comment on|reply to|review of|\(unlocking)/i;
+function isDerivative(p) {
+  return DERIVATIVE_TITLE.test(p.title) || p.type === 'peer-review';
+}
+// Strongest signal available: does the candidate's own title appear inside
+// the reference the user pasted? An exact title hit beats every other cue.
+const normTitle = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+function titleInRef(ref, p) {
+  const t = normTitle(p.title);
+  return t.length >= 12 && normTitle(ref).includes(t);
+}
+function authorHit(ref, p) {
+  const lref = ref.toLowerCase();
+  return p.authors.some(a => {
+    const surname = a.split(' ').pop()?.toLowerCase();
+    return surname && surname.length >= 4 && lref.includes(surname);
+  });
+}
+function normalizeOpenAlex(w) {
+  return {
+    doi: w.doi ? w.doi.replace('https://doi.org/', '') : null,
+    title: (w.display_name || '(untitled)').replace(/\s+/g, ' '),
+    authors: (w.authorships || []).map(a => a.author?.display_name).filter(Boolean),
+    year: w.publication_year,
+    venue: w.primary_location?.source?.display_name || '',
+    publisher: '', volume: '', pages: '',
+    type: w.type || '', bibType: w.type === 'book' ? 'book' : 'article',
+    citedBy: w.cited_by_count ?? null,
+    abstract: '',
+  };
+}
+function rankCandidates(ref, cands) {
+  const seen = new Set();
+  const scored = cands
+    .filter(p => p.doi && !seen.has(p.doi.toLowerCase()) && seen.add(p.doi.toLowerCase()))
+    .map(p => ({ p, conf: confidence(ref, p), derivative: isDerivative(p), author: authorHit(ref, p), exactTitle: titleInRef(ref, p) }));
+  scored.sort((a, b) =>
+    (a.derivative !== b.derivative) ? (a.derivative ? 1 : -1)      // originals before recommendations/errata
+    : (a.exactTitle !== b.exactTitle) ? (a.exactTitle ? -1 : 1)    // the title actually named in the reference
+    : (a.author !== b.author) ? (a.author ? -1 : 1)                // an author surname the reference names
+    : (Math.abs(a.conf - b.conf) > 0.15) ? (b.conf - a.conf)       // clearly better word overlap
+    : ((b.p.citedBy || 0) - (a.p.citedBy || 0)));                  // else the canonical (most-cited) record
+  return scored;
+}
+const confBadge = (s) =>
+  (s.exactTitle && s.author && !s.derivative) ? `<span class="badge ok">${icon('check', 12)} strong match</span>`
+  : (s.exactTitle || (s.conf >= 0.6 && s.author)) ? `<span class="badge warn">likely match — verify</span>`
+  : `<span class="badge warn">${icon('alert', 12)} weak match — verify</span>`;
+
+let found = []; // { ref, best, alts }
+
+$('find').onclick = async () => {
+  const lines = $('refs-in').value.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.length) { toast('Paste at least one reference', 'error'); $('refs-in').focus(); return; }
+  if (lines.length > 50) { toast('Limiting to the first 50 references', 'error'); lines.length = 50; }
+  const btn = $('find'); btn.disabled = true;
+  const out = $('find-out');
+  $('find-toolbar').innerHTML = '';
+  out.innerHTML = '';
+  found = [];
+  for (let i = 0; i < lines.length; i++) {
+    const ref = lines[i];
+    btn.innerHTML = `<span class="spinner" style="border-top-color:var(--btn-fg)"></span> ${i + 1} / ${lines.length}`;
+    let card = `<article class="card"><div class="ref-input">${esc(ref)}</div>`;
+    try {
+      const direct = extractDoi(ref);
+      let scored;
+      if (direct) {
+        const r = await fetch(`https://api.crossref.org/works/${encodeURIComponent(direct)}`);
+        const p = r.ok ? normalizeCrossref((await r.json()).message) : null;
+        scored = p ? [{ p, conf: 1, derivative: isDerivative(p), author: true }] : [];
+      } else {
+        const cxParams = new URLSearchParams({ 'query.bibliographic': ref, rows: '6', select: 'DOI,title,author,issued,container-title,score,is-referenced-by-count,type,publisher,volume,page' });
+        const oaParams = new URLSearchParams({ search: ref, per_page: '8', select: 'doi,display_name,authorships,publication_year,primary_location,cited_by_count,type' });
+        const [cx, oa] = await Promise.allSettled([
+          fetch(`https://api.crossref.org/works?${cxParams}`).then(r => r.ok ? r.json() : null),
+          fetch(`https://api.openalex.org/works?${oaParams}`).then(r => r.ok ? r.json() : null),
+        ]);
+        const cands = [
+          ...(cx.value?.message?.items || []).map(normalizeCrossref),
+          ...(oa.value?.results || []).map(normalizeOpenAlex),
+        ];
+        if (!cands.length && cx.status === 'rejected' && oa.status === 'rejected') throw new Error('Both Crossref and OpenAlex were unreachable — check your connection.');
+        scored = rankCandidates(ref, cands);
+      }
+      if (!scored.length) {
+        card += `<div class="match"><span class="badge warn">${icon('alert', 12)} no match found</span></div>`;
+        found.push({ ref, best: null, alts: [] });
+      } else {
+        const best = scored[0].p, alts = scored.slice(1, 3).map(s => s.p);
+        found.push({ ref, best, alts });
+        card += `
+          <div class="match">
+            <h3 style="margin:0 0 4px;font-size:15.5px">${esc(best.title)}</h3>
+            <div class="meta" style="font-size:13px;color:var(--muted)">${esc(best.authors.slice(0, 4).join(', '))}${best.authors.length > 4 ? ' et al.' : ''} · ${esc(best.venue) || esc(best.publisher)} · ${best.year || 'n.d.'}${best.citedBy != null ? ` · ${best.citedBy.toLocaleString()} citations` : ''}</div>
+            <div class="paper-foot">
+              ${confBadge(scored[0])}
+              <span class="links">
+                <a class="link" href="https://doi.org/${esc(best.doi)}" target="_blank" rel="noreferrer">${esc(best.doi)} ${icon('external', 12)}</a>
+                <button class="ghost" style="min-height:34px;padding:4px 12px;font-size:12.5px" data-copy="${esc(best.doi)}">${icon('copy', 13)} Copy DOI</button>
+              </span>
+            </div>
+            ${alts.length ? `<div class="alt">Also possible: ${alts.map(a => `${esc(a.title.slice(0, 70))}${a.title.length > 70 ? '…' : ''} (${a.year || 'n.d.'}) — <a class="link" href="https://doi.org/${esc(a.doi)}" target="_blank" rel="noreferrer">${esc(a.doi)}</a>`).join(' · ')}</div>` : ''}
+          </div>`;
+      }
+    } catch (e) {
+      card += `<div class="match"><div class="error-box">${icon('alert', 16)}<span>${esc(e.message)}</span></div></div>`;
+      found.push({ ref, best: null, alts: [] });
+    }
+    out.insertAdjacentHTML('beforeend', card + '</article>');
+    if (i < lines.length - 1) await new Promise(r => setTimeout(r, 350)); // polite spacing for the free API
+  }
+  out.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => Rewiseed.copyText(b.dataset.copy));
+
+  const hits = found.filter(f => f.best);
+  $('find-toolbar').innerHTML = `
+    <div class="card" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px">
+      <span class="badge gold">${hits.length} / ${found.length} matched</span>
+      <span class="push" style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="ghost" id="copy-all-doi" ${hits.length ? '' : 'disabled'}>${icon('copy', 15)} Copy all DOIs</button>
+        <button class="ghost" id="dl-all-bib" ${hits.length ? '' : 'disabled'}>${icon('download', 15)} BibTeX (all)</button>
+      </span>
+    </div>`;
+  if (hits.length) {
+    $('copy-all-doi').onclick = () => Rewiseed.copyText(hits.map(f => `https://doi.org/${f.best.doi}`).join('\n'));
+    $('dl-all-bib').onclick = () => Rewiseed.downloadText('references.bib', hits.map(f => bibtex(f.best)).join('\n\n'));
+  }
+  btn.disabled = false;
+  btn.innerHTML = `${icon('play', 15)} Find DOIs`;
+};
+</script>
+</body>
+</html>

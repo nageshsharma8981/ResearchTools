@@ -7,6 +7,7 @@ Five standalone research tools that run **entirely in your browser**. No server,
 | Tool | File | What it does |
 |---|---|---|
 | Smart Literature Finder | `smart-literature-finder.html` | Search 240M+ scholarly works via OpenAlex (keyless). Year/open-access filters, citation sorting, BibTeX export, optional AI relevance rerank. |
+| DOI Finder & Lookup | `doi-finder.html` | Paste a DOI to get the full paper record (metadata, abstract, citation, BibTeX) — or paste messy references and find their DOIs via Crossref, with match-confidence checks. Keyless. |
 | Research Gap Identifier | `research-gap-identifier.html` | Find unexplored gaps, contradictions, and methodological weaknesses in a literature set. |
 | Qualitative Coding Assistant | `qualitative-coding-assistant.html` | Braun & Clarke reflexive thematic analysis of interview transcripts — codes, themes, thematic map. |
 | Peer Review Simulator | `peer-review-simulator.html` | Structured peer review with selectable reviewer temperament (constructive → adversarial) and a recommendation. |
@@ -39,7 +40,7 @@ The Literature Finder works **without any key** — search is powered directly b
 
 - No analytics, no telemetry, no external assets, no backend.
 - Your API key and drafts live only in this browser's `localStorage`.
-- The only network traffic is to the LLM endpoint you configure and (for the finder) `api.openalex.org`.
+- The only network traffic is to the LLM endpoint you configure and, for the keyless tools, the free `api.openalex.org` and `api.crossref.org` scholarly indexes.
 - Clear everything any time via **API settings** or devtools → Application → Local Storage.
 
 ## Offline / air-gapped use
@@ -53,6 +54,7 @@ index.html                        landing page
 shared.css                        design system (light + dark)
 shared.js                         LLM client · settings · markdown renderer · tool harness
 smart-literature-finder.html
+doi-finder.html
 research-gap-identifier.html
 qualitative-coding-assistant.html
 peer-review-simulator.html

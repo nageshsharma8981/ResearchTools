@@ -54,6 +54,7 @@
     chevron: 'M6 9l6 6 6-6',
     home: 'M3 10.5L12 3l9 7.5M5 9.5V21h5v-6h4v6h5V9.5',
     arrow: 'M5 12h14M12 5l7 7-7 7',
+    doi: 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
   };
 
   function icon(name, size = 20) {
@@ -100,6 +101,7 @@
 
   const TOOLS = [
     { href: 'smart-literature-finder.html', icon: 'search', name: 'Smart Literature Finder' },
+    { href: 'doi-finder.html', icon: 'doi', name: 'DOI Finder & Lookup' },
     { href: 'research-gap-identifier.html', icon: 'gap', name: 'Research Gap Identifier' },
     { href: 'qualitative-coding-assistant.html', icon: 'dna', name: 'Qualitative Coding Assistant' },
     { href: 'peer-review-simulator.html', icon: 'grad', name: 'Peer Review Simulator' },
