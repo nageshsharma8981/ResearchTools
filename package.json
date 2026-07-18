@@ -4,9 +4,13 @@
   "private": true,
   "description": "ReWiseEd Research Tools — offline-first, bring-your-own-key research suite",
   "scripts": {
-    "start": "serve . -l tcp://0.0.0.0:${PORT:-3000} --no-clipboard --no-port-switching"
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
-    "serve": "^14.2.3"
+    "better-sqlite3": "^11.10.0",
+    "express": "^4.21.2"
   }
 }

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Your profile — ReWiseEd</title>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.pf-photo { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-strong); background: var(--accent-soft); }
+.pf-photo-wrap { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.pf-initial { width: 96px; height: 96px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-size: 36px; font-weight: 700; background: var(--accent-soft); color: var(--accent-strong); border: 2px solid var(--border-strong); }
+.role-chip { text-transform: capitalize; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Your profile</h1>
+  <p class="lede">How you appear across ReWiseEd Research.</p>
+</div>
+<main style="max-width:620px">
+  <div id="out"><div class="card"><div class="stream-status"><span class="spinner"></span>Loading…</div></div></div>
+</main>
+<script src="shared.js"></script>
+<script src="account.js"></script>
+<script>
+const { esc, icon, toast } = Rewiseed;
+const { api, resizePhoto } = RewiseedAccount;
+Rewiseed.renderNav('profile.html');
+document.getElementById('hero-icon').innerHTML = icon('logo', 26);
+
+let me = null, newPhoto; // newPhoto: undefined = unchanged, '' = removed, string = new data URL
+
+function render() {
+  const u = me;
+  document.getElementById('out').innerHTML = `
+  <div class="card">
+    <div class="pf-photo-wrap">
+      <span id="photo-view">${u.photo ? `<img class="pf-photo" src="${esc(u.photo)}" alt="Profile photo"/>` : `<span class="pf-initial">${esc((u.name || u.email)[0].toUpperCase())}</span>`}</span>
+      <span class="chip-row">
+        <label class="chip" style="display:inline-flex;align-items:center;cursor:pointer">Upload photo<input id="photo-file" type="file" accept="image/png,image/jpeg,image/webp" style="display:none"/></label>
+        ${u.photo ? `<button type="button" class="chip" id="photo-remove">Remove</button>` : ''}
+      </span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+      <span class="badge gold role-chip">${esc(u.role)}</span>
+      <span class="badge">${esc(u.email)}</span>
+      ${['admin','superadmin'].includes(u.role) ? `<a class="link" href="admin.html">Open admin console ${icon('arrow', 13)}</a>` : ''}
+    </div>
+    <form id="form">
+      <label class="field-label" for="f-name">Name</label>
+      <input id="f-name" maxlength="80" value="${esc(u.name)}" autocomplete="name"/>
+      <label class="field-label" for="f-org" style="margin-top:12px">School / University</label>
+      <input id="f-org" maxlength="120" value="${esc(u.org)}" placeholder="e.g. Golden Gate University"/>
+      <label class="field-label" for="f-linkedin" style="margin-top:12px">LinkedIn</label>
+      <input id="f-linkedin" maxlength="200" value="${esc(u.linkedin)}" placeholder="https://linkedin.com/in/…"/>
+      <label class="field-label" for="f-twitter" style="margin-top:12px">Twitter / X</label>
+      <input id="f-twitter" maxlength="200" value="${esc(u.twitter)}" placeholder="https://x.com/…"/>
+      <label class="field-label" for="f-about" style="margin-top:12px">About</label>
+      <textarea id="f-about" maxlength="2000" style="min-height:110px;font-family:var(--font-sans)" placeholder="A few lines about your research interests…">${esc(u.about)}</textarea>
+      <div class="row">
+        <button type="submit" id="save">${icon('check', 15)} Save profile</button>
+        <span class="push"></span>
+        <button type="button" class="ghost" id="signout">Sign out</button>
+      </div>
+    </form>
+  </div>`;
+
+  document.getElementById('photo-file').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try {
+      newPhoto = await resizePhoto(f);
+      document.getElementById('photo-view').innerHTML = `<img class="pf-photo" src="${esc(newPhoto)}" alt="Profile photo preview"/>`;
+      toast('Photo ready — press Save');
+    } catch (err) { toast(err.message, 'error'); }
+  });
+  const rm = document.getElementById('photo-remove');
+  if (rm) rm.onclick = () => {
+    newPhoto = '';
+    document.getElementById('photo-view').innerHTML = `<span class="pf-initial">${esc((me.name || me.email)[0].toUpperCase())}</span>`;
+    toast('Photo will be removed on Save');
+  };
+  document.getElementById('signout').onclick = async () => {
+    try { await api('/api/auth/signout', { method: 'POST' }); } catch {}
+    location.href = 'index.html';
+  };
+  document.getElementById('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('save'); btn.disabled = true;
+    try {
+      const body = {
+        name: document.getElementById('f-name').value,
+        org: document.getElementById('f-org').value,
+        linkedin: document.getElementById('f-linkedin').value.trim(),
+        twitter: document.getElementById('f-twitter').value.trim(),
+        about: document.getElementById('f-about').value,
+      };
+      if (newPhoto !== undefined) body.photo = newPhoto;
+      const r = await api('/api/me', { method: 'PUT', body });
+      me = r.user; newPhoto = undefined;
+      toast('Profile saved');
+      render();
+    } catch (err) { toast(err.message, 'error', 5000); btn.disabled = false; }
+  });
+}
+
+api('/api/me').then(r => { me = r.user; render(); }).catch(() => {
+  document.getElementById('out').innerHTML = `
+    <div class="card" style="text-align:center">
+      <p class="hint">You're not signed in.</p>
+      <div class="row" style="justify-content:center"><a href="signin.html"><button type="button">Sign in</button></a><a href="signup.html"><button type="button" class="ghost">Create account</button></a></div>
+    </div>`;
+});
+</script>
+</body>
+</html>

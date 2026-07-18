@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Admin console — ReWiseEd</title>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.users-wrap { overflow-x: auto; }
+.users { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+.users th, .users td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; white-space: nowrap; }
+.users th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.users .u-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 8px; background: var(--accent-soft); }
+.users select { padding: 5px 8px; font-size: 12.5px; }
+.users button { min-height: 32px; padding: 4px 12px; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Admin console</h1>
+  <p class="lede" id="scope-line">Manage user accounts.</p>
+</div>
+<main style="max-width:1000px">
+  <div id="out"><div class="card"><div class="stream-status"><span class="spinner"></span>Loading…</div></div></div>
+</main>
+<script src="shared.js"></script>
+<script src="account.js"></script>
+<script>
+const { esc, icon, toast } = Rewiseed;
+const { api } = RewiseedAccount;
+Rewiseed.renderNav('admin.html');
+document.getElementById('hero-icon').innerHTML = icon('shield', 26);
+
+let me = null;
+
+async function load() {
+  const r = await api('/api/admin/users');
+  document.getElementById('scope-line').textContent = r.scope === 'all'
+    ? 'Super admin — every account on the platform.'
+    : `Managing students of ${r.scope || 'your institution (set your School/University on your profile)'}.`;
+  const su = me.role === 'superadmin';
+  document.getElementById('out').innerHTML = `
+  <div class="card">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+      <span class="badge gold">${r.users.length} user${r.users.length === 1 ? '' : 's'}</span>
+      <input id="filter" placeholder="Filter by email, name, or institution…" style="max-width:320px"/>
+    </div>
+    <div class="users-wrap"><table class="users"><thead><tr>
+      <th>User</th><th>Institution</th><th>Role</th><th>Status</th><th>Actions</th>
+    </tr></thead><tbody>
+      ${r.users.map(u => `<tr data-row="${u.id}" data-text="${esc((u.email + ' ' + u.name + ' ' + u.org).toLowerCase())}">
+        <td>${u.photo ? `<img class="u-avatar" src="${esc(u.photo)}" alt=""/>` : ''}<b>${esc(u.name || '—')}</b><br/><span class="hint" style="margin:0">${esc(u.email)}</span></td>
+        <td>${esc(u.org || '—')}</td>
+        <td>${su && u.role !== 'superadmin' && u.id !== me.id
+            ? `<select data-role="${u.id}"><option value="student" ${u.role === 'student' ? 'selected' : ''}>student</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>admin</option></select>`
+            : `<span class="badge ${u.role === 'superadmin' ? 'gold' : ''}">${esc(u.role)}</span>`}</td>
+        <td>${u.disabled ? `<span class="badge warn">disabled</span>` : u.confirmed ? `<span class="badge ok">active</span>` : `<span class="badge">unconfirmed</span>`}</td>
+        <td>${u.role !== 'superadmin' && u.id !== me.id
+            ? `<button type="button" class="${u.disabled ? '' : 'danger'}" data-toggle="${u.id}" data-disabled="${u.disabled ? 1 : 0}">${u.disabled ? 'Enable' : 'Disable'}</button>`
+            : ''}</td>
+      </tr>`).join('')}
+    </tbody></table></div>
+    ${r.users.length === 0 ? `<p class="hint" style="margin-top:12px">No users in scope yet.</p>` : ''}
+  </div>`;
+
+  document.getElementById('filter').addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase();
+    document.querySelectorAll('[data-row]').forEach(tr => { tr.hidden = q && !tr.dataset.text.includes(q); });
+  });
+  document.querySelectorAll('[data-toggle]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try {
+      await api(`/api/admin/users/${b.dataset.toggle}`, { method: 'PUT', body: { disabled: b.dataset.disabled !== '1' } });
+      toast('Updated');
+      load();
+    } catch (e) { toast(e.message, 'error', 5000); b.disabled = false; }
+  });
+  document.querySelectorAll('[data-role]').forEach(s => s.onchange = async () => {
+    try {
+      await api(`/api/admin/users/${s.dataset.role}`, { method: 'PUT', body: { role: s.value } });
+      toast('Role updated');
+      load();
+    } catch (e) { toast(e.message, 'error', 5000); load(); }
+  });
+}
+
+api('/api/me').then(r => {
+  me = r.user;
+  if (!['admin', 'superadmin'].includes(me.role)) throw new Error('not admin');
+  return load();
+}).catch(() => {
+  document.getElementById('out').innerHTML = `
+    <div class="card" style="text-align:center">
+      <p class="hint">This area is for administrators. Sign in with an admin account to continue.</p>
+      <div class="row" style="justify-content:center"><a href="signin.html"><button type="button">Sign in</button></a></div>
+    </div>`;
+});
+</script>
+</body>
+</html>

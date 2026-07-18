@@ -142,6 +142,18 @@
       const menu = nav.querySelector('.tool-menu');
       if (menu?.open) { menu.open = false; menu.querySelector('summary')?.focus(); }
     });
+    // account chip: shows when the accounts backend is present; silent otherwise
+    fetch('/api/me', { credentials: 'same-origin' }).then(async (r) => {
+      const slot = document.createElement('span');
+      if (r.ok) {
+        const { user } = await r.json();
+        slot.innerHTML = `<a class="avatar-btn" href="profile.html" title="${esc(user.name || user.email)} — profile">${
+          user.photo ? `<img src="${esc(user.photo)}" alt="Profile"/>` : esc((user.name || user.email)[0].toUpperCase())}</a>`;
+      } else if (r.status === 401) {
+        slot.innerHTML = `<a class="nav-signin" href="signin.html">Sign in</a>`;
+      } else return;
+      nav.insertBefore(slot, $('theme-toggle'));
+    }).catch(() => { /* static/offline bundle — no accounts */ });
     // elevate the nav once content scrolls beneath it
     let navRaf = 0;
     addEventListener('scroll', () => {
