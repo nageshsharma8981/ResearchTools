@@ -52,6 +52,19 @@ CREATE TABLE IF NOT EXISTS sessions (
 for (const col of ["terms_version TEXT NOT NULL DEFAULT ''", 'terms_accepted_at INTEGER NOT NULL DEFAULT 0', "tool_access TEXT NOT NULL DEFAULT ''", 'seen_intro INTEGER NOT NULL DEFAULT 0']) {
   try { db.exec(`ALTER TABLE users ADD COLUMN ${col}`); } catch { /* already present */ }
 }
+db.exec(`CREATE TABLE IF NOT EXISTS library (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  doi TEXT NOT NULL DEFAULT '',
+  title TEXT NOT NULL,
+  authors TEXT NOT NULL DEFAULT '',
+  year INTEGER,
+  venue TEXT NOT NULL DEFAULT '',
+  url TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  added_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_library_user ON library(user_id);`);
 db.exec(`CREATE TABLE IF NOT EXISTS events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ts INTEGER NOT NULL,
@@ -68,10 +81,10 @@ const TOOL_IDS = new Set([
   'smart-literature-finder', 'doi-finder', 'originality-checker',
   'research-gap-identifier', 'research-question-generator', 'instrument-designer',
   'qualitative-coding-assistant', 'peer-review-simulator', 'citation-formatter', 'apa-formatter',
-  'stats-advisor', 'literature-matrix',
+  'stats-advisor', 'literature-matrix', 'writing-polisher', 'citation-graph',
 ]);
 // things that report usage but are not grantable/gateable pages
-const TRACKABLE = new Set([...TOOL_IDS, 'assistant']);
+const TRACKABLE = new Set([...TOOL_IDS, 'assistant', 'library']);
 const parseToolAccess = (s) => String(s || '').split(',').map(x => x.trim()).filter(x => TOOL_IDS.has(x));
 
 // ---------- helpers ----------
@@ -467,6 +480,40 @@ app.put('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
   db.prepare(`UPDATE users SET ${sets} WHERE id=?`).run(...Object.values(updates), target.id);
   if (updates.disabled) db.prepare('DELETE FROM sessions WHERE user_id = ?').run(target.id);
   res.json({ user: publicUser(db.prepare('SELECT * FROM users WHERE id=?').get(target.id), true) });
+});
+
+// ---------- reference library ----------
+app.get('/api/library', requireAuth, (req, res) => {
+  const rows = db.prepare('SELECT * FROM library WHERE user_id = ? ORDER BY added_at DESC').all(req.user.id);
+  res.json({ papers: rows });
+});
+app.post('/api/library', requireAuth, (req, res) => {
+  const { doi, title, authors, year, venue, url } = req.body || {};
+  const t = cap(title, 400);
+  if (!t) return res.status(400).json({ error: 'A title is required.' });
+  const count = db.prepare('SELECT COUNT(*) c FROM library WHERE user_id = ?').get(req.user.id).c;
+  if (count >= 1000) return res.status(400).json({ error: 'Library limit reached (1000 papers).' });
+  const d = cap(doi, 200).toLowerCase();
+  if (d) {
+    const dup = db.prepare('SELECT id FROM library WHERE user_id = ? AND doi = ?').get(req.user.id, d);
+    if (dup) return res.json({ ok: true, duplicate: true, id: dup.id });
+  }
+  const cleanUrl = cap(url, 400);
+  if (cleanUrl && !/^https:\/\//.test(cleanUrl)) return res.status(400).json({ error: 'URL must be https.' });
+  const info = db.prepare('INSERT INTO library (user_id, doi, title, authors, year, venue, url, added_at) VALUES (?,?,?,?,?,?,?,?)')
+    .run(req.user.id, d, t, cap(Array.isArray(authors) ? authors.join(', ') : authors, 500), Number(year) || null, cap(venue, 200), cleanUrl, now());
+  res.json({ ok: true, id: info.lastInsertRowid });
+});
+app.put('/api/library/:id', requireAuth, (req, res) => {
+  const row = db.prepare('SELECT * FROM library WHERE id = ? AND user_id = ?').get(Number(req.params.id), req.user.id);
+  if (!row) return res.status(404).json({ error: 'Not in your library.' });
+  db.prepare('UPDATE library SET notes = ? WHERE id = ?').run(cap(req.body?.notes, 1000), row.id);
+  res.json({ ok: true });
+});
+app.delete('/api/library/:id', requireAuth, (req, res) => {
+  const r = db.prepare('DELETE FROM library WHERE id = ? AND user_id = ?').run(Number(req.params.id), req.user.id);
+  if (!r.changes) return res.status(404).json({ error: 'Not in your library.' });
+  res.json({ ok: true });
 });
 
 // ---------- usage metrics (privacy-respecting: tool id + output size only) ----------

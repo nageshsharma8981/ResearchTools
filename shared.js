@@ -113,6 +113,9 @@
     chat: 'M7.9 20A9 9 0 1 0 4 16.1L2 22z',
     sigma: 'M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2',
     grid: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',
+    pen: 'M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z',
+    library: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5zM9 7h6M9 11h6',
+    graph: 'M12 3v6m0 6v6M5 8l4 3m6 2l4 3M5 16l4-3m6-2l4-3M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 3a1.5 1.5 0 1 0 0.01 0zM12 21a1.5 1.5 0 1 0 .01 0zM5 8a1.5 1.5 0 1 0 .01 0zM19 8a1.5 1.5 0 1 0 .01 0zM5 16a1.5 1.5 0 1 0 .01 0zM19 16a1.5 1.5 0 1 0 .01 0z',
   };
 
   function icon(name, size = 20) {
@@ -137,6 +140,26 @@
     return theme;
   }
   initTheme();
+
+  // ---------- reference library save (available on any page) ----------
+  async function saveToLibrary(paper, btn) {
+    try {
+      const res = await fetch('/api/library', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paper),
+      });
+      if (res.status === 401) { toast('Sign in to save papers to your library', 'error'); return; }
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { toast(d.error || 'Could not save', 'error'); return; }
+      toast(d.duplicate ? 'Already in your library' : 'Saved to your library');
+      if (btn) {
+        btn.classList.add('copied');
+        btn.innerHTML = `${icon('check', 13)} Saved`;
+        btn.disabled = true;
+      }
+    } catch { toast('Could not reach the library', 'error'); }
+  }
 
   // ---------- intro loader (playable from any page) ----------
   function playIntro() {
@@ -179,8 +202,10 @@
     { href: 'stats-advisor.html', icon: 'sigma', name: 'Statistical Test Advisor' },
     { href: 'qualitative-coding-assistant.html', icon: 'dna', name: 'Qualitative Coding Assistant' },
     { href: 'peer-review-simulator.html', icon: 'grad', name: 'Peer Review Simulator' },
+    { href: 'writing-polisher.html', icon: 'pen', name: 'Academic Writing Polisher' },
     { href: 'citation-formatter.html', icon: 'book', name: 'Citation Formatter' },
     { href: 'apa-formatter.html', icon: 'doc', name: 'APA 7 Paper Formatter' },
+    { href: 'citation-graph.html', icon: 'graph', name: 'Citation Graph Explorer' },
   ];
 
   function renderNav(activeHref) {
@@ -197,6 +222,7 @@
           <div class="menu-rule"></div>
           ${TOOLS.map(t => `<a href="${t.href}" class="${t.href === activeHref ? 'active' : ''}">${icon(t.icon, 17)}${esc(t.name)}</a>`).join('')}
           <div class="menu-rule"></div>
+          <a href="library.html" class="${activeHref === 'library.html' ? 'active' : ''}">${icon('library', 17)}My Library</a>
           <a href="#" id="menu-intro">${icon('play', 17)}Platform intro</a>
         </div>
       </details>
@@ -769,6 +795,6 @@
     renderNav, renderSettingsBar, openSettings,
     callLLM, md, esc, icon, toast, track,
     downloadText, copyText, getCfg, isLocalUrl,
-    mountStreamingTool, playIntro,
+    mountStreamingTool, playIntro, saveToLibrary,
   };
 })();

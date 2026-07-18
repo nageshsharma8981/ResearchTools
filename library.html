@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>My Library — ReWiseEd</title>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.lib-notes { width: 100%; min-height: 40px; font-family: var(--font-sans); font-size: 13px; margin-top: 8px; }
+.lib-empty-hint a { font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>My Library</h1>
+  <p class="lede">Papers you've saved from across the suite — with your notes, ready to export as BibTeX or send into the analysis pipeline.</p>
+</div>
+<main style="max-width:860px">
+  <div id="out"><div class="card"><div class="stream-status"><span class="spinner"></span>Loading…</div></div></div>
+</main>
+<script src="shared.js"></script>
+<script src="account.js"></script>
+<script>
+const { esc, icon, toast } = Rewiseed;
+const { api } = RewiseedAccount;
+Rewiseed.renderNav('library.html');
+document.getElementById('hero-icon').innerHTML = icon('library', 26);
+
+let papers = [];
+
+function bibtex(p) {
+  const authors = p.authors || '';
+  const key = (authors.split(',')[0] || 'ref').trim().split(' ').pop().toLowerCase().replace(/[^a-z]/g, '') + (p.year || '') + p.id;
+  return `@article{${key},\n` + [
+    `  title = {${p.title}}`,
+    authors ? `  author = {${authors.split(', ').join(' and ')}}` : null,
+    p.year ? `  year = {${p.year}}` : null,
+    p.venue ? `  journal = {${p.venue}}` : null,
+    p.doi ? `  doi = {${p.doi}}` : null,
+    p.url && !p.doi ? `  url = {${p.url}}` : null,
+  ].filter(Boolean).join(',\n') + '\n}';
+}
+
+function render() {
+  const out = document.getElementById('out');
+  if (!papers.length) {
+    out.innerHTML = `
+      <div class="card"><div class="empty-state-card">
+        ${icon('library', 30)}
+        <span class="es-title">Your library is empty</span>
+        <p class="lib-empty-hint">Save papers with the ${esc('Save')} button on <a href="smart-literature-finder.html">Literature Finder</a> results and <a href="doi-finder.html">DOI lookups</a> — they'll collect here with your notes.</p>
+      </div></div>`;
+    return;
+  }
+  out.innerHTML = `
+    <div class="card" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px">
+      <span class="badge gold">${papers.length} paper${papers.length === 1 ? '' : 's'}</span>
+      <input id="lib-filter" placeholder="Filter…" style="max-width:260px"/>
+      <span class="push" style="margin-left:auto;display:flex;gap:10px">
+        <button class="ghost" id="lib-bib">${icon('download', 15)} BibTeX (all)</button>
+        <button id="lib-analyze">Analyze in pipeline ${icon('arrow', 15)}</button>
+      </span>
+    </div>
+    ${papers.map(p => `
+    <article class="paper" data-lib="${p.id}" data-text="${esc((p.title + ' ' + p.authors + ' ' + p.venue + ' ' + p.notes).toLowerCase())}">
+      <h3>${esc(p.title)}</h3>
+      <div class="meta">${esc(p.authors) || 'Unknown authors'}${p.venue ? ' · ' + esc(p.venue) : ''}${p.year ? ' · ' + p.year : ''}</div>
+      <textarea class="lib-notes" data-notes="${p.id}" maxlength="1000" placeholder="Your notes on this paper…">${esc(p.notes)}</textarea>
+      <div class="paper-foot">
+        <span class="links">
+          ${p.doi ? `<a class="link" href="https://doi.org/${esc(p.doi)}" target="_blank" rel="noreferrer">DOI ${icon('external', 12)}</a>` : ''}
+          ${p.url ? `<a class="link" href="${esc(p.url)}" target="_blank" rel="noreferrer">Link ${icon('external', 12)}</a>` : ''}
+          <button class="ghost" style="min-height:32px;padding:4px 12px;font-size:12.5px" data-save-notes="${p.id}">Save notes</button>
+          <button class="danger" style="min-height:32px;padding:4px 12px;font-size:12.5px" data-remove="${p.id}">Remove</button>
+        </span>
+      </div>
+    </article>`).join('')}`;
+
+  document.getElementById('lib-filter').addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase();
+    document.querySelectorAll('[data-lib]').forEach(el => { el.hidden = q && !el.dataset.text.includes(q); });
+  });
+  document.getElementById('lib-bib').onclick = () => Rewiseed.downloadText('library.bib', papers.map(bibtex).join('\n\n'));
+  document.getElementById('lib-analyze').onclick = () => {
+    const text = 'My saved library (from ReWiseEd):\n\n' + papers.map((p, i) =>
+      `${i + 1}. ${p.authors || 'Unknown'} (${p.year || 'n.d.'}). "${p.title}". ${p.venue || ''}${p.notes ? ' — My notes: ' + p.notes : ''}`).join('\n\n');
+    localStorage.setItem('rewiseed_draft_matrix', text);
+    toast('Sent — opening Synthesis Matrix');
+    location.href = 'literature-matrix.html';
+  };
+  document.querySelectorAll('[data-save-notes]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try {
+      await api(`/api/library/${b.dataset.saveNotes}`, { method: 'PUT', body: { notes: document.querySelector(`[data-notes="${b.dataset.saveNotes}"]`).value } });
+      toast('Notes saved');
+    } catch (e) { toast(e.message, 'error'); }
+    b.disabled = false;
+  });
+  document.querySelectorAll('[data-remove]').forEach(b => b.onclick = async () => {
+    if (!confirm('Remove this paper from your library?')) return;
+    try {
+      await api(`/api/library/${b.dataset.remove}`, { method: 'DELETE' });
+      papers = papers.filter(p => p.id !== Number(b.dataset.remove));
+      toast('Removed');
+      render();
+    } catch (e) { toast(e.message, 'error'); }
+  });
+}
+
+api('/api/library').then(r => { papers = r.papers; render(); }).catch(() => {
+  document.getElementById('out').innerHTML = `
+    <div class="card" style="text-align:center">
+      <p class="hint">Sign in to build a personal library of saved papers with notes and BibTeX export.</p>
+      <div class="row" style="justify-content:center"><a href="signin.html"><button type="button">Sign in</button></a><a href="signup.html"><button type="button" class="ghost">Create account</button></a></div>
+    </div>`;
+});
+</script>
+</body>
+</html>

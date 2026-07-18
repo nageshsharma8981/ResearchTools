@@ -9,6 +9,9 @@ Five standalone research tools that run **entirely in your browser**. No server,
 | Smart Literature Finder | `smart-literature-finder.html` | Search 240M+ scholarly works via OpenAlex (keyless). Year/open-access filters, citation sorting, BibTeX export, optional AI relevance rerank. |
 | DOI Finder & Lookup | `doi-finder.html` | Paste a DOI to get the full paper record (metadata, abstract, citation, BibTeX) — or paste messy references and find their DOIs via Crossref, with match-confidence checks. Keyless. |
 | Originality & AI Checker | `originality-checker.html` | Stylometric signals (burstiness, vocabulary variety, stock phrases), scholarly-overlap scan against OpenAlex, and an optional LLM forensic AI-writing assessment. Honest about limits — signals, not verdicts. |
+| Citation Graph Explorer | `citation-graph.html` | Walk a paper's citation network — references and citing works — as a clickable graph. Keyless via OpenAlex. |
+| Academic Writing Polisher | `writing-polisher.html` | Polish tone, tighten clarity, generate abstracts or title options — with every substantive edit explained. |
+| My Library | `library.html` | Signed-in users save papers from any finder tool, add notes, export BibTeX, and send the set into the pipeline. |
 | Literature Synthesis Matrix | `literature-matrix.html` | Papers side by side — aims, methods, samples, findings, limitations — plus a written synthesis of agreements, conflicts, and trends. |
 | Research Gap Identifier | `research-gap-identifier.html` | Find unexplored gaps, contradictions, and methodological weaknesses in a literature set. |
 | Research Question Generator | `research-question-generator.html` | Turn a topic into precise, testable research questions — each with independent, dependent, and control variables, hypotheses, and a suggested design. |

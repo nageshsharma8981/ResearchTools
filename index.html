@@ -28,7 +28,7 @@
   <p class="lede">ReWiseEd Research Tools is a private research workbench that runs entirely in your browser. No account, no tracking, no API key required — free built-in AI runs on your own device.</p>
   <div class="stat-row">
     <div class="stat"><b>240M+</b><span>papers searchable</span></div>
-    <div class="stat"><b>12</b><span>research tools</span></div>
+    <div class="stat"><b>14</b><span>research tools</span></div>
     <div class="stat"><b>100%</b><span>private &amp; local</span></div>
     <div class="stat"><b>$0</b><span>with built-in AI</span></div>
   </div>
@@ -69,6 +69,7 @@
         <li><a href="smart-literature-finder.html">Literature Finder</a></li>
         <li><a href="doi-finder.html">DOI Finder &amp; Lookup</a></li>
         <li><a href="originality-checker.html">Originality &amp; AI Checker</a></li>
+        <li><a href="citation-graph.html">Citation Graph Explorer</a></li>
         <li><a href="literature-matrix.html">Synthesis Matrix</a></li>
         <li><a href="research-gap-identifier.html">Gap Identifier</a></li>
         <li><a href="research-question-generator.html">Question Generator</a></li>
@@ -81,7 +82,9 @@
       <ul>
         <li><a href="qualitative-coding-assistant.html">Qualitative Coding</a></li>
         <li><a href="peer-review-simulator.html">Peer Review Simulator</a></li>
+        <li><a href="writing-polisher.html">Writing Polisher</a></li>
         <li><a href="citation-formatter.html">Citation Formatter</a></li>
+        <li><a href="library.html">My Library</a></li>
         <li><a href="apa-formatter.html">APA 7 Paper Formatter</a></li>
       </ul>
       <h4 style="margin-top:16px">Company</h4>
@@ -115,6 +118,8 @@ const PHASES = [
       desc: 'Search 240M+ scholarly works via OpenAlex — no key needed. Filters, citation sorting, BibTeX export, optional AI rerank.' },
     { href: 'doi-finder.html', icon: 'doi', name: 'DOI Finder & Lookup',
       desc: 'Paste a DOI for the full paper record — or paste messy references and discover their DOIs via Crossref. Fully keyless.' },
+    { href: 'citation-graph.html', icon: 'graph', name: 'Citation Graph Explorer',
+      desc: 'Walk any paper’s citation network — the work it builds on and the newer research citing it. Keyless.' },
     { href: 'literature-matrix.html', icon: 'grid', name: 'Literature Synthesis Matrix',
       desc: 'Papers side by side — aims, methods, samples, findings, limitations — with a synthesis of agreements and contradictions.' },
     { href: 'research-gap-identifier.html', icon: 'gap', name: 'Research Gap Identifier',
@@ -135,6 +140,8 @@ const PHASES = [
       desc: 'Stylometric signals, overlap checks against 240M scholarly works, and a forensic AI-writing assessment — signals, not verdicts.' },
   ]},
   { label: 'Write & Review', tiles: [
+    { href: 'writing-polisher.html', icon: 'pen', name: 'Academic Writing Polisher',
+      desc: 'Polish tone or tighten clarity with every edit explained — or generate an abstract and title options from your draft.' },
     { href: 'peer-review-simulator.html', icon: 'grad', name: 'Peer Review Simulator',
       desc: 'A rigorous but constructive reviewer: strengths, major and minor concerns, and a publication recommendation.' },
     { href: 'citation-formatter.html', icon: 'book', name: 'Citation Formatter',

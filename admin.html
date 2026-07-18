@@ -46,8 +46,9 @@ const TOOL_LABELS = {
   'qualitative-coding-assistant': 'Qualitative Coding', 'peer-review-simulator': 'Peer Review',
   'citation-formatter': 'Citation Formatter', 'apa-formatter': 'APA 7 Formatter',
   'stats-advisor': 'Stats Advisor', 'literature-matrix': 'Synthesis Matrix',
+  'writing-polisher': 'Writing Polisher', 'citation-graph': 'Citation Graph',
 };
-const USAGE_LABELS = { ...TOOL_LABELS, assistant: 'Assistant (chatbot)' };
+const USAGE_LABELS = { ...TOOL_LABELS, assistant: 'Assistant (chatbot)', library: 'Reference Library' };
 
 async function loadAnalytics() {
   try {

@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Citation Graph Explorer — ReWiseEd</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ReWiseEd Research Tools"/>
+<meta property="og:title" content="Citation Graph Explorer — ReWiseEd"/>
+<meta property="og:description" content="Start from any paper and walk its citation network — foundational references and newer work citing it — keyless via OpenAlex."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/citation-graph"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Citation Graph Explorer — ReWiseEd"/>
+<meta name="twitter:description" content="Walk a paper's citation network — references and citing work. No API key."/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.graph-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
+.cg-node { cursor: pointer; }
+.cg-node rect { fill: var(--surface); stroke: var(--border-strong); stroke-width: 1.5; rx: 8; transition: stroke var(--transition); }
+.cg-node:hover rect { stroke: var(--accent); }
+.cg-node.seed rect { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+.cg-node text { font-size: 11px; fill: var(--ink); font-family: var(--font-sans); pointer-events: none; }
+.cg-node .cg-meta { font-size: 10px; fill: var(--muted); }
+.cg-edge { stroke: var(--border-strong); stroke-width: 1.5; fill: none; }
+.cg-col-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; fill: var(--muted); font-family: var(--font-sans); }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Citation Graph Explorer</h1>
+  <p class="lede">Start from any paper and walk its citation network — the foundational work it builds on, and the newer research building on it. Free and keyless via OpenAlex.</p>
+</div>
+<main style="max-width:1100px">
+  <div class="card">
+    <h2>Start from a paper</h2>
+    <p class="hint">Paste a DOI, an OpenAlex ID, or a paper title. Click any node in the graph to re-centre the map on that paper and keep walking.</p>
+    <div class="search-row">
+      <input id="q" type="search" autocomplete="off" placeholder="e.g. 10.1038/nature14539 or “Deep learning”" aria-label="Paper DOI or title"/>
+      <button id="go"></button>
+    </div>
+    <div class="field-foot">
+      <span class="chip-row">
+        <button type="button" class="chip" data-ex="10.1038/nature14539">Try: Deep learning (Nature)</button>
+        <button type="button" class="chip" data-ex="10.1017/CBO9780511807763">Try: Governing the Commons</button>
+      </span>
+    </div>
+  </div>
+  <div id="out"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+const { esc, icon, toast } = Rewiseed;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('citation-graph.html');
+$('hero-icon').innerHTML = icon('graph', 26);
+$('go').innerHTML = `${icon('graph', 16)} Explore`;
+
+const SELECT = 'id,doi,title,publication_year,authorships,cited_by_count,referenced_works,primary_location';
+const shortTitle = (t, n = 46) => { t = t || 'Untitled'; return t.length > n ? t.slice(0, n).replace(/\s\S*$/, '') + '…' : t; };
+const firstAuthor = (w) => (w.authorships?.[0]?.author?.display_name || '').split(' ').pop() || 'Unknown';
+
+async function fetchWork(idOrDoi) {
+  const isDoi = /^10\.\d{4,9}\//.test(idOrDoi);
+  const path = isDoi ? `doi:${encodeURIComponent(idOrDoi)}` : idOrDoi.replace('https://openalex.org/', '');
+  const r = await fetch(`https://api.openalex.org/works/${path}?select=${SELECT}`);
+  if (!r.ok) throw new Error(`Paper not found (${r.status}).`);
+  return r.json();
+}
+async function searchWork(q) {
+  const r = await fetch(`https://api.openalex.org/works?search=${encodeURIComponent(q)}&per_page=1&select=${SELECT}`);
+  if (!r.ok) throw new Error(`Search failed (${r.status}).`);
+  const j = await r.json();
+  if (!j.results?.length) throw new Error('No paper matched that title.');
+  return j.results[0];
+}
+async function worksByIds(ids) {
+  if (!ids.length) return [];
+  const filter = 'openalex:' + ids.slice(0, 8).map(i => i.replace('https://openalex.org/', '')).join('|');
+  const r = await fetch(`https://api.openalex.org/works?filter=${filter}&per_page=8&select=${SELECT}`);
+  return r.ok ? ((await r.json()).results || []) : [];
+}
+async function citingWorks(id) {
+  const r = await fetch(`https://api.openalex.org/works?filter=cites:${id.replace('https://openalex.org/', '')}&sort=cited_by_count:desc&per_page=6&select=${SELECT}`);
+  return r.ok ? ((await r.json()).results || []) : [];
+}
+
+function nodeSvg(w, x, y, cls) {
+  const W = 250, H = 54;
+  return `<g class="cg-node ${cls}" data-id="${esc(w.id)}" transform="translate(${x},${y})">
+    <title>${esc(w.title || '')}</title>
+    <rect width="${W}" height="${H}"/>
+    <text x="10" y="20">${esc(shortTitle(w.title))}</text>
+    <text class="cg-meta" x="10" y="38">${esc(firstAuthor(w))} · ${w.publication_year || 'n.d.'} · ${(w.cited_by_count || 0).toLocaleString()} cites</text>
+  </g>`;
+}
+
+async function explore(seedInput) {
+  const out = $('out');
+  out.innerHTML = `<div class="card"><div class="stream-status"><span class="spinner"></span>Walking the citation network…</div></div>`;
+  try {
+    const seed = /^10\.\d{4,9}\//.test(seedInput) || seedInput.includes('openalex.org') || /^W\d+$/.test(seedInput)
+      ? await fetchWork(seedInput) : await searchWork(seedInput);
+    const [refs, citing] = await Promise.all([worksByIds(seed.referenced_works || []), citingWorks(seed.id)]);
+    const rows = Math.max(refs.length, citing.length, 1);
+    const H = Math.max(300, rows * 70 + 60), W = 900;
+    const colX = { ref: 20, seed: 325, cite: 630 };
+    const yFor = (i, n) => 60 + i * 70 + (H - 60 - n * 70) / 2;
+    const edges = [
+      ...refs.map((w, i) => `<path class="cg-edge" d="M${colX.ref + 250} ${yFor(i, refs.length) + 27} C${colX.ref + 285} ${yFor(i, refs.length) + 27}, ${colX.seed - 35} ${H / 2}, ${colX.seed} ${H / 2}"/>`),
+      ...citing.map((w, i) => `<path class="cg-edge" d="M${colX.seed + 250} ${H / 2} C${colX.seed + 285} ${H / 2}, ${colX.cite - 35} ${yFor(i, citing.length) + 27}, ${colX.cite} ${yFor(i, citing.length) + 27}"/>`),
+    ].join('');
+    out.innerHTML = `
+      <div class="card">
+        <span class="overline">Keyless · OpenAlex</span>
+        <h2>${esc(seed.title || 'Paper')}</h2>
+        <p class="hint">${esc((seed.authorships || []).slice(0, 4).map(a => a.author?.display_name).filter(Boolean).join(', '))} · ${seed.publication_year || 'n.d.'} · ${(seed.cited_by_count || 0).toLocaleString()} citations${seed.doi ? ` · <a class="link" href="${esc(seed.doi)}" target="_blank" rel="noreferrer">DOI ${icon('external', 11)}</a>` : ''}</p>
+        <div class="graph-wrap"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Citation graph">
+          <text class="cg-col-label" x="20" y="32">Builds on (${refs.length})</text>
+          <text class="cg-col-label" x="325" y="32">This paper</text>
+          <text class="cg-col-label" x="630" y="32">Cited by (${citing.length})</text>
+          ${edges}
+          ${refs.map((w, i) => nodeSvg(w, colX.ref, yFor(i, refs.length), '')).join('')}
+          ${nodeSvg(seed, colX.seed, H / 2 - 27, 'seed')}
+          ${citing.map((w, i) => nodeSvg(w, colX.cite, yFor(i, citing.length), '')).join('')}
+        </svg></div>
+        <div class="row">
+          <span class="hint" style="margin:0">Click any paper to re-centre the graph on it.</span>
+          <span class="push"></span>
+          <button class="ghost" id="cg-save">${icon('library', 15)} Save centre paper</button>
+          <button id="cg-matrix">Send set to matrix ${icon('arrow', 15)}</button>
+        </div>
+      </div>`;
+    out.querySelectorAll('.cg-node').forEach(n => n.addEventListener('click', () => {
+      const id = n.dataset.id;
+      if (id && id !== seed.id) { $('q').value = id; explore(id); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    }));
+    $('cg-save').onclick = (e) => Rewiseed.saveToLibrary({
+      doi: (seed.doi || '').replace('https://doi.org/', ''), title: seed.title,
+      authors: (seed.authorships || []).map(a => a.author?.display_name).filter(Boolean),
+      year: seed.publication_year, venue: seed.primary_location?.source?.display_name || '', url: seed.id,
+    }, e.currentTarget);
+    $('cg-matrix').onclick = () => {
+      const all = [seed, ...refs, ...citing];
+      const text = `Citation network around "${seed.title}" (from ReWiseEd Citation Graph):\n\n` +
+        all.map((w, i) => `${i + 1}. ${firstAuthor(w)} (${w.publication_year || 'n.d.'}). "${w.title}". ${(w.cited_by_count || 0)} citations.`).join('\n\n');
+      localStorage.setItem('rewiseed_draft_matrix', text);
+      toast('Sent — opening Synthesis Matrix');
+      location.href = 'literature-matrix.html';
+    };
+    Rewiseed.track('search');
+  } catch (e) {
+    out.innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>${esc(e.message)}</span></div></div>`;
+  }
+}
+
+$('go').onclick = () => { const q = $('q').value.trim(); if (!q) { toast('Enter a DOI or paper title', 'error'); return; } explore(q); };
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') $('go').click(); });
+document.querySelectorAll('.chip[data-ex]').forEach(c => c.onclick = () => { $('q').value = c.dataset.ex; $('go').click(); });
+$('out').innerHTML = `<div class="empty-state-card">${icon('graph', 30)}<span class="es-title">Map a paper's lineage</span><p>Enter a DOI or title to see what it builds on and what has built on it since — then click through the network paper by paper.</p></div>`;
+</script>
+</body>
+</html>

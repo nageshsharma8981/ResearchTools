@@ -204,12 +204,14 @@ $('lookup').onclick = async () => {
         <div class="row">
           ${oaUrl ? `<a class="link" href="${esc(oaUrl)}" target="_blank" rel="noreferrer" style="margin-right:6px">Open access PDF ${icon('external', 12)}</a>` : ''}
           <span class="push"></span>
+          <button class="ghost" id="save-lib">${icon('library', 15)} Save to library</button>
           <button class="ghost" id="copy-cite">${icon('copy', 15)} Copy citation</button>
           <button class="ghost" id="copy-bib">${icon('copy', 15)} Copy BibTeX</button>
           <button class="ghost" id="dl-bib">${icon('download', 15)} .bib</button>
         </div>
       </article>`;
     Rewiseed.track('search');
+    $('save-lib').onclick = (e) => Rewiseed.saveToLibrary({ doi: p.doi, title: p.title, authors: p.authors, year: p.year, venue: p.venue || p.publisher, url: p.doi ? `https://doi.org/${p.doi}` : '' }, e.currentTarget);
     $('copy-cite').onclick = (e) => Rewiseed.copyText(apaish(p).replace(/\*/g, ''), e.currentTarget);
     $('copy-bib').onclick = (e) => Rewiseed.copyText(bibtex(p), e.currentTarget);
     $('dl-bib').onclick = () => Rewiseed.downloadText(`${p.doi.replace(/[^\w.-]+/g, '_')}.bib`, bibtex(p));

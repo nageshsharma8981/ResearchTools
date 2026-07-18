@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Academic Writing Polisher — ReWiseEd</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ReWiseEd Research Tools"/>
+<meta property="og:title" content="Academic Writing Polisher — ReWiseEd"/>
+<meta property="og:description" content="Polish academic prose, tighten clarity, or generate abstracts and titles — with tracked changes explained, never silent rewrites."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/writing-polisher"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Academic Writing Polisher — ReWiseEd"/>
+<meta name="twitter:description" content="Polish academic prose with explained edits, or generate abstracts and titles."/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Academic Writing Polisher</h1>
+  <p class="lede">Sharpen your prose without losing your voice — polished text with every substantive change explained, or a publication-ready abstract and title options drawn from your draft.</p>
+</div>
+<main class="split">
+  <div id="settings"></div>
+  <div class="card input-card">
+    <h2>Your text</h2>
+    <p class="hint">Paste a paragraph, section, or full draft. The polisher edits <em>your</em> writing — it never adds claims, citations, or content you didn't write, and it lists what it changed so you stay the author.</p>
+    <label class="field-label" for="in">Draft text</label>
+    <textarea id="in" placeholder="Paste the text you want to improve…"></textarea>
+    <div class="field-foot">
+      <span class="chip-row"><button type="button" class="chip" id="example">Load example</button></span>
+      <span id="count"></span>
+    </div>
+    <div class="row" style="gap:14px">
+      <label class="field-label" style="margin:0" for="mode">Task</label>
+      <select id="mode">
+        <option value="polish" selected>Polish academic tone</option>
+        <option value="clarity">Tighten clarity & concision</option>
+        <option value="abstract">Generate abstract</option>
+        <option value="titles">Suggest titles</option>
+      </select>
+      <label class="field-label" style="margin:0" for="variant">English</label>
+      <select id="variant"><option selected>American</option><option>British</option></select>
+    </div>
+    <div class="row">
+      <button id="run"></button>
+      <span class="hint" style="margin:0"><kbd>⌘</kbd>+<kbd>Enter</kbd> to run</span>
+    </div>
+  </div>
+  <div id="out"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+Rewiseed.renderNav('writing-polisher.html');
+document.getElementById('hero-icon').innerHTML = Rewiseed.icon('pen', 26);
+Rewiseed.renderSettingsBar('settings');
+
+const MODES = {
+  polish: `Rewrite the text in polished formal academic register while preserving the author's meaning, structure, claims, and citations exactly.
+Output:
+## Polished text
+The full rewritten text.
+## What changed and why
+A short bullet list of the substantive edit patterns (e.g., "converted passive constructions where agency mattered", "replaced colloquial 'a lot of' with precise quantifiers"). No bullet for trivial punctuation.`,
+  clarity: `Tighten the text: shorter sentences, front-loaded points, no redundancy — while preserving every claim and citation.
+Output:
+## Tightened text
+The full revision.
+## Cuts and compressions
+Bullets summarising what was trimmed and why, with approximate word count before → after.`,
+  abstract: `Write a structured academic abstract (150-250 words) drawn ONLY from what the draft states: background, aim, method, key findings, implications. If the draft lacks one of these (e.g., no results reported), say "[the draft does not report …]" in that slot rather than inventing it.
+Output:
+## Abstract
+The abstract.
+## Keywords
+5-7 keywords drawn from the text.`,
+  titles: `Propose titles for this work, grounded only in what the text actually claims.
+Output:
+## Title options
+A table: Title | Style (declarative / question / colon-compound) | Best for (journal article, conference, thesis chapter).
+Give 6-8 options across styles. Then one bullet: which single option you'd pick and why.`,
+};
+
+const EXAMPLE = `In this study we looked at how using spaced repetition apps affects how well students remember vocab over time. Basically we got 120 students and split them into two groups, one used the app every day and the other just studied however they normally would. After 8 weeks we tested them and the app group did a lot better, like 23% higher scores on the delayed test. This kind of shows that spacing out your practice really matters for long term memory, which fits with what other researchers have found before us (Cepeda et al., 2006). One issue though is that we only looked at one university so it might be different elsewhere.`;
+
+Rewiseed.mountStreamingTool({
+  toolId: 'polish',
+  inputId: 'in', runId: 'run', outId: 'out',
+  resultTitle: 'Polished result',
+  downloadName: 'polished-text.md',
+  buildSystem: () => {
+    const mode = document.getElementById('mode').value;
+    const variant = document.getElementById('variant').value;
+    return `You are an academic copyeditor. ${MODES[mode]}
+Rules:
+- ${variant} English spelling and conventions.
+- NEVER add facts, findings, citations, or hedges the author didn't write. Never remove a citation.
+- Preserve discipline-specific terminology.
+- Keep the author's voice — you are editing, not ghostwriting.`;
+  },
+  runLabel: 'Polish',
+  runningLabel: 'Editing with a careful pen…',
+  example: EXAMPLE, exampleBtnId: 'example',
+  countId: 'count',
+  next: { href: 'apa-formatter.html', draftKey: 'rewiseed_draft_apa', label: 'Format as APA 7', carry: 'output' },
+});
+</script>
+</body>
+</html>
