@@ -289,11 +289,13 @@
 
     const reader = res.body.getReader();
     const dec = new TextDecoder();
-    let full = '', buf = '';
+    let full = '', buf = '', raw = '';
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
-      buf += dec.decode(value, { stream: true });
+      const chunk = dec.decode(value, { stream: true });
+      raw += chunk;
+      buf += chunk;
       const lines = buf.split('\n');
       buf = lines.pop();
       for (const line of lines) {
@@ -306,6 +308,14 @@
           if (delta) { full += delta; onStream(full); }
         } catch { /* partial/keepalive frame */ }
       }
+    }
+    if (!full && raw.trim()) {
+      // some providers/proxies ignore stream:true and reply with plain JSON
+      try {
+        const j = JSON.parse(raw);
+        full = j.choices?.[0]?.message?.content || '';
+        if (full) onStream(full);
+      } catch { /* genuinely empty stream */ }
     }
     return full;
   }
@@ -360,8 +370,8 @@
         continue;
       }
       // heading
-      const h = line.match(/^(#{1,4})\s+(.+)$/);
-      if (h) { flushList(); out.push(`<h${h[1].length}>${mdInline(h[2])}</h${h[1].length}>`); i++; continue; }
+      const h = line.match(/^(#{1,6})\s+(.+)$/);
+      if (h) { flushList(); const lvl = h[1].length; out.push(`<h${lvl}>${mdInline(h[2])}</h${lvl}>`); i++; continue; }
       // hr
       if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { flushList(); out.push('<hr/>'); i++; continue; }
       // blockquote
@@ -390,7 +400,7 @@
       flushList();
       const para = [line];
       while (i + 1 < lines.length && lines[i + 1].trim() &&
-             !/^(#{1,4}\s|```|\s*[-*+]\s|\s*\d+[.)]\s|\s*&gt;|\s*\|)/.test(lines[i + 1]) &&
+             !/^(#{1,6}\s|```|\s*[-*+]\s|\s*\d+[.)]\s|\s*&gt;|\s*\|)/.test(lines[i + 1]) &&
              !/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(lines[i + 1])) {
         para.push(lines[++i]);
       }
