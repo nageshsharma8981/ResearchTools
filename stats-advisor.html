@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Statistical Test Advisor — ReWiseEd</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ReWiseEd Research Tools"/>
+<meta property="og:title" content="Statistical Test Advisor — ReWiseEd"/>
+<meta property="og:description" content="Describe your study and variables — get the right statistical test, its assumptions, the non-parametric fallback, effect size, and an APA-style results template."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/stats-advisor"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Statistical Test Advisor — ReWiseEd"/>
+<meta name="twitter:description" content="The right statistical test for your design — assumptions, fallbacks, effect sizes, APA reporting."/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Statistical Test Advisor</h1>
+  <p class="lede">Describe your study and variables — get the right test with its assumptions, the non-parametric fallback, the effect size to report, and an APA-style results sentence ready to fill in.</p>
+</div>
+<main class="split">
+  <div id="settings"></div>
+  <div class="card input-card">
+    <h2>Your study</h2>
+    <p class="hint">Paste your research questions, hypotheses, or instrument plan — output from the <a href="research-question-generator.html">Question Generator</a> or <a href="instrument-designer.html">Instrument Designer</a> drops straight in. The selectors below sharpen the recommendation.</p>
+    <label class="field-label" for="in">Study description, variables, and hypotheses</label>
+    <textarea id="in" style="min-height:150px" placeholder="RQ: Does daily social media time predict PSQI sleep quality among 200 undergraduates?&#10;IV: minutes/day (continuous). DV: PSQI global score (0-21). Controls: caffeine, workload."></textarea>
+    <div class="field-foot">
+      <span class="chip-row"><button type="button" class="chip" id="example">Load example</button></span>
+      <span id="count"></span>
+    </div>
+    <div class="row" style="gap:14px">
+      <label class="field-label" style="margin:0" for="goal">Goal</label>
+      <select id="goal">
+        <option value="auto" selected>Infer from description</option>
+        <option value="difference">Compare groups</option>
+        <option value="relationship">Relationship / correlation</option>
+        <option value="prediction">Prediction / regression</option>
+        <option value="frequencies">Frequencies / proportions</option>
+      </select>
+      <label class="field-label" style="margin:0" for="software">Code for</label>
+      <select id="software">
+        <option value="R" selected>R</option>
+        <option value="Python">Python</option>
+        <option value="SPSS">SPSS syntax</option>
+        <option value="none">No code</option>
+      </select>
+    </div>
+    <div class="row">
+      <button id="run"></button>
+      <span class="hint" style="margin:0"><kbd>⌘</kbd>+<kbd>Enter</kbd> to run</span>
+    </div>
+  </div>
+  <div id="out"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+Rewiseed.renderNav('stats-advisor.html');
+document.getElementById('hero-icon').innerHTML = Rewiseed.icon('sigma', 26);
+Rewiseed.renderSettingsBar('settings');
+
+const EXAMPLE = `RQ1: Does daily social media time predict poorer sleep quality among first-year undergraduates?
+IV: self-reported daily social media minutes (continuous).
+DV: PSQI global score (0-21, treated as continuous).
+Controls: caffeine intake (mg/day), weekly workload hours.
+Sample: ~200 students, one university, cross-sectional online survey.
+
+RQ2: Do commuting and on-campus students differ in average sleep quality?
+Groups: commuter vs on-campus (independent). DV: PSQI global score.`;
+
+Rewiseed.mountStreamingTool({
+  toolId: 'stats',
+  inputId: 'in', runId: 'run', outId: 'out',
+  resultTitle: 'Analysis plan',
+  downloadName: 'analysis-plan.md',
+  buildSystem: () => {
+    const goal = document.getElementById('goal').value;
+    const software = document.getElementById('software').value;
+    return `You are a statistics advisor for applied researchers. For EACH research question or hypothesis in the input, produce this Markdown structure:
+## <short name of the question>
+| | |
+|---|---|
+| **Recommended test** | name it precisely (e.g., multiple linear regression; Welch's independent-samples t-test) |
+| **Why this test** | one sentence tying it to the variable types and design${goal === 'auto' ? '' : `; the user stated their goal is: ${goal}`} |
+| **Assumptions to check** | each with HOW to check it (e.g., Q-Q plot, Levene's test) |
+| **If assumptions fail** | the non-parametric or robust alternative |
+| **Effect size** | which one and thresholds (small/medium/large) |
+| **Sample size note** | rough adequacy check for the stated N, or what a power analysis needs |
+
+**APA results template:** one fill-in-the-blanks sentence in APA 7 style, e.g. "Social media use significantly predicted sleep quality, b = __, SE = __, t(df) = __, p = __, with the model explaining R² = __ of variance."
+${software !== 'none' ? `**${software} code:** a minimal runnable snippet (assume a data frame/dataset named d with sensible column names).` : ''}
+Rules:
+- Match tests to the ACTUAL variable types described; if the description is ambiguous, state the assumption you made in one line.
+- Prefer robust defaults (e.g., Welch over Student's t).
+- Never invent citations. Keep each question's section compact.
+- End with "### Before you analyze" — 3 bullets: pre-registration/decisions, missing-data handling, and multiple-comparisons caution if more than one test is planned.`;
+  },
+  runLabel: 'Recommend tests',
+  runningLabel: 'Matching tests to your design…',
+  example: EXAMPLE, exampleBtnId: 'example',
+  countId: 'count',
+});
+</script>
+</body>
+</html>

@@ -12,6 +12,7 @@ Five standalone research tools that run **entirely in your browser**. No server,
 | Research Gap Identifier | `research-gap-identifier.html` | Find unexplored gaps, contradictions, and methodological weaknesses in a literature set. |
 | Research Question Generator | `research-question-generator.html` | Turn a topic into precise, testable research questions — each with independent, dependent, and control variables, hypotheses, and a suggested design. |
 | Survey & Interview Designer | `instrument-designer.html` | Turn research questions into a survey questionnaire (proper scales, validated instruments, attention checks, pilot notes) or a semi-structured interview guide with probes. |
+| Statistical Test Advisor | `stats-advisor.html` | The right statistical test per research question — assumptions with checks, non-parametric fallbacks, effect sizes, APA results templates, starter R/Python/SPSS code. |
 | Qualitative Coding Assistant | `qualitative-coding-assistant.html` | Braun & Clarke reflexive thematic analysis of interview transcripts — codes, themes, thematic map. |
 | Peer Review Simulator | `peer-review-simulator.html` | Structured peer review with selectable reviewer temperament (constructive → adversarial) and a recommendation. |
 | Citation Formatter | `citation-formatter.html` | Convert messy references into APA 7 / MLA 9 / Chicago / Harvard / IEEE / Vancouver. |
