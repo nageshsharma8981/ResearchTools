@@ -105,7 +105,9 @@ a { color: var(--accent); }
   padding: 10px clamp(16px, 4vw, 32px);
   background: var(--bg);
   border-bottom: 1px solid var(--border);
+  transition: box-shadow var(--transition);
 }
+.topnav.scrolled { box-shadow: var(--shadow-md); }
 .brand {
   display: inline-flex; align-items: center; gap: 9px;
   font-family: var(--font-serif); font-weight: 700; font-size: 17px;
@@ -120,7 +122,7 @@ a { color: var(--accent); }
   border: 1px solid transparent; border-radius: var(--radius-sm);
   cursor: pointer; transition: background var(--transition), color var(--transition);
 }
-button.icon-btn:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); box-shadow: none; }
+button.icon-btn:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); box-shadow: none; transform: none; }
 
 .tool-menu { position: relative; }
 .tool-menu summary {
@@ -149,8 +151,34 @@ button.icon-btn:hover:not(:disabled) { background: var(--surface-2); color: var(
 .tool-menu .menu a.active { background: var(--accent-soft); color: var(--accent-strong); }
 .tool-menu .menu a svg { color: var(--accent); flex: none; }
 
+/* ---------- Motion ---------- */
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.hero, main > * { animation: rise 480ms cubic-bezier(.2, .7, .3, 1) backwards; }
+main > :nth-child(1) { animation-delay: 60ms; }
+main > :nth-child(2) { animation-delay: 120ms; }
+main > :nth-child(3) { animation-delay: 180ms; }
+main > :nth-child(4) { animation-delay: 240ms; }
+.tools-grid .tool-tile { animation: rise 480ms cubic-bezier(.2, .7, .3, 1) backwards; }
+.tools-grid .tool-tile:nth-child(1) { animation-delay: 100ms; }
+.tools-grid .tool-tile:nth-child(2) { animation-delay: 150ms; }
+.tools-grid .tool-tile:nth-child(3) { animation-delay: 200ms; }
+.tools-grid .tool-tile:nth-child(4) { animation-delay: 250ms; }
+.tools-grid .tool-tile:nth-child(5) { animation-delay: 300ms; }
+.tools-grid .tool-tile:nth-child(6) { animation-delay: 350ms; }
+
 /* ---------- Page hero ---------- */
-.hero { padding: clamp(28px, 6vw, 56px) 20px 8px; text-align: center; }
+.hero {
+  position: relative;
+  padding: clamp(28px, 6vw, 56px) 20px 8px;
+  text-align: center;
+}
+.hero::before {
+  content: "";
+  position: absolute; inset: -40px 0 0;
+  margin: 0 auto; width: min(680px, 90%); height: 100%;
+  background: radial-gradient(ellipse 60% 70% at 50% 20%, var(--accent-soft), transparent 70%);
+  opacity: .8; pointer-events: none; z-index: -1;
+}
 .hero .tool-icon {
   display: inline-flex; align-items: center; justify-content: center;
   width: 56px; height: 56px; margin-bottom: 14px;
@@ -171,6 +199,14 @@ main { max-width: 900px; margin: 0 auto; padding: 20px clamp(16px, 4vw, 32px) 72
   box-shadow: var(--shadow-sm);
 }
 .card h2 { margin: 0 0 4px; font-size: 19px; }
+.overline {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--accent-strong);
+  margin-bottom: 6px;
+}
 .hint { font-size: 13.5px; color: var(--muted); margin: 4px 0 14px; }
 .field-label { display: block; font-size: 13.5px; font-weight: 600; color: var(--ink-2); margin: 0 0 6px; }
 .field-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 6px; font-size: 12.5px; color: var(--muted); }
@@ -181,7 +217,7 @@ main { max-width: 900px; margin: 0 auto; padding: 20px clamp(16px, 4vw, 32px) 72
   padding: 4px 14px; min-height: 34px; font-size: 12.5px; font-weight: 600; cursor: pointer;
   transition: border-color var(--transition), color var(--transition);
 }
-button.chip:hover:not(:disabled) { background: var(--surface-2); border-color: var(--accent); color: var(--accent-strong); box-shadow: none; }
+button.chip:hover:not(:disabled) { background: var(--surface-2); border-color: var(--accent); color: var(--accent-strong); box-shadow: none; transform: none; }
 
 /* ---------- Form controls ---------- */
 textarea, input, select {
@@ -213,8 +249,8 @@ button {
   cursor: pointer;
   transition: background var(--transition), transform 120ms ease, box-shadow var(--transition);
 }
-button:hover:not(:disabled) { background: var(--btn-hover); box-shadow: var(--shadow-sm); }
-button:active:not(:disabled) { transform: scale(.98); }
+button:hover:not(:disabled) { background: var(--btn-hover); box-shadow: var(--shadow-md); transform: translateY(-1px); }
+button:active:not(:disabled) { transform: scale(.98); box-shadow: none; }
 button:disabled { opacity: .45; cursor: not-allowed; }
 button.ghost { background: transparent; color: var(--ink-2); border-color: var(--border-strong); }
 button.ghost:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
@@ -354,10 +390,14 @@ details.settings .settings-body { padding: 18px 20px 20px; }
   width: 44px; height: 44px;
   background: var(--accent-soft); color: var(--accent);
   border-radius: var(--radius);
+  transition: transform var(--transition), background var(--transition), color var(--transition);
 }
+.tool-tile:hover .tile-icon { transform: scale(1.08) rotate(-3deg); background: var(--accent); color: var(--on-accent); }
 .tool-tile h3 { margin: 4px 0 0; font-size: 17px; }
 .tool-tile p { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
 .tool-tile .tile-go { margin-top: auto; padding-top: 8px; font-size: 13px; font-weight: 700; color: var(--accent-strong); display: inline-flex; align-items: center; gap: 5px; }
+.tool-tile .tile-go svg { transition: transform var(--transition); }
+.tool-tile:hover .tile-go svg { transform: translateX(4px); }
 .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 8px; }
 .step { display: flex; gap: 12px; align-items: flex-start; font-size: 14px; color: var(--ink-2); }
 .step .num {
@@ -392,6 +432,32 @@ a.link { color: var(--accent-strong); text-decoration: none; font-weight: 600; f
 a.link:hover { text-decoration: underline; }
 .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 15px; }
 .empty-state svg { color: var(--border-strong); margin-bottom: 10px; }
+
+/* ---------- Progress bar (batch operations) ---------- */
+.progress-track {
+  height: 4px; border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden; margin: 10px 0 2px;
+}
+.progress-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+  border-radius: 999px;
+  transition: width 250ms cubic-bezier(.2, .7, .3, 1);
+}
+
+/* ---------- Themed scrollbars for scrollable islands ---------- */
+.result pre::-webkit-scrollbar, .tbl-wrap::-webkit-scrollbar, textarea::-webkit-scrollbar { height: 8px; width: 8px; }
+.result pre::-webkit-scrollbar-thumb, .tbl-wrap::-webkit-scrollbar-thumb, textarea::-webkit-scrollbar-thumb {
+  background: var(--border-strong); border-radius: 999px;
+}
+.result pre::-webkit-scrollbar-track, .tbl-wrap::-webkit-scrollbar-track, textarea::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- Copy-success morph ---------- */
+button.copied, button.ghost.copied {
+  color: var(--success); border-color: var(--success);
+  background: var(--success-soft);
+}
 
 @media (max-width: 640px) {
   .settings-grid { grid-template-columns: 1fr; }

@@ -198,8 +198,8 @@ $('lookup').onclick = async () => {
           <button class="ghost" id="dl-bib">${icon('download', 15)} .bib</button>
         </div>
       </article>`;
-    $('copy-cite').onclick = () => Rewiseed.copyText(apaish(p).replace(/\*/g, ''));
-    $('copy-bib').onclick = () => Rewiseed.copyText(bibtex(p));
+    $('copy-cite').onclick = (e) => Rewiseed.copyText(apaish(p).replace(/\*/g, ''), e.currentTarget);
+    $('copy-bib').onclick = (e) => Rewiseed.copyText(bibtex(p), e.currentTarget);
     $('dl-bib').onclick = () => Rewiseed.downloadText(`${p.doi.replace(/[^\w.-]+/g, '_')}.bib`, bibtex(p));
   } catch (e) {
     out.innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>${esc(e.message)}</span></div></div>`;
@@ -290,12 +290,23 @@ $('find').onclick = async () => {
   if (lines.length > 50) { toast('Limiting to the first 50 references', 'error'); lines.length = 50; }
   const btn = $('find'); btn.disabled = true;
   const out = $('find-out');
-  $('find-toolbar').innerHTML = '';
+  $('find-toolbar').innerHTML = `
+    <div class="card" style="padding:14px 20px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)">
+        <span>Matching references…</span><span id="find-progress-label">0 / ${lines.length}</span>
+      </div>
+      <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="${lines.length}" aria-valuenow="0" id="find-progressbar">
+        <div class="progress-fill" id="find-progress-fill"></div>
+      </div>
+    </div>`;
   out.innerHTML = '';
   found = [];
   for (let i = 0; i < lines.length; i++) {
     const ref = lines[i];
     btn.innerHTML = `<span class="spinner" style="border-top-color:var(--btn-fg)"></span> ${i + 1} / ${lines.length}`;
+    $('find-progress-label').textContent = `${i + 1} / ${lines.length}`;
+    $('find-progressbar').setAttribute('aria-valuenow', i + 1);
+    $('find-progress-fill').style.width = `${((i + 1) / lines.length) * 100}%`;
     let card = `<article class="card"><div class="ref-input">${esc(ref)}</div>`;
     try {
       const direct = extractDoi(ref);
@@ -345,7 +356,7 @@ $('find').onclick = async () => {
     out.insertAdjacentHTML('beforeend', card + '</article>');
     if (i < lines.length - 1) await new Promise(r => setTimeout(r, 350)); // polite spacing for the free API
   }
-  out.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => Rewiseed.copyText(b.dataset.copy));
+  out.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => Rewiseed.copyText(b.dataset.copy, b));
 
   const hits = found.filter(f => f.best);
   $('find-toolbar').innerHTML = `
@@ -357,7 +368,7 @@ $('find').onclick = async () => {
       </span>
     </div>`;
   if (hits.length) {
-    $('copy-all-doi').onclick = () => Rewiseed.copyText(hits.map(f => `https://doi.org/${f.best.doi}`).join('\n'));
+    $('copy-all-doi').onclick = (e) => Rewiseed.copyText(hits.map(f => `https://doi.org/${f.best.doi}`).join('\n'), e.currentTarget);
     $('dl-all-bib').onclick = () => Rewiseed.downloadText('references.bib', hits.map(f => bibtex(f.best)).join('\n\n'));
   }
   btn.disabled = false;

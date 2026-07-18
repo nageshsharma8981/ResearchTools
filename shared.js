@@ -131,6 +131,15 @@
       const menu = nav.querySelector('.tool-menu');
       if (menu?.open && !menu.contains(e.target)) menu.open = false;
     });
+    // elevate the nav once content scrolls beneath it
+    let navRaf = 0;
+    addEventListener('scroll', () => {
+      if (navRaf) return;
+      navRaf = requestAnimationFrame(() => {
+        nav.classList.toggle('scrolled', scrollY > 4);
+        navRaf = 0;
+      });
+    }, { passive: true });
   }
 
   // ---------- settings panel ----------
@@ -423,10 +432,33 @@
     toast(`Saved ${filename}`);
   }
 
-  async function copyText(text) {
+  function legacyCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch { /* unsupported */ }
+    ta.remove();
+    return ok;
+  }
+
+  async function copyText(text, btn) {
     try {
-      await navigator.clipboard.writeText(text);
-      toast('Copied to clipboard');
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        if (!legacyCopy(text)) throw new Error('copy blocked');
+      }
+      if (btn) {
+        const prev = btn.innerHTML;
+        btn.classList.add('copied');
+        btn.innerHTML = `${icon('check', 15)} Copied`;
+        setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = prev; }, 1400);
+      } else {
+        toast('Copied to clipboard');
+      }
     } catch {
       toast('Copy failed — select and copy manually', 'error');
     }
@@ -508,6 +540,7 @@
       setRunning(true);
       out.innerHTML = `
         <div class="card">
+          <span class="overline">Result</span>
           <h2>${esc(resultTitle)}</h2>
           <div class="result" id="${toolId}-stream" aria-live="polite">
             <div class="stream-status"><span class="spinner"></span>${esc(runningLabel)}</div>
@@ -529,7 +562,7 @@
         });
         streamEl.innerHTML = md(lastOutput);
         streamEl.insertAdjacentHTML('afterend', actionsHtml);
-        $(`${toolId}-copy`).onclick = () => copyText(lastOutput);
+        $(`${toolId}-copy`).onclick = (e) => copyText(lastOutput, e.currentTarget);
         $(`${toolId}-dl`).onclick = () => downloadText(downloadName, lastOutput);
       } catch (e) {
         if (e.name === 'AbortError') {
@@ -537,7 +570,7 @@
             lastOutput = pending;
             streamEl.innerHTML = md(pending);
             streamEl.insertAdjacentHTML('afterend', `<p class="hint">Stopped early — partial output shown.</p>${actionsHtml}`);
-            $(`${toolId}-copy`).onclick = () => copyText(lastOutput);
+            $(`${toolId}-copy`).onclick = (e) => copyText(lastOutput, e.currentTarget);
             $(`${toolId}-dl`).onclick = () => downloadText(downloadName, lastOutput);
           } else {
             out.innerHTML = '';
