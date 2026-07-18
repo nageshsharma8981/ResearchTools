@@ -1,4 +1,4 @@
-# Rewiseed Research Tools
+# ReWiseEd Research Tools
 
 Five standalone research tools that run **entirely in your browser**. No server, no build step, no account, no tracking. Bring your own OpenAI-compatible API key — or run a free local model and stay fully offline.
 
