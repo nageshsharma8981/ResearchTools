@@ -302,6 +302,10 @@ $('file').addEventListener('change', async (e) => {
   if (!f) return;
   try {
     const text = f.name.endsWith('.docx') ? await readDocxText(await f.arrayBuffer()) : await f.text();
+    if (!text.trim()) {
+      toast(`${f.name} contains no readable text — nothing was loaded.`, 'error', 5000);
+      return;
+    }
     $('in').value = text;
     $('in').dispatchEvent(new Event('input'));
     $('m-title').value = f.name.replace(/\.(docx|txt|md)$/i, ''); // new doc, new title
@@ -368,7 +372,13 @@ $('run').onclick = async () => {
   try {
     const blob = buildDocx(finalText, meta);
     const url = URL.createObjectURL(blob);
-    const fname = (meta.title || 'paper').replace(/[^\w -]+/g, '').replace(/\s+/g, '-').toLowerCase() + '-apa7.docx';
+    // Unicode-aware slug: keep letters/digits from any script, drop punctuation.
+    const slug = (meta.title || '')
+      .normalize('NFC')
+      .replace(/[^\p{L}\p{N}\s-]+/gu, '')
+      .trim().replace(/\s+/g, '-').toLowerCase()
+      .slice(0, 60).replace(/^-+|-+$/g, '');
+    const fname = (slug.length >= 3 ? slug : 'paper') + '-apa7.docx';
     out.insertAdjacentHTML('beforeend', `
       <div class="card"><span class="overline">Result</span><h2>Your APA 7 document</h2>
         <p class="hint">Title page (${meta.type}), Times New Roman 12, double-spaced, 1-inch margins, page numbers${meta.type === 'professional' ? ' with running head' : ''}, APA headings, hanging-indent references.</p>
