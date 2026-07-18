@@ -123,6 +123,8 @@
       <details class="tool-menu">
         <summary aria-label="Switch tool">Tools ${icon('chevron', 15)}</summary>
         <div class="menu">
+          <a href="index.html" class="${activeHref === 'index.html' ? 'active' : ''}">${icon('home', 17)}Home — all tools</a>
+          <div class="menu-rule"></div>
           ${TOOLS.map(t => `<a href="${t.href}" class="${t.href === activeHref ? 'active' : ''}">${icon(t.icon, 17)}${esc(t.name)}</a>`).join('')}
         </div>
       </details>
