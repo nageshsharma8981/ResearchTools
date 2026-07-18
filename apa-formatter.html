@@ -360,12 +360,20 @@ $('run').onclick = async () => {
       <div class="card"><span class="overline">Result</span><h2>Your APA 7 document</h2>
         <p class="hint">Title page (${meta.type}), Times New Roman 12, double-spaced, 1-inch margins, page numbers${meta.type === 'professional' ? ' with running head' : ''}, APA headings, hanging-indent references.</p>
         <div class="dl-hero"><span class="big">${icon('doc', 28)}</span>
-          <div><a class="link" style="font-size:15px" href="${url}" download="${esc(fname)}">${esc(fname)} ${icon('download', 14)}</a>
-          <div class="hint" style="margin:2px 0 0">Open in Word / Google Docs / LibreOffice and give it a final read.</div></div>
+          <div style="min-width:0">
+            <b style="font-size:14px;overflow-wrap:anywhere">${esc(fname)}</b>
+            <div class="hint" style="margin:2px 0 0">Word format (.docx) — opens in Microsoft Word, Google Docs, and LibreOffice.</div>
+          </div>
         </div>
-        <div class="row"><button class="ghost" id="apa-copy">${icon('copy', 15)} Copy cleaned text</button></div>
+        <div class="row">
+          <button id="apa-dl" style="min-height:48px">${icon('download', 16)} Download Word document</button>
+          <button class="ghost" id="apa-copy">${icon('copy', 15)} Copy cleaned text</button>
+        </div>
+        <a id="apa-dl-a" href="${url}" download="${esc(fname)}" hidden></a>
       </div>`);
     $('apa-copy').onclick = (ev) => Rewiseed.copyText(finalText, ev.currentTarget);
+    $('apa-dl').onclick = () => { $('apa-dl-a').click(); Rewiseed.toast(`Downloading ${fname}`); };
+    $('apa-dl').click();  // start the download immediately as well
     Rewiseed.track('export', finalText.length);
   } catch (e) {
     out.insertAdjacentHTML('beforeend', `<div class="card"><div class="error-box">${icon('alert', 18)}<span>Could not build the document: ${esc(e.message)}</span></div></div>`);
