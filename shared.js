@@ -532,6 +532,7 @@
       example,           // optional example input string
       exampleBtnId,
       countId,           // optional word-count element
+      next,              // optional hand-off: { href, draftKey, label, carry: 'output'|'input' }
     } = opts;
 
     const input = $(inputId), runBtn = $(runId), out = $(outId);
@@ -588,7 +589,17 @@
       <div class="row">
         <button class="ghost" id="${toolId}-copy">${icon('copy', 15)} Copy</button>
         <button class="ghost" id="${toolId}-dl">${icon('download', 15)} Download .md</button>
+        ${next ? `<span class="push"></span><button id="${toolId}-next">${esc(next.label)} ${icon('arrow', 15)}</button>` : ''}
       </div>`;
+    const wireNext = () => {
+      if (!next || !$(`${toolId}-next`)) return;
+      $(`${toolId}-next`).onclick = () => {
+        const carry = next.carry === 'input' ? input.value : lastOutput;
+        localStorage.setItem(next.draftKey, carry);
+        toast('Sent — opening next tool');
+        location.href = next.href;
+      };
+    };
 
     async function run() {
       if (abort) { abort.abort(); return; } // acting as Stop
@@ -623,6 +634,7 @@
         streamEl.insertAdjacentHTML('afterend', actionsHtml);
         $(`${toolId}-copy`).onclick = (e) => copyText(lastOutput, e.currentTarget);
         $(`${toolId}-dl`).onclick = () => downloadText(downloadName, lastOutput);
+        wireNext();
         track('run', lastOutput.length);
       } catch (e) {
         if (e.name === 'AbortError') {
@@ -632,6 +644,7 @@
             streamEl.insertAdjacentHTML('afterend', `<p class="hint">Stopped early — partial output shown.</p>${actionsHtml}`);
             $(`${toolId}-copy`).onclick = (e) => copyText(lastOutput, e.currentTarget);
             $(`${toolId}-dl`).onclick = () => downloadText(downloadName, lastOutput);
+            wireNext();
           } else {
             out.innerHTML = emptyState;
           }

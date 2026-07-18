@@ -156,6 +156,7 @@ function render(order) {
       <span class="push" style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap">
         <button id="rank" class="ghost" ${canRank ? '' : 'disabled title="Configure an API key to enable AI rerank"'}>${icon('sparkle', 15)} AI rerank</button>
         <button id="bibtex" class="ghost">${icon('download', 15)} BibTeX</button>
+        <button id="to-gaps">Find the gaps ${icon('arrow', 15)}</button>
       </span>
     </div>`;
   out.innerHTML = list.map(p => `
@@ -176,6 +177,13 @@ function render(order) {
 
   $('bibtex').onclick = () => Rewiseed.downloadText('literature.bib', toBibtex(list));
   $('rank').onclick = () => aiRerank();
+  $('to-gaps').onclick = () => {
+    const text = `Literature set on "${lastQuery}" (from ReWiseEd Literature Finder):\n\n` +
+      list.map((p, i) => `${i + 1}. ${p.authors[0] || 'Unknown'}${p.authors.length > 1 ? ' et al.' : ''} (${p.year || 'n.d.'}). "${p.title}". ${p.venue ? p.venue + '. ' : ''}${p.abstract ? 'Abstract: ' + p.abstract : ''}`).join('\n\n');
+    localStorage.setItem('rewiseed_draft_gaps', text);
+    toast('Sent — opening Gap Identifier');
+    location.href = 'research-gap-identifier.html';
+  };
 }
 
 function toBibtex(list) {
