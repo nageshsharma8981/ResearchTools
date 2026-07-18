@@ -1,23 +1,55 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Peer Review Simulator — Offline</title>
-<link rel="stylesheet" href="shared.css"/></head>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Peer Review Simulator — Rewiseed</title>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
 <body>
-<header><h1>🎓 Peer Review Simulator</h1><p>Rigorous structured peer review with major/minor concerns and a recommendation.</p></header>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Peer Review Simulator</h1>
+  <p class="lede">A rigorous but constructive reviewer for your draft — strengths, major and minor concerns with concrete fixes, and a publication recommendation.</p>
+</div>
 <main>
   <div id="settings"></div>
   <div class="card">
-    <h2>Paste your manuscript draft</h2>
-    <p class="hint">Abstract + introduction + methods + findings ideally. Full drafts work too.</p>
-    <textarea id="in" placeholder="Paste manuscript…"></textarea>
-    <div class="row"><button id="run">Get peer review</button><button id="dl" class="ghost" disabled>Download .md</button></div>
+    <h2>Your manuscript</h2>
+    <p class="hint">Abstract + introduction + methods + findings works best. Full drafts are fine too. Choose how harsh the reviewer should be.</p>
+    <label class="field-label" for="in">Manuscript text</label>
+    <textarea id="in" placeholder="Paste your manuscript draft…"></textarea>
+    <div class="field-foot">
+      <span class="chip-row"><button type="button" class="chip" id="example">Load example</button></span>
+      <span id="count"></span>
+    </div>
+    <div class="row">
+      <label class="field-label" style="margin:0" for="severity">Reviewer temperament</label>
+      <select id="severity">
+        <option value="constructive">Constructive (Reviewer 1)</option>
+        <option value="rigorous" selected>Rigorous (typical Reviewer 2)</option>
+        <option value="harsh">Adversarial (worst-case Reviewer 2)</option>
+      </select>
+      <button id="run"></button>
+      <span class="hint" style="margin:0"><kbd>⌘</kbd>+<kbd>Enter</kbd> to run</span>
+    </div>
   </div>
   <div id="out"></div>
 </main>
 <script src="shared.js"></script>
 <script>
+Rewiseed.renderNav('peer-review-simulator.html');
+document.getElementById('hero-icon').innerHTML = Rewiseed.icon('grad', 26);
 Rewiseed.renderSettingsBar('settings');
-const SYS = `You are simulating a rigorous but constructive academic peer reviewer for a top journal in the manuscript's field.
+
+const TEMPERAMENT = {
+  constructive: 'Be encouraging and constructive: assume good faith, emphasise how to strengthen the work, and keep the tone collegial.',
+  rigorous: 'Be rigorous and exacting, as a careful reviewer at a top journal: probe every claim, but stay professional and fair.',
+  harsh: 'Be maximally adversarial, as the harshest plausible Reviewer 2: hunt for every weakness, alternative explanation, and overclaim — while remaining factual and never inventing content that is not in the manuscript.',
+};
+
+const SYS_BASE = `You are simulating an academic peer reviewer for a top journal in the manuscript's field.
 Output a Markdown review with these sections:
 1. **Summary of contribution** (3-5 sentences the authors would recognise as fair).
 2. **Strengths** (bullet list).
@@ -26,20 +58,30 @@ Output a Markdown review with these sections:
 5. **Reproducibility & data availability** notes.
 6. **Recommendation** — one of: Accept · Minor revisions · Major revisions · Reject-and-resubmit · Reject. Justify in 2-3 sentences.
 Ground every point in the text; do not invent methods or results not in the manuscript. If key sections are missing, list them under "Cannot fully assess".`;
-let last = '';
-document.getElementById('run').onclick = async () => {
-  const input = document.getElementById('in').value.trim();
-  if (!input) return;
-  const btn = document.getElementById('run'); btn.disabled = true;
-  const out = document.getElementById('out');
-  out.innerHTML = '<div class="card"><h2>Peer review report</h2><div class="result" id="stream"><span class="spinner"></span>Reviewing…</div></div>';
-  try {
-    last = await Rewiseed.callLLM({ system: SYS, user: input, temperature: 0.2,
-      onStream: (t) => { document.getElementById('stream').innerHTML = Rewiseed.md(t); } });
-    document.getElementById('dl').disabled = false;
-  } catch (e) { document.getElementById('stream').innerHTML = '<b style="color:#dc2626">'+e.message+'</b>'; }
-  finally { btn.disabled = false; }
-};
-document.getElementById('dl').onclick = () => Rewiseed.downloadText('peer-review.md', last);
+
+const EXAMPLE = `Title: Gamified flashcards improve vocabulary retention in secondary school students
+
+Abstract: We test whether a gamified flashcard app improves vocabulary retention compared with paper flashcards. 64 students from one German secondary school used either the app (n=34) or paper cards (n=30) for four weeks. The app group scored 12% higher on an immediate post-test. We conclude gamification substantially improves vocabulary learning and recommend schools adopt gamified apps.
+
+Introduction: Vocabulary acquisition is central to language learning… Prior work on gamification reports mixed results (Sailer 2020; Hamari 2019), which we attribute to poor app design.
+
+Methods: Students were assigned to conditions by class (two intact classes). The app group's teacher, who co-developed the app, administered both conditions. Retention was measured with a 20-item multiple-choice test written by the same teacher, taken immediately after the intervention. No delayed post-test was conducted. Time-on-task was not logged for the paper group.
+
+Results: App group M=15.9 (SD 2.1), paper group M=14.2 (SD 2.4), t(62)=3.01, p=.004, d=0.76. Girls improved more than boys (p=.048, no correction). We also observed higher self-reported motivation in the app group.
+
+Discussion: These results demonstrate that gamification is the decisive factor in vocabulary learning. Schools should replace paper flashcards with gamified apps. Limitations: sample from one school.`;
+
+Rewiseed.mountStreamingTool({
+  toolId: 'review',
+  inputId: 'in', runId: 'run', outId: 'out',
+  resultTitle: 'Peer review report',
+  downloadName: 'peer-review.md',
+  buildSystem: () => `${SYS_BASE}\n\nTemperament: ${TEMPERAMENT[document.getElementById('severity').value]}`,
+  runLabel: 'Get peer review',
+  runningLabel: 'Reviewer 2 is reading your manuscript…',
+  example: EXAMPLE, exampleBtnId: 'example',
+  countId: 'count',
+});
 </script>
-</body></html>
+</body>
+</html>

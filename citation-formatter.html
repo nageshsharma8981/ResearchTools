@@ -1,43 +1,72 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Citation Formatter — Offline</title>
-<link rel="stylesheet" href="shared.css"/></head>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Citation Formatter — Rewiseed</title>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
 <body>
-<header><h1>📚 Citation Formatter</h1><p>Convert messy references into APA, MLA, Chicago, Harvard, or IEEE.</p></header>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Citation Formatter</h1>
+  <p class="lede">Turn messy references — pasted from anywhere, in any state — into a clean bibliography in APA, MLA, Chicago, Harvard, IEEE, or Vancouver.</p>
+</div>
 <main>
   <div id="settings"></div>
   <div class="card">
-    <h2>Paste references (one per line, any format)</h2>
-    <textarea id="in" placeholder="e.g.\nsmith j 2023 attention is all you need arxiv 1706.03762\nJones, R. (2024) Something on climate. Nature 605."></textarea>
+    <h2>Your references</h2>
+    <p class="hint">One reference per line, any format. Missing details are flagged as <code>[missing …]</code> rather than invented.</p>
+    <label class="field-label" for="in">References</label>
+    <textarea id="in" style="min-height:150px" placeholder="smith j 2023 attention is all you need arxiv 1706.03762&#10;Jones, R. (2024) Something on climate. Nature 605."></textarea>
+    <div class="field-foot">
+      <span class="chip-row"><button type="button" class="chip" id="example">Load example</button></span>
+      <span id="count"></span>
+    </div>
     <div class="row">
-      <label>Style:
-        <select id="style"><option>APA 7</option><option>MLA 9</option><option>Chicago (author-date)</option><option>Harvard</option><option>IEEE</option><option>Vancouver</option></select>
-      </label>
-      <button id="run">Format</button>
-      <button id="dl" class="ghost" disabled>Download .md</button>
+      <label class="field-label" style="margin:0" for="style">Style</label>
+      <select id="style">
+        <option>APA 7</option><option>MLA 9</option><option>Chicago (author-date)</option>
+        <option>Harvard</option><option>IEEE</option><option>Vancouver</option>
+      </select>
+      <button id="run"></button>
+      <span class="hint" style="margin:0"><kbd>⌘</kbd>+<kbd>Enter</kbd> to run</span>
     </div>
   </div>
   <div id="out"></div>
 </main>
 <script src="shared.js"></script>
 <script>
+Rewiseed.renderNav('citation-formatter.html');
+document.getElementById('hero-icon').innerHTML = Rewiseed.icon('book', 26);
 Rewiseed.renderSettingsBar('settings');
-let last = '';
-document.getElementById('run').onclick = async () => {
-  const input = document.getElementById('in').value.trim();
-  const style = document.getElementById('style').value;
-  if (!input) return;
-  const sys = `You are a citation formatter. Convert every input line into a correctly formatted ${style} reference. If a field is missing or ambiguous, mark it as [missing X] rather than inventing it. Return one reference per line in Markdown as a numbered list. Then append a "Notes" section listing any ambiguous entries.`;
-  const btn = document.getElementById('run'); btn.disabled = true;
-  const out = document.getElementById('out');
-  out.innerHTML = `<div class="card"><h2>Formatted (${style})</h2><div class="result" id="stream"><span class="spinner"></span>Formatting…</div></div>`;
-  try {
-    last = await Rewiseed.callLLM({ system: sys, user: input, temperature: 0.1,
-      onStream: (t) => { document.getElementById('stream').innerHTML = Rewiseed.md(t); } });
-    document.getElementById('dl').disabled = false;
-  } catch (e) { document.getElementById('stream').innerHTML = '<b style="color:#dc2626">'+e.message+'</b>'; }
-  finally { btn.disabled = false; }
-};
-document.getElementById('dl').onclick = () => Rewiseed.downloadText('citations.md', last);
+
+const EXAMPLE = `vaswani et al attention is all you need neurips 2017
+Kahneman, D. Thinking fast and slow. FSG 2011
+doi 10.1038/s41586-021-03819-2 highly accurate protein structure prediction alphafold jumper 2021 nature
+ostrom governing the commons cambridge univ press 1990
+lee & seung 1999 learning the parts of objects nmf nature 401`;
+
+Rewiseed.mountStreamingTool({
+  toolId: 'cite',
+  inputId: 'in', runId: 'run', outId: 'out',
+  resultTitle: 'Formatted bibliography',
+  downloadName: 'citations.md',
+  buildSystem: () => {
+    const style = document.getElementById('style').value;
+    return `You are a meticulous citation formatter. Convert every input line into a correctly formatted ${style} reference.
+Rules:
+- One output reference per input line, as a Markdown numbered list, alphabetised only if ${style} requires it (otherwise keep input order).
+- Apply ${style} conventions exactly: author name inversion, italics (use Markdown *italics*), capitalisation (sentence case vs title case), punctuation, DOI/URL format.
+- If a field is missing or ambiguous, mark it as [missing X] rather than inventing it. Never fabricate page numbers, volumes, publishers, or DOIs.
+- After the list, append a "### Notes" section listing any entries that were ambiguous and what to verify.`;
+  },
+  runLabel: 'Format citations',
+  runningLabel: 'Formatting references…',
+  example: EXAMPLE, exampleBtnId: 'example',
+  countId: 'count',
+});
 </script>
-</body></html>
+</body>
+</html>

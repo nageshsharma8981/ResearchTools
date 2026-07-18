@@ -1,44 +1,76 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Qualitative Coding Assistant — Offline</title>
-<link rel="stylesheet" href="shared.css"/></head>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Qualitative Coding Assistant — Rewiseed</title>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
 <body>
-<header><h1>🧬 Qualitative Coding Assistant</h1><p>Braun &amp; Clarke thematic analysis over interview transcripts.</p></header>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Qualitative Coding Assistant</h1>
+  <p class="lede">Braun &amp; Clarke reflexive thematic analysis over your interview transcripts — open codes with verbatim quotes, candidate themes, and a thematic map.</p>
+</div>
 <main>
   <div id="settings"></div>
   <div class="card">
-    <h2>Paste interview transcript(s)</h2>
-    <p class="hint">Multiple transcripts welcome — separate with <code>=== Interview 2 ===</code>.</p>
-    <textarea id="in" placeholder="Paste full interview transcript(s)…"></textarea>
-    <div class="row"><button id="run">Run thematic analysis</button><button id="dl" class="ghost" disabled>Download .md</button></div>
+    <h2>Interview transcript(s)</h2>
+    <p class="hint">Multiple transcripts welcome — separate them with a line like <code>=== Interview 2 ===</code>. Speaker labels (e.g. <code>P1:</code>) help the coding stay precise.</p>
+    <label class="field-label" for="in">Transcript text</label>
+    <textarea id="in" placeholder="Interviewer: Can you tell me about…&#10;P1: Well, the first thing that comes to mind…"></textarea>
+    <div class="field-foot">
+      <span class="chip-row"><button type="button" class="chip" id="example">Load example</button></span>
+      <span id="count"></span>
+    </div>
+    <div class="row">
+      <button id="run"></button>
+      <span class="hint" style="margin:0"><kbd>⌘</kbd>+<kbd>Enter</kbd> to run</span>
+    </div>
   </div>
   <div id="out"></div>
 </main>
 <script src="shared.js"></script>
 <script>
+Rewiseed.renderNav('qualitative-coding-assistant.html');
+document.getElementById('hero-icon').innerHTML = Rewiseed.icon('dna', 26);
 Rewiseed.renderSettingsBar('settings');
+
 const SYS = `You are a qualitative research assistant conducting a Braun & Clarke (2006) reflexive thematic analysis.
 Steps to produce, in order, as Markdown:
 1. **Familiarisation notes** — brief overall impressions.
-2. **Open codes** — a table of code label, short definition, and 1-2 verbatim quotes (with speaker/turn if inferable). Ground every code in the data; do NOT invent quotes.
-3. **Candidate themes** — cluster codes into 3-6 themes, each with a 2-3 sentence description and constituent codes.
+2. **Open codes** — a Markdown table with columns: Code, Definition, Example quote(s). Quote verbatim from the transcript (with speaker/turn if inferable). Ground every code in the data; do NOT invent quotes.
+3. **Candidate themes** — cluster codes into 3-6 themes, each with a 2-3 sentence description and its constituent codes.
 4. **Thematic map narrative** — how themes relate; tensions or contradictions.
 5. **Analyst reflexivity note** — one paragraph on interpretive choices.
 Use only what is in the transcript. If information is missing, say so.`;
-let last = '';
-document.getElementById('run').onclick = async () => {
-  const input = document.getElementById('in').value.trim();
-  if (!input) return;
-  const btn = document.getElementById('run'); btn.disabled = true;
-  const out = document.getElementById('out');
-  out.innerHTML = '<div class="card"><h2>Thematic analysis (Braun &amp; Clarke)</h2><div class="result" id="stream"><span class="spinner"></span>Coding…</div></div>';
-  try {
-    last = await Rewiseed.callLLM({ system: SYS, user: input, temperature: 0.2,
-      onStream: (t) => { document.getElementById('stream').innerHTML = Rewiseed.md(t); } });
-    document.getElementById('dl').disabled = false;
-  } catch (e) { document.getElementById('stream').innerHTML = '<b style="color:#dc2626">'+e.message+'</b>'; }
-  finally { btn.disabled = false; }
-};
-document.getElementById('dl').onclick = () => Rewiseed.downloadText('thematic-analysis.md', last);
+
+const EXAMPLE = `=== Interview 1 ===
+Interviewer: How did you find the switch to the new electronic patient record system?
+P1: Honestly, chaotic at first. We got two hours of training and then it was live. I was writing notes on paper and typing them in after my shift, which nobody tells the ward manager about, obviously.
+Interviewer: Why after the shift?
+P1: Because the terminals are at the nurses' station, not at the bedside. You can't type and keep eye contact with a frightened patient. So you choose the patient, and the admin suffers, and then you stay late.
+Interviewer: Has it improved since?
+P1: The system, no. Us, yes. We've built our own workarounds. Maria keeps a laminated cheat-sheet taped behind the medicine trolley. It's not official. Nothing that works here is official.
+
+=== Interview 2 ===
+Interviewer: How has the new record system affected your work?
+P2: I'll say this for it — the pharmacy errors are down. Before, you'd get handwriting you couldn't read. Now the prescription is legible, it's timestamped, it's traceable. From a safety point of view it's a win, no question.
+Interviewer: And from other points of view?
+P2: It's surveillance, isn't it. Every click is logged. Management pulls up "time to documentation" league tables in the monthly meeting. Nobody asked whether the fastest documenter is the best nurse. My colleague nearly got disciplined because her numbers looked slow — she works on the dementia ward, everything there is slow, that's the job done properly.`;
+
+Rewiseed.mountStreamingTool({
+  toolId: 'coding',
+  inputId: 'in', runId: 'run', outId: 'out',
+  resultTitle: 'Thematic analysis (Braun & Clarke)',
+  downloadName: 'thematic-analysis.md',
+  buildSystem: () => SYS,
+  runLabel: 'Run thematic analysis',
+  runningLabel: 'Familiarising with the data…',
+  example: EXAMPLE, exampleBtnId: 'example',
+  countId: 'count',
+});
 </script>
-</body></html>
+</body>
+</html>

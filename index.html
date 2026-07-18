@@ -3,26 +3,59 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Rewiseed Research Tools — Offline</title>
+<title>Rewiseed Research Tools</title>
+<meta name="description" content="Five offline, bring-your-own-key research tools: literature search, gap analysis, qualitative coding, peer review simulation, citation formatting."/>
 <link rel="stylesheet" href="shared.css"/>
+<script>
+// set theme before first paint to avoid a flash
+(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();
+</script>
 </head>
 <body>
-<header>
-  <h1>Rewiseed Research Tools</h1>
-  <p>Offline · Bring-your-own-key · Single-folder HTML apps</p>
-</header>
+<div class="hero">
+  <h1 style="font-size:clamp(30px,5vw,44px)">Rewiseed Research Tools</h1>
+  <p class="lede">A private research workbench that runs entirely in your browser. No server, no account, no tracking — bring your own AI key, or run a free local model.</p>
+</div>
 <main>
-  <div class="card">
-    <h2>How to use</h2>
-    <p class="hint">Open any tool below. First time, click <b>⚙️ API settings</b> and paste an OpenAI-compatible API key (OpenAI, OpenRouter, Groq, Together, or a local endpoint like Ollama <code>http://localhost:11434/v1</code>). Your key is stored locally in this browser only.</p>
+  <div id="tools" class="tools-grid"></div>
+
+  <div class="card" style="margin-top:28px">
+    <h2>How it works</h2>
+    <div class="steps">
+      <div class="step"><span class="num">1</span><span>Open any tool — it's a plain HTML file, nothing is installed or uploaded.</span></div>
+      <div class="step"><span class="num">2</span><span>Add an OpenAI-compatible API key once in <b>API settings</b> — or point it at Ollama / LM Studio for free, fully offline use.</span></div>
+      <div class="step"><span class="num">3</span><span>Paste your material, run, watch the analysis stream in, and download it as Markdown.</span></div>
+    </div>
   </div>
-  <div class="tools-grid">
-    <a class="tool-tile" href="smart-literature-finder.html"><span class="emoji">🔎</span><h3>Smart Literature Finder</h3><p>Search 240M+ works on OpenAlex (no key needed) and get an AI relevance ranking.</p></a>
-    <a class="tool-tile" href="research-gap-identifier.html"><span class="emoji">🕳️</span><h3>Research Gap Identifier</h3><p>Paste a literature set → get unexplored gaps, contradictions, methodological weaknesses.</p></a>
-    <a class="tool-tile" href="qualitative-coding-assistant.html"><span class="emoji">🧬</span><h3>Qualitative Coding Assistant</h3><p>Braun &amp; Clarke thematic analysis over interview transcripts.</p></a>
-    <a class="tool-tile" href="peer-review-simulator.html"><span class="emoji">🎓</span><h3>Peer Review Simulator</h3><p>Rigorous structured peer review with major/minor concerns and a recommendation.</p></a>
-    <a class="tool-tile" href="citation-formatter.html"><span class="emoji">📚</span><h3>Citation Formatter</h3><p>Convert messy references into APA · MLA · Chicago · Harvard · IEEE.</p></a>
+
+  <div class="card">
+    <h2>Private by design</h2>
+    <p class="hint" style="margin-bottom:0">No analytics, no telemetry, no backend. Your API key and drafts live only in this browser's local storage. The only network traffic is to the LLM endpoint you configure — and, for the literature finder, the free OpenAlex scholarly index.</p>
   </div>
 </main>
+<footer class="site">Rewiseed Research Tools · offline bundle · works with OpenAI, OpenRouter, Groq, Together, Ollama &amp; LM Studio</footer>
+<script src="shared.js"></script>
+<script>
+Rewiseed.renderNav('index.html');
+const TILES = [
+  { href: 'smart-literature-finder.html', icon: 'search', name: 'Smart Literature Finder',
+    desc: 'Search 240M+ scholarly works via OpenAlex — no key needed. Filter by year, sort by citations, export BibTeX, optionally rerank with AI.' },
+  { href: 'research-gap-identifier.html', icon: 'gap', name: 'Research Gap Identifier',
+    desc: 'Paste a literature set and surface unexplored gaps, contradictory findings, and methodological weaknesses.' },
+  { href: 'qualitative-coding-assistant.html', icon: 'dna', name: 'Qualitative Coding Assistant',
+    desc: 'Braun & Clarke reflexive thematic analysis over interview transcripts — codes, themes, and a thematic map.' },
+  { href: 'peer-review-simulator.html', icon: 'grad', name: 'Peer Review Simulator',
+    desc: 'A rigorous but constructive reviewer: strengths, major and minor concerns, and a publication recommendation.' },
+  { href: 'citation-formatter.html', icon: 'book', name: 'Citation Formatter',
+    desc: 'Turn messy references into clean APA, MLA, Chicago, Harvard, IEEE, or Vancouver bibliographies.' },
+];
+document.getElementById('tools').innerHTML = TILES.map(t => `
+  <a class="tool-tile" href="${t.href}">
+    <span class="tile-icon">${Rewiseed.icon(t.icon, 22)}</span>
+    <h3>${t.name}</h3>
+    <p>${t.desc}</p>
+    <span class="tile-go">Open tool ${Rewiseed.icon('arrow', 14)}</span>
+  </a>`).join('');
+</script>
 </body>
 </html>

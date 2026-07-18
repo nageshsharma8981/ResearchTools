@@ -1,43 +1,71 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Research Gap Identifier — Offline</title>
-<link rel="stylesheet" href="shared.css"/></head>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Research Gap Identifier — Rewiseed</title>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
 <body>
-<header><h1>🕳️ Research Gap Identifier</h1><p>Paste a literature set → get unexplored gaps, contradictions, and methodological weaknesses.</p></header>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Research Gap Identifier</h1>
+  <p class="lede">Paste a literature set and surface unexplored gaps, contradictory findings, and methodological weaknesses — grounded strictly in what you provide.</p>
+</div>
 <main>
   <div id="settings"></div>
   <div class="card">
-    <h2>Paste your literature set</h2>
-    <p class="hint">A list of paper titles + abstracts, or a literature review draft.</p>
-    <textarea id="in" placeholder="1. Smith et al. (2023). &quot;Title&quot;. Abstract: ...\n2. Jones (2024). &quot;Title&quot;. Abstract: ..."></textarea>
-    <div class="row"><button id="run">Identify gaps</button><button id="dl" class="ghost" disabled>Download .md</button></div>
+    <h2>Your literature set</h2>
+    <p class="hint">A list of paper titles + abstracts, or a literature-review draft. Number the papers so the analysis can cite them precisely.</p>
+    <label class="field-label" for="in">Papers or review text</label>
+    <textarea id="in" placeholder='1. Smith et al. (2023). "Title". Abstract: …&#10;2. Jones (2024). "Title". Abstract: …'></textarea>
+    <div class="field-foot">
+      <span class="chip-row"><button type="button" class="chip" id="example">Load example</button></span>
+      <span id="count"></span>
+    </div>
+    <div class="row">
+      <button id="run"></button>
+      <span class="hint" style="margin:0"><kbd>⌘</kbd>+<kbd>Enter</kbd> to run</span>
+    </div>
   </div>
   <div id="out"></div>
 </main>
 <script src="shared.js"></script>
 <script>
+Rewiseed.renderNav('research-gap-identifier.html');
+document.getElementById('hero-icon').innerHTML = Rewiseed.icon('gap', 26);
 Rewiseed.renderSettingsBar('settings');
+
 const SYS = `You are a senior academic research advisor. Given a set of papers, identify:
 1. Unexplored research gaps (grouped by theme)
 2. Contradictory or conflicting findings across studies
 3. Methodological weaknesses (sample size, design, generalizability)
 4. Underrepresented populations, contexts, or time periods
 5. Concrete follow-up research questions worth pursuing
-Cite papers by number/first-author. Be specific and grounded — do not invent findings not present in the input. Output well-structured Markdown.`;
-let last = '';
-document.getElementById('run').onclick = async () => {
-  const input = document.getElementById('in').value.trim();
-  if (!input) return;
-  const btn = document.getElementById('run'); btn.disabled = true;
-  const out = document.getElementById('out');
-  out.innerHTML = '<div class="card"><h2>🔍 Identified research gaps</h2><div class="result" id="stream"><span class="spinner"></span>Analysing…</div></div>';
-  try {
-    last = await Rewiseed.callLLM({ system: SYS, user: input, temperature: 0.2,
-      onStream: (t) => { document.getElementById('stream').innerHTML = Rewiseed.md(t); } });
-    document.getElementById('dl').disabled = false;
-  } catch (e) { document.getElementById('stream').innerHTML = '<b style="color:#dc2626">'+e.message+'</b>'; }
-  finally { btn.disabled = false; }
-};
-document.getElementById('dl').onclick = () => Rewiseed.downloadText('research-gaps.md', last);
+Cite papers by number/first-author. Be specific and grounded — do not invent findings not present in the input. Output well-structured Markdown with headings for each of the five sections above.`;
+
+const EXAMPLE = `1. Chen et al. (2022). "Remote work and employee wellbeing: a longitudinal survey". Abstract: Survey of 1,200 knowledge workers in the US over 18 months. Found remote work correlated with reduced commute stress but increased feelings of isolation. Sample skewed toward tech-sector employees aged 25-40.
+
+2. Okafor & Lindqvist (2023). "Hybrid schedules and team creativity". Abstract: Lab and field experiments (n=340) in two Scandinavian firms showing hybrid teams generated fewer novel ideas in brainstorming than co-located teams, but equal implementation quality. Short 6-week observation window.
+
+3. Ramirez (2021). "Remote onboarding of new hires". Abstract: Qualitative interviews with 22 HR managers. Reports systematic difficulties socialising junior staff remotely; senior hires largely unaffected. Single-country (Spain) sample.
+
+4. Gupta et al. (2024). "Productivity paradox of working from home". Abstract: Analysis of keystroke and calendar telemetry from 8,000 employees of one multinational. Self-reported productivity rose while objective output metrics stayed flat; meeting hours rose 22%. No wellbeing measures collected.
+
+5. Bello & Hart (2023). "Remote work and gender equity". Abstract: Panel data from UK households showing mothers of young children disproportionately chose remote roles, with an associated 7% slower promotion rate. Fathers showed no effect. Authors note promotion data ends in 2022.`;
+
+Rewiseed.mountStreamingTool({
+  toolId: 'gaps',
+  inputId: 'in', runId: 'run', outId: 'out',
+  resultTitle: 'Identified research gaps',
+  downloadName: 'research-gaps.md',
+  buildSystem: () => SYS,
+  runLabel: 'Identify gaps',
+  runningLabel: 'Reading your literature set…',
+  example: EXAMPLE, exampleBtnId: 'example',
+  countId: 'count',
+});
 </script>
-</body></html>
+</body>
+</html>

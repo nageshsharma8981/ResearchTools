@@ -1,102 +1,200 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Smart Literature Finder — Offline</title>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Smart Literature Finder — Rewiseed</title>
 <link rel="stylesheet" href="shared.css"/>
-<style>
-.paper{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:10px}
-.paper h3{margin:0 0 4px;font-size:15px}
-.meta{font-size:12px;color:#64748b;margin:2px 0 6px}
-.abstract{font-size:13px;color:#334155;margin:6px 0}
-.badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
-.badge{font-size:11px;background:#e0e7ff;color:#1e3a8a;padding:2px 8px;border-radius:999px;font-weight:600}
-.badge.cites{background:#fef3c7;color:#92400e}
-a.link{color:#1e40af;text-decoration:none;font-weight:600;font-size:12px;margin-right:10px}
-a.link:hover{text-decoration:underline}
-</style>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
 </head>
 <body>
-<header><h1>🔎 Smart Literature Finder</h1><p>Search 240M+ scholarly works via OpenAlex — no API key needed. Optional AI relevance ranking.</p></header>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Smart Literature Finder</h1>
+  <p class="lede">Search 240M+ scholarly works via the free OpenAlex index — no API key needed. Filter, sort, export BibTeX, and optionally rerank by AI relevance.</p>
+</div>
 <main>
   <div id="settings"></div>
   <div class="card">
     <h2>Search</h2>
-    <p class="hint">Type a topic, question, or paste an abstract. OpenAlex is free & keyless. AI ranking uses your BYOK key.</p>
-    <input id="q" placeholder="e.g. Transformer architectures for low-resource machine translation"/>
-    <div class="row">
-      <button id="search">Search OpenAlex</button>
-      <button id="rank" class="ghost" disabled>AI relevance rerank</button>
+    <p class="hint">A topic, a research question, or a pasted abstract all work. AI rerank uses your configured key; everything else is keyless.</p>
+    <div class="search-row">
+      <input id="q" type="search" autocomplete="off" placeholder="e.g. transformer architectures for low-resource machine translation" aria-label="Search query"/>
+      <button id="search"></button>
+    </div>
+    <div class="filters">
+      <label>From <input id="yr-from" type="number" min="1800" max="2100" placeholder="year" aria-label="From year"/></label>
+      <label>To <input id="yr-to" type="number" min="1800" max="2100" placeholder="year" aria-label="To year"/></label>
+      <label>Sort
+        <select id="sort" aria-label="Sort results">
+          <option value="relevance">Relevance</option>
+          <option value="cited_by_count:desc">Most cited</option>
+          <option value="publication_year:desc">Newest</option>
+        </select>
+      </label>
+      <label><input id="oa-only" type="checkbox" style="width:auto;vertical-align:-2px"/> Open access only</label>
     </div>
   </div>
+  <div id="toolbar"></div>
   <div id="out"></div>
 </main>
 <script src="shared.js"></script>
 <script>
-let results = [];
-const MAILTO = 'you@example.com';
-function reconstruct(inv){if(!inv)return'';const p=[];for(const w of Object.keys(inv))for(const i of inv[w])p.push({w,i});p.sort((a,b)=>a.i-b.i);return p.map(x=>x.w).join(' ');}
+const { esc, icon, toast } = Rewiseed;
+Rewiseed.renderNav('smart-literature-finder.html');
+document.getElementById('hero-icon').innerHTML = icon('search', 26);
 Rewiseed.renderSettingsBar('settings');
-document.getElementById('q').addEventListener('keydown',(e)=>{if(e.key==='Enter')document.getElementById('search').click();});
+document.getElementById('search').innerHTML = `${icon('search', 16)} Search`;
 
-document.getElementById('search').onclick = async () => {
-  const q = document.getElementById('q').value.trim();
-  if (!q) return;
-  const out = document.getElementById('out');
-  out.innerHTML = '<div class="card"><span class="spinner"></span>Searching OpenAlex…</div>';
-  try {
-    const url = `https://api.openalex.org/works?search=${encodeURIComponent(q)}&per_page=15&mailto=${MAILTO}&select=id,doi,title,authorships,publication_year,primary_location,cited_by_count,abstract_inverted_index,relevance_score,open_access`;
-    const r = await fetch(url);
-    const j = await r.json();
-    results = (j.results||[]).map(w=>({
-      id:w.id, doi:w.doi?.replace('https://doi.org/',''),
-      title:w.title, year:w.publication_year,
-      authors:(w.authorships||[]).slice(0,5).map(a=>a.author?.display_name).filter(Boolean),
-      venue:w.primary_location?.source?.display_name||'',
-      citedBy:w.cited_by_count||0, relevance:w.relevance_score,
-      abstract:reconstruct(w.abstract_inverted_index).slice(0,600),
-      oa:w.open_access?.oa_url||null,
-    }));
-    render();
-    document.getElementById('rank').disabled = results.length===0 || !Rewiseed.getCfg().apiKey;
-  } catch (e) { out.innerHTML = '<div class="card"><b style="color:#dc2626">Search failed: '+e.message+'</b></div>'; }
-};
+let results = [];
+let lastQuery = '';
 
-function render(aiOrder){
-  const list = aiOrder ? aiOrder.map(i=>results[i]).filter(Boolean) : results;
-  const out = document.getElementById('out');
-  if (!list.length) { out.innerHTML='<div class="card">No results. Try different terms.</div>'; return; }
-  out.innerHTML = `<div class="card"><h2>${list.length} papers${aiOrder?' · AI ranked':' · OpenAlex relevance'}</h2></div>` +
-    list.map(p=>`<div class="paper">
-      <h3>${p.title||'(untitled)'}</h3>
-      <div class="meta">${(p.authors||[]).join(', ')||'Unknown authors'} · ${p.venue||'Unknown venue'} · ${p.year||'n.d.'}</div>
-      ${p.abstract?`<div class="abstract">${p.abstract}…</div>`:''}
-      <div class="badges">
-        <span class="badge cites">${(p.citedBy||0).toLocaleString()} cites</span>
-        ${p.relevance?`<span class="badge">relevance ${p.relevance.toFixed(1)}</span>`:''}
-      </div>
-      <div style="margin-top:8px">
-        ${p.doi?`<a class="link" href="https://doi.org/${p.doi}" target="_blank" rel="noreferrer">DOI ↗</a>`:''}
-        ${p.oa?`<a class="link" href="${p.oa}" target="_blank" rel="noreferrer">Open Access PDF ↗</a>`:''}
-        <a class="link" href="${p.id}" target="_blank" rel="noreferrer">OpenAlex ↗</a>
-      </div>
-    </div>`).join('');
+function reconstructAbstract(inv) {
+  if (!inv) return '';
+  const words = [];
+  for (const [w, positions] of Object.entries(inv)) for (const i of positions) words[i] = w;
+  return words.filter(Boolean).join(' ');
 }
 
-document.getElementById('rank').onclick = async () => {
-  if (!results.length) return;
-  const q = document.getElementById('q').value.trim();
-  const btn = document.getElementById('rank'); btn.disabled = true;
-  const payload = results.map((p,i)=>`[${i}] ${p.title}\n${(p.abstract||'').slice(0,300)}`).join('\n\n');
+const $ = (id) => document.getElementById(id);
+$('q').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('search').click(); });
+
+function skeletons(n = 5) {
+  return Array.from({ length: n }, () =>
+    `<div class="paper"><div class="skeleton" style="height:18px;width:70%"></div>
+     <div class="skeleton" style="height:12px;width:45%;margin-top:10px"></div>
+     <div class="skeleton" style="height:44px;margin-top:12px"></div></div>`).join('');
+}
+
+$('search').onclick = async () => {
+  const q = $('q').value.trim();
+  if (!q) { toast('Type a search query first', 'error'); $('q').focus(); return; }
+  lastQuery = q;
+  const out = $('out');
+  $('toolbar').innerHTML = '';
+  out.innerHTML = skeletons();
+  const btn = $('search'); btn.disabled = true;
+  try {
+    const filters = [];
+    const yFrom = parseInt($('yr-from').value, 10);
+    const yTo = parseInt($('yr-to').value, 10);
+    if (yFrom) filters.push(`from_publication_date:${yFrom}-01-01`);
+    if (yTo) filters.push(`to_publication_date:${yTo}-12-31`);
+    if ($('oa-only').checked) filters.push('is_oa:true');
+    const params = new URLSearchParams({
+      search: q,
+      per_page: '25',
+      select: 'id,doi,title,authorships,publication_year,primary_location,cited_by_count,abstract_inverted_index,relevance_score,open_access',
+    });
+    if (filters.length) params.set('filter', filters.join(','));
+    const sort = $('sort').value;
+    if (sort !== 'relevance') params.set('sort', sort);
+
+    const r = await fetch(`https://api.openalex.org/works?${params}`);
+    if (!r.ok) throw new Error(`OpenAlex returned ${r.status}`);
+    const j = await r.json();
+    results = (j.results || []).map(w => {
+      const abs = reconstructAbstract(w.abstract_inverted_index);
+      return {
+        id: w.id,
+        doi: w.doi ? w.doi.replace('https://doi.org/', '') : null,
+        title: w.title || '(untitled)',
+        year: w.publication_year,
+        authors: (w.authorships || []).map(a => a.author?.display_name).filter(Boolean),
+        venue: w.primary_location?.source?.display_name || '',
+        citedBy: w.cited_by_count || 0,
+        relevance: w.relevance_score,
+        abstract: abs.length > 600 ? abs.slice(0, 600).replace(/\s+\S*$/, '') + '…' : abs,
+        oa: w.open_access?.oa_url || null,
+      };
+    });
+    render();
+  } catch (e) {
+    out.innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>Search failed: ${esc(e.message)}. Check your connection and try again.</span></div></div>`;
+  } finally { btn.disabled = false; }
+};
+
+function render(order) {
+  const list = order ? order.map(i => results[i]).filter(Boolean) : results;
+  const out = $('out');
+  if (!list.length) {
+    $('toolbar').innerHTML = '';
+    out.innerHTML = `<div class="card"><div class="empty-state">${icon('search', 34)}<br/>No results for “${esc(lastQuery)}”. Try broader terms or remove filters.</div></div>`;
+    return;
+  }
+  const canRank = !!Rewiseed.getCfg().apiKey || Rewiseed.isLocalUrl(Rewiseed.getCfg().baseUrl);
+  $('toolbar').innerHTML = `
+    <div class="card" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px">
+      <span class="badge gold">${list.length} papers</span>
+      <span class="badge">${order ? 'AI-ranked for your query' : 'OpenAlex order'}</span>
+      <span class="push" style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap">
+        <button id="rank" class="ghost" ${canRank ? '' : 'disabled title="Configure an API key to enable AI rerank"'}>${icon('sparkle', 15)} AI rerank</button>
+        <button id="bibtex" class="ghost">${icon('download', 15)} BibTeX</button>
+      </span>
+    </div>`;
+  out.innerHTML = list.map(p => `
+    <article class="paper">
+      <h3>${esc(p.title)}</h3>
+      <div class="meta">${esc(p.authors.slice(0, 6).join(', ') + (p.authors.length > 6 ? ` +${p.authors.length - 6} more` : '')) || 'Unknown authors'} · ${esc(p.venue) || 'Unknown venue'} · ${p.year || 'n.d.'}</div>
+      ${p.abstract ? `<div class="abstract">${esc(p.abstract)}</div>` : ''}
+      <div class="paper-foot">
+        <span class="badge">${p.citedBy.toLocaleString()} citations</span>
+        ${p.oa ? `<span class="badge ok">open access</span>` : ''}
+        <span class="links">
+          ${p.doi ? `<a class="link" href="https://doi.org/${esc(p.doi)}" target="_blank" rel="noreferrer">DOI ${icon('external', 12)}</a>` : ''}
+          ${p.oa ? `<a class="link" href="${esc(p.oa)}" target="_blank" rel="noreferrer">PDF ${icon('external', 12)}</a>` : ''}
+          <a class="link" href="${esc(p.id)}" target="_blank" rel="noreferrer">OpenAlex ${icon('external', 12)}</a>
+        </span>
+      </div>
+    </article>`).join('');
+
+  $('bibtex').onclick = () => Rewiseed.downloadText('literature.bib', toBibtex(list));
+  $('rank').onclick = () => aiRerank();
+}
+
+function toBibtex(list) {
+  return list.map((p, n) => {
+    const first = (p.authors[0] || 'unknown').split(' ').pop().toLowerCase().replace(/[^a-z]/g, '') || 'ref';
+    const key = `${first}${p.year || ''}${n}`;
+    const f = [
+      `  title = {${p.title}}`,
+      p.authors.length ? `  author = {${p.authors.join(' and ')}}` : null,
+      p.year ? `  year = {${p.year}}` : null,
+      p.venue ? `  journal = {${p.venue}}` : null,
+      p.doi ? `  doi = {${p.doi}}` : null,
+      p.oa ? `  url = {${p.oa}}` : null,
+    ].filter(Boolean).join(',\n');
+    return `@article{${key},\n${f}\n}`;
+  }).join('\n\n');
+}
+
+async function aiRerank() {
+  const btn = $('rank');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Ranking…`;
+  const payload = results.map((p, i) => `[${i}] ${p.title}\n${(p.abstract || '').slice(0, 300)}`).join('\n\n');
   try {
     const txt = await Rewiseed.callLLM({
-      system: `You are a research assistant reranking papers by semantic relevance to a user query. Return ONLY a JSON array of paper indices in best-first order, no prose. Example: [3,0,7,1,2]`,
-      user: `Query: ${q}\n\nPapers:\n${payload}`,
+      system: 'You rerank academic papers by semantic relevance to a user query. Return ONLY a JSON array of the paper indices in best-first order, covering every index exactly once. No prose. Example: [3,0,7,1,2]',
+      user: `Query: ${lastQuery}\n\nPapers:\n${payload}`,
       temperature: 0,
     });
     const m = txt.match(/\[[\d,\s]+\]/);
-    if (!m) throw new Error('No JSON array returned');
-    render(JSON.parse(m[0]));
-  } catch (e) { alert('Rerank failed: '+e.message); }
-  finally { btn.disabled = false; }
-};
+    if (!m) throw new Error('The model did not return a JSON array of indices.');
+    const seen = new Set();
+    const order = JSON.parse(m[0]).filter(i => Number.isInteger(i) && i >= 0 && i < results.length && !seen.has(i) && seen.add(i));
+    for (let i = 0; i < results.length; i++) if (!seen.has(i)) order.push(i); // keep any the model dropped
+    render(order);
+    toast('Reranked by AI relevance');
+  } catch (e) {
+    toast(`Rerank failed: ${e.message}`, 'error', 5000);
+    btn.disabled = false;
+    btn.innerHTML = `${icon('sparkle', 15)} AI rerank`;
+  }
+}
+
+// re-enable the rank button when settings change
+document.addEventListener('rewiseed:cfg-saved', () => { if (results.length) render(); });
 </script>
-</body></html>
+</body>
+</html>
