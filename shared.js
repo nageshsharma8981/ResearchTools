@@ -112,6 +112,7 @@
     key: 'M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4',
     chat: 'M7.9 20A9 9 0 1 0 4 16.1L2 22z',
     sigma: 'M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2',
+    grid: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',
   };
 
   function icon(name, size = 20) {
@@ -171,6 +172,7 @@
     { href: 'smart-literature-finder.html', icon: 'search', name: 'Smart Literature Finder' },
     { href: 'doi-finder.html', icon: 'doi', name: 'DOI Finder & Lookup' },
     { href: 'originality-checker.html', icon: 'shield', name: 'Originality & AI Checker' },
+    { href: 'literature-matrix.html', icon: 'grid', name: 'Literature Synthesis Matrix' },
     { href: 'research-gap-identifier.html', icon: 'gap', name: 'Research Gap Identifier' },
     { href: 'research-question-generator.html', icon: 'flask', name: 'Research Question Generator' },
     { href: 'instrument-designer.html', icon: 'clipboard', name: 'Survey & Interview Designer' },

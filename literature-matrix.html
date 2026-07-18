@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Literature Synthesis Matrix — ReWiseEd</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ReWiseEd Research Tools"/>
+<meta property="og:title" content="Literature Synthesis Matrix — ReWiseEd"/>
+<meta property="og:description" content="Paste a set of papers and get a structured comparison matrix — aims, methods, samples, findings, limitations — plus a synthesis of agreements and contradictions."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/literature-matrix"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Literature Synthesis Matrix — ReWiseEd"/>
+<meta name="twitter:description" content="Structured paper-by-paper comparison matrix with a written synthesis."/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Literature Synthesis Matrix</h1>
+  <p class="lede">Turn a pile of papers into a structured comparison — aims, methods, samples, findings, and limitations side by side — with a written synthesis of where the studies agree, clash, and trend.</p>
+</div>
+<main class="split">
+  <div id="settings"></div>
+  <div class="card input-card">
+    <h2>Your papers</h2>
+    <p class="hint">Titles + abstracts, numbered — the <a href="smart-literature-finder.html">Literature Finder</a>'s "Build the matrix" button sends results here directly. The matrix stays strictly grounded in what you paste.</p>
+    <label class="field-label" for="in">Papers (titles and abstracts)</label>
+    <textarea id="in" placeholder='1. Chen et al. (2022). "Title". Abstract: …&#10;2. Okafor (2023). "Title". Abstract: …'></textarea>
+    <div class="field-foot">
+      <span class="chip-row"><button type="button" class="chip" id="example">Load example</button></span>
+      <span id="count"></span>
+    </div>
+    <div class="row" style="gap:14px">
+      <label class="field-label" style="margin:0" for="focus">Focus</label>
+      <select id="focus">
+        <option value="comprehensive" selected>Comprehensive</option>
+        <option value="methods">Methods & rigor</option>
+        <option value="findings">Findings & effects</option>
+        <option value="theory">Theories & frameworks</option>
+      </select>
+      <button id="run"></button>
+      <span class="hint" style="margin:0"><kbd>⌘</kbd>+<kbd>Enter</kbd> to run</span>
+    </div>
+  </div>
+  <div id="out"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+Rewiseed.renderNav('literature-matrix.html');
+document.getElementById('hero-icon').innerHTML = Rewiseed.icon('grid', 26);
+Rewiseed.renderSettingsBar('settings');
+
+const FOCUS_COLS = {
+  comprehensive: 'Paper | Aim / RQ | Method & design | Sample & context | Key findings | Limitations',
+  methods: 'Paper | Design | Sample & sampling | Measures / instruments | Analysis approach | Methodological strengths & weaknesses',
+  findings: 'Paper | Aim / RQ | Key findings | Effect size / magnitude (as reported) | Direction vs. other studies | Caveats',
+  theory: 'Paper | Theoretical framework | Key constructs | How theory is applied | Contribution to theory | Gaps in theorising',
+};
+
+const EXAMPLE = `1. Chen et al. (2022). "Remote work and employee wellbeing: a longitudinal survey". Abstract: Survey of 1,200 knowledge workers in the US over 18 months. Found remote work correlated with reduced commute stress but increased feelings of isolation. Sample skewed toward tech-sector employees aged 25-40.
+
+2. Okafor & Lindqvist (2023). "Hybrid schedules and team creativity". Abstract: Lab and field experiments (n=340) in two Scandinavian firms showing hybrid teams generated fewer novel ideas in brainstorming than co-located teams, but equal implementation quality. Short 6-week observation window.
+
+3. Ramirez (2021). "Remote onboarding of new hires". Abstract: Qualitative interviews with 22 HR managers. Reports systematic difficulties socialising junior staff remotely; senior hires largely unaffected. Single-country (Spain) sample.
+
+4. Gupta et al. (2024). "Productivity paradox of working from home". Abstract: Analysis of keystroke and calendar telemetry from 8,000 employees of one multinational. Self-reported productivity rose while objective output metrics stayed flat; meeting hours rose 22%. No wellbeing measures collected.`;
+
+Rewiseed.mountStreamingTool({
+  toolId: 'matrix',
+  inputId: 'in', runId: 'run', outId: 'out',
+  resultTitle: 'Synthesis matrix',
+  downloadName: 'literature-matrix.md',
+  buildSystem: () => {
+    const focus = document.getElementById('focus').value;
+    return `You are a literature-synthesis assistant. Build a comparison matrix from the papers provided, then synthesise across them.
+Output exactly this Markdown structure:
+## Comparison matrix
+A single table with columns: ${FOCUS_COLS[focus]}.
+- One row per paper, labelled by first author and year.
+- Fill cells ONLY from the provided titles/abstracts. Where the abstract doesn't say, write "—" (never guess).
+- Keep cells telegraphic (fragments, not sentences).
+## Synthesis
+- **Where the studies agree** — bullet points citing papers by author-year.
+- **Where they conflict or diverge** — bullets, with the likeliest explanation for each conflict (population, design, measure).
+- **Trends over time or context** — only if genuinely visible in the set.
+## Strength of evidence
+One short paragraph: overall designs represented, combined sample coverage, and the biggest shared blind spot.
+Rules: ground every claim in the provided papers; cite by author-year; never import outside knowledge about these studies or add papers not in the input.`;
+  },
+  runLabel: 'Build matrix',
+  runningLabel: 'Reading the papers…',
+  example: EXAMPLE, exampleBtnId: 'example',
+  countId: 'count',
+  next: { href: 'research-gap-identifier.html', draftKey: 'rewiseed_draft_gaps', label: 'Find the gaps', carry: 'input' },
+});
+</script>
+</body>
+</html>
