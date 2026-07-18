@@ -57,6 +57,7 @@
     doi: 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
     shield: 'M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1zM9 12l2 2 4-4',
     flask: 'M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2M6.453 15h11.094M8.5 2h7',
+    doc: 'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7zM14 2v4a2 2 0 0 0 2 2h4M16 13H8M16 17H8M10 9H8',
   };
 
   function icon(name, size = 20) {
@@ -110,6 +111,7 @@
     { href: 'qualitative-coding-assistant.html', icon: 'dna', name: 'Qualitative Coding Assistant' },
     { href: 'peer-review-simulator.html', icon: 'grad', name: 'Peer Review Simulator' },
     { href: 'citation-formatter.html', icon: 'book', name: 'Citation Formatter' },
+    { href: 'apa-formatter.html', icon: 'doc', name: 'APA 7 Paper Formatter' },
   ];
 
   function renderNav(activeHref) {

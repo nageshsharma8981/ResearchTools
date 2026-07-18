@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>APA 7 Paper Formatter — ReWiseEd</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ReWiseEd Research Tools"/>
+<meta property="og:title" content="APA 7 Paper Formatter — ReWiseEd"/>
+<meta property="og:description" content="Upload a .docx or paste your paper — get back an APA 7 formatted Word document: title page, headings, double-spaced Times New Roman, hanging-indent references."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/apa-formatter"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="APA 7 Paper Formatter — ReWiseEd"/>
+<meta name="twitter:description" content="Upload a .docx or paste your paper — get back an APA 7 formatted Word document."/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0 4px; }
+.meta-grid label { font-size: 12.5px; font-weight: 600; color: var(--ink-2); display: flex; flex-direction: column; gap: 4px; }
+.meta-grid .full { grid-column: 1 / -1; }
+@media (max-width: 640px) { .meta-grid { grid-template-columns: 1fr; } }
+.dl-hero { display: flex; align-items: center; gap: 14px; padding: 18px 20px; background: var(--accent-soft); border-radius: var(--radius); margin-top: 14px; }
+.dl-hero .big { flex: none; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>APA 7 Paper Formatter</h1>
+  <p class="lede">Upload a Word document or paste your paper — get back a properly formatted APA 7 <code>.docx</code>: title page, heading levels, double-spaced Times New Roman, page numbers, and hanging-indent references.</p>
+</div>
+<main class="split">
+  <div id="settings"></div>
+  <div class="card input-card">
+    <h2>Your paper</h2>
+    <p class="hint">Everything happens in your browser — the document never leaves it. The optional AI pass (your key) fixes in-text citations and rebuilds the reference list per APA 7; without it you still get all the document mechanics.</p>
+    <label class="field-label" for="in">Paper text</label>
+    <textarea id="in" style="min-height:150px" placeholder="Paste your paper here, or load a .docx below. Start heading lines with # (## for subheadings) if pasting."></textarea>
+    <div class="field-foot">
+      <span class="chip-row">
+        <label class="chip" style="display:inline-flex;align-items:center;cursor:pointer">Load .docx / .txt<input id="file" type="file" accept=".docx,.txt,.md" style="display:none"/></label>
+        <button type="button" class="chip" id="example">Load example</button>
+      </span>
+      <span id="count"></span>
+    </div>
+    <div class="meta-grid">
+      <label class="full">Paper title <input id="m-title" placeholder="The Effect of X on Y"/></label>
+      <label>Author <input id="m-author" placeholder="Your Name"/></label>
+      <label>Affiliation <input id="m-affil" placeholder="Department, University"/></label>
+      <label>Course <input id="m-course" placeholder="PSY 101: Introduction"/></label>
+      <label>Instructor <input id="m-instr" placeholder="Dr. A. Professor"/></label>
+      <label>Due date <input id="m-date" placeholder="July 18, 2026"/></label>
+      <label>Paper type
+        <select id="m-type"><option value="student">Student paper</option><option value="professional">Professional (running head)</option></select>
+      </label>
+    </div>
+    <div class="row">
+      <label style="display:inline-flex;align-items:center;gap:7px;font-size:13.5px;color:var(--ink-2);font-weight:600">
+        <input type="checkbox" id="ai-pass" checked style="width:auto"/> AI citation &amp; reference cleanup
+      </label>
+      <button id="run"></button>
+    </div>
+  </div>
+  <div id="out"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+const { esc, icon, toast, md } = Rewiseed;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('apa-formatter.html');
+$('hero-icon').innerHTML = icon('doc', 26);
+Rewiseed.renderSettingsBar('settings');
+$('run').innerHTML = `${icon('play', 15)} Format as APA 7`;
+
+const EMPTY = `
+  <div class="empty-state-card">
+    ${icon('doc', 30)}
+    <span class="es-title">APA 7 document</span>
+    <p>Load your paper, fill in the title-page details, and your formatted <b>.docx</b> download appears here — with an optional AI-cleaned reference list.</p>
+  </div>`;
+$('out').innerHTML = EMPTY;
+
+// ---------- drafts & word count ----------
+const DRAFT = 'rewiseed_draft_apa';
+if (localStorage.getItem(DRAFT)) $('in').value = localStorage.getItem(DRAFT);
+let saveT;
+$('in').addEventListener('input', () => {
+  clearTimeout(saveT); saveT = setTimeout(() => localStorage.setItem(DRAFT, $('in').value), 400);
+  const w = $('in').value.trim() ? $('in').value.trim().split(/\s+/).length : 0;
+  $('count').textContent = w ? `${w.toLocaleString()} words` : '';
+});
+
+const EXAMPLE = `# Introduction
+Sleep is central to undergraduate wellbeing (walker 2017). Several studies, e.g. Chang, Aeschbach, Duffy & Czeisler 2015, have found that evening screen exposure delays circadian timing. However the role of social media specifically remains contested (Orben and Przybylski, 2019).
+
+# Method
+We surveyed 214 undergraduates using the Pittsburgh Sleep Quality Index and self-reported daily social media minutes.
+
+# Results
+Higher social media use predicted poorer sleep quality, b = 0.31, p = .004.
+
+# Discussion
+Findings align with displacement theory. Limitations include self-report measures.
+
+# References
+Walker M. Why we sleep. Scribner 2017
+chang, a., aeschbach, d., duffy, j.f., czeisler, c.a. (2015) Evening use of light-emitting eReaders negatively affects sleep, circadian timing, and next-morning alertness. PNAS 112(4)
+Orben A & Przybylski A. The association between adolescent well-being and digital technology use. Nature Human Behaviour, 3, 173-182, 2019`;
+$('example').onclick = () => {
+  $('in').value = EXAMPLE; $('in').dispatchEvent(new Event('input'));
+  $('m-title').value = 'Social Media Use and Sleep Quality Among Undergraduates';
+  $('m-author').value = 'Alex Student';
+  $('m-affil').value = 'Department of Psychology, Golden Gate University';
+  $('m-course').value = 'PSY 300: Research Methods';
+  $('m-instr').value = 'Dr. R. Advisor';
+  $('m-date').value = 'July 18, 2026';
+  toast('Example loaded — press Format');
+};
+
+// ============ minimal ZIP writer (STORED entries — valid .docx) ============
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+  return t;
+})();
+function crc32(buf) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function makeZip(files) { // files: [{name, text}]
+  const enc = new TextEncoder();
+  const parts = [], central = [];
+  let offset = 0;
+  for (const f of files) {
+    const name = enc.encode(f.name), data = enc.encode(f.text);
+    const crc = crc32(data);
+    const local = new DataView(new ArrayBuffer(30));
+    local.setUint32(0, 0x04034b50, true); local.setUint16(4, 20, true); local.setUint16(6, 0, true);
+    local.setUint16(8, 0, true); local.setUint16(10, 0, true); local.setUint16(12, 0x21, true);
+    local.setUint32(14, crc, true); local.setUint32(18, data.length, true); local.setUint32(22, data.length, true);
+    local.setUint16(26, name.length, true); local.setUint16(28, 0, true);
+    parts.push(new Uint8Array(local.buffer), name, data);
+    const cd = new DataView(new ArrayBuffer(46));
+    cd.setUint32(0, 0x02014b50, true); cd.setUint16(4, 20, true); cd.setUint16(6, 20, true);
+    cd.setUint16(8, 0, true); cd.setUint16(10, 0, true); cd.setUint16(12, 0, true); cd.setUint16(14, 0x21, true);
+    cd.setUint32(16, crc, true); cd.setUint32(20, data.length, true); cd.setUint32(24, data.length, true);
+    cd.setUint16(28, name.length, true);
+    cd.setUint32(42, offset, true);
+    central.push(new Uint8Array(cd.buffer), name);
+    offset += 30 + name.length + data.length;
+  }
+  const cdSize = central.reduce((a, b) => a + b.length, 0);
+  const eocd = new DataView(new ArrayBuffer(22));
+  eocd.setUint32(0, 0x06054b50, true);
+  eocd.setUint16(8, files.length, true); eocd.setUint16(10, files.length, true);
+  eocd.setUint32(12, cdSize, true); eocd.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, new Uint8Array(eocd.buffer)], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+}
+
+// ============ minimal ZIP reader (for uploaded .docx) ============
+async function readDocxText(buf) {
+  const u8 = new Uint8Array(buf), dv = new DataView(buf);
+  let eocd = -1;
+  for (let i = u8.length - 22; i >= 0; i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error('Not a valid .docx (zip) file.');
+  const count = dv.getUint16(eocd + 10, true);
+  let p = dv.getUint32(eocd + 16, true);
+  for (let n = 0; n < count; n++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) break;
+    const method = dv.getUint16(p + 10, true);
+    const compSize = dv.getUint32(p + 20, true);
+    const nameLen = dv.getUint16(p + 28, true), extraLen = dv.getUint16(p + 30, true), commentLen = dv.getUint16(p + 32, true);
+    const localOff = dv.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(u8.slice(p + 46, p + 46 + nameLen));
+    if (name === 'word/document.xml') {
+      const lNameLen = dv.getUint16(localOff + 26, true), lExtraLen = dv.getUint16(localOff + 28, true);
+      const start = localOff + 30 + lNameLen + lExtraLen;
+      const comp = u8.slice(start, start + compSize);
+      let xmlBytes;
+      if (method === 0) xmlBytes = comp;
+      else {
+        const ds = new DecompressionStream('deflate-raw');
+        xmlBytes = new Uint8Array(await new Response(new Blob([comp]).stream().pipeThrough(ds)).arrayBuffer());
+      }
+      return docxXmlToText(new TextDecoder().decode(xmlBytes));
+    }
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  throw new Error('No word/document.xml found inside the file.');
+}
+function docxXmlToText(xml) {
+  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const out = [];
+  for (const p of doc.getElementsByTagNameNS(W, 'p')) {
+    let text = '';
+    for (const t of p.getElementsByTagNameNS(W, 't')) text += t.textContent;
+    text = text.trim();
+    if (!text) continue;
+    let prefix = '';
+    const style = p.getElementsByTagNameNS(W, 'pStyle')[0];
+    if (style) {
+      const v = style.getAttributeNS(W, 'val') || style.getAttribute('w:val') || '';
+      const m = v.match(/Heading(\d)/i) || (/Title/i.test(v) ? [null, '1'] : null);
+      if (m) prefix = '#'.repeat(Math.min(+m[1] || 1, 3)) + ' ';
+    }
+    out.push(prefix + text);
+  }
+  return out.join('\n\n');
+}
+
+// ============ APA 7 .docx generation ============
+const X = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const RPR = '<w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/></w:rPr>';
+const RPRB = '<w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="24"/></w:rPr>';
+function para(text, { bold = false, center = false, indent = null, hanging = false, pageBreak = false, italicRuns = false } = {}) {
+  const pPr = `<w:pPr>${pageBreak ? '<w:pageBreakBefore/>' : ''}<w:spacing w:line="480" w:lineRule="auto" w:before="0" w:after="0"/>${center ? '<w:jc w:val="center"/>' : ''}${
+    hanging ? '<w:ind w:left="720" w:hanging="720"/>' : indent ? `<w:ind w:firstLine="720"/>` : ''}</w:pPr>`;
+  // *italics* inside text → italic runs (used for reference titles)
+  let runs = '';
+  if (italicRuns && text.includes('*')) {
+    text.split(/(\*[^*]+\*)/).forEach(seg => {
+      if (!seg) return;
+      const it = seg.startsWith('*') && seg.endsWith('*');
+      const body = it ? seg.slice(1, -1) : seg;
+      runs += `<w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>${it ? '<w:i/>' : ''}${bold ? '<w:b/>' : ''}<w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">${X(body)}</w:t></w:r>`;
+    });
+  } else {
+    runs = `<w:r>${bold ? RPRB : RPR}<w:t xml:space="preserve">${X(text)}</w:t></w:r>`;
+  }
+  return `<w:p>${pPr}${runs}</w:p>`;
+}
+function buildDocx(text, meta) {
+  const paras = [];
+  // --- title page ---
+  for (let i = 0; i < 4; i++) paras.push(para('', { center: true }));
+  paras.push(para(meta.title || 'Untitled Paper', { bold: true, center: true }));
+  paras.push(para('', { center: true }));
+  [meta.author, meta.affil, meta.course, meta.instr, meta.date].filter(Boolean).forEach(l => paras.push(para(l, { center: true })));
+  // --- body: line-based parse so single newlines after headings work ---
+  let inRefs = false, first = true, buf = [];
+  const flushBuf = () => {
+    if (!buf.length) return;
+    const t = buf.join(' ').replace(/\s+/g, ' ').trim();
+    buf = [];
+    if (!t) return;
+    if (first) { paras.push(para(meta.title || '', { bold: true, center: true, pageBreak: true })); first = false; }
+    paras.push(para(t, { indent: true }));
+  };
+  for (const line of text.split('\n')) {
+    const t = line.trim();
+    const h = t.match(/^(#{1,3})\s+(.+)$/);
+    if (h) {
+      flushBuf();
+      const title = h[2].trim();
+      inRefs = /^references$/i.test(title);
+      paras.push(para(title, { bold: true, center: h[1].length === 1, pageBreak: first || inRefs }));
+      first = false;
+    } else if (!t) {
+      flushBuf();
+    } else if (inRefs) {
+      // every non-blank line in References is its own hanging-indent entry
+      paras.push(para(t.replace(/\s+/g, ' '), { hanging: true, italicRuns: true }));
+    } else {
+      buf.push(t);
+    }
+  }
+  flushBuf();
+  const runningHead = meta.type === 'professional' && meta.title
+    ? `<w:r>${RPR}<w:t xml:space="preserve">${X(meta.title.toUpperCase().slice(0, 50))}</w:t></w:r><w:r>${RPR}<w:tab/></w:r>` : '';
+  const header = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:tabs><w:tab w:val="right" w:pos="9360"/></w:tabs><w:spacing w:line="240" w:lineRule="auto"/></w:pPr>${runningHead}${runningHead ? '' : `<w:r>${RPR}<w:tab/></w:r>`}<w:r>${RPR}<w:fldChar w:fldCharType="begin"/></w:r><w:r>${RPR}<w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r>${RPR}<w:fldChar w:fldCharType="end"/></w:r></w:p></w:hdr>`;
+  const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${paras.join('')}
+<w:sectPr><w:headerReference w:type="default" r:id="rIdH"/><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720"/></w:sectPr></w:body></w:document>`;
+  return makeZip([
+    { name: '[Content_Types].xml', text: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/></Types>` },
+    { name: '_rels/.rels', text: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>` },
+    { name: 'word/_rels/document.xml.rels', text: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdH" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/></Relationships>` },
+    { name: 'word/header1.xml', text: header },
+    { name: 'word/document.xml', text: document },
+  ]);
+}
+
+// ---------- file load ----------
+$('file').addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  try {
+    if (f.name.endsWith('.docx')) {
+      $('in').value = await readDocxText(await f.arrayBuffer());
+    } else {
+      $('in').value = await f.text();
+    }
+    $('in').dispatchEvent(new Event('input'));
+    if (!$('m-title').value) $('m-title').value = f.name.replace(/\.(docx|txt|md)$/i, '');
+    toast(`Loaded ${f.name}`);
+  } catch (err) { toast(err.message, 'error', 5000); }
+});
+
+// ---------- orchestration ----------
+const AI_SYS = `You are an APA 7 copyeditor. You receive a paper's text (lines beginning with # are headings). Rewrite it applying APA 7 style WITHOUT changing the substance:
+- Fix every in-text citation to author–date form: (Walker, 2017); (Chang et al., 2015) for 3+ authors; "&" inside parentheses, "and" in prose; add (Author, year) format where citations are informal.
+- Rebuild the section headed "# References": alphabetical by first author surname, APA 7 reference format, one reference per paragraph. Wrap journal names, book titles, and volume numbers in *asterisks* (they become italics in the Word file). Format DOIs as https://doi.org/... Mark genuinely missing details as [missing: detail] — never invent pages, volumes, publishers, or DOIs.
+- Keep all # heading markers. Keep the author's prose otherwise untouched except citation fixes.
+Return ONLY the corrected paper text (same # structure). Then append a final section "### Formatting notes" listing what you changed and anything the author must verify.`;
+
+let running = false;
+$('run').onclick = async () => {
+  if (running) return;
+  const text = $('in').value.trim();
+  if (!text) { toast('Paste or load your paper first', 'error'); $('in').focus(); return; }
+  const meta = { title: $('m-title').value.trim(), author: $('m-author').value.trim(), affil: $('m-affil').value.trim(), course: $('m-course').value.trim(), instr: $('m-instr').value.trim(), date: $('m-date').value.trim(), type: $('m-type').value };
+  if (!meta.title) { toast('A paper title is needed for the title page', 'error'); $('m-title').focus(); return; }
+  running = true; const btn = $('run'); btn.disabled = true;
+  const out = $('out');
+  const cfg = Rewiseed.getCfg();
+  const wantAI = $('ai-pass').checked && (cfg.apiKey || Rewiseed.isLocalUrl(cfg.baseUrl));
+  let finalText = text, notes = '';
+
+  out.innerHTML = '';
+  if ($('ai-pass').checked && !wantAI) {
+    out.innerHTML = `<div class="card"><p class="hint" style="margin:0">${icon('alert', 14)} No API key configured — skipping the citation cleanup and applying document mechanics only.</p></div>`;
+  }
+  if (wantAI) {
+    out.insertAdjacentHTML('beforeend', `
+      <div class="card"><span class="overline">Pass 1 · Uses your key</span><h2>Citation &amp; reference cleanup</h2>
+      <div class="result" id="apa-stream" aria-live="polite"><div class="stream-status"><span class="spinner"></span>Copyediting to APA 7…</div></div></div>`);
+    try {
+      let raf = 0, pending = '';
+      const paint = () => { $('apa-stream').innerHTML = `<div class="cursor-blink">${md(pending)}</div>`; raf = 0; };
+      const cleaned = await Rewiseed.callLLM({
+        system: AI_SYS, user: text.slice(0, 28000), temperature: 0.1,
+        onStream: (t) => { pending = t; if (!raf) raf = requestAnimationFrame(paint); },
+      });
+      if (raf) cancelAnimationFrame(raf);
+      const split = cleaned.split(/###\s*Formatting notes/i);
+      finalText = split[0].trim();
+      notes = (split[1] || '').trim();
+      $('apa-stream').innerHTML = md(finalText);
+      if (notes) $('apa-stream').insertAdjacentHTML('beforebegin', `<div class="result" style="border-top:0;margin-top:0;padding:12px 14px;background:var(--warn-soft);border-radius:var(--radius-sm)"><b style="font-size:13.5px">Verify before submitting:</b>${md(notes)}</div>`);
+    } catch (e) {
+      $('apa-stream').innerHTML = `<div class="error-box">${icon('alert', 18)}<span>${esc(e.message)} — falling back to mechanics-only formatting.</span></div>`;
+    }
+  }
+
+  // build the .docx
+  try {
+    const blob = buildDocx(finalText, meta);
+    const url = URL.createObjectURL(blob);
+    const fname = (meta.title || 'paper').replace(/[^\w -]+/g, '').replace(/\s+/g, '-').toLowerCase() + '-apa7.docx';
+    out.insertAdjacentHTML('beforeend', `
+      <div class="card"><span class="overline">Result</span><h2>Your APA 7 document</h2>
+        <p class="hint">Title page (${meta.type}), Times New Roman 12, double-spaced, 1-inch margins, page numbers${meta.type === 'professional' ? ' with running head' : ''}, APA headings, hanging-indent references.</p>
+        <div class="dl-hero"><span class="big">${icon('doc', 28)}</span>
+          <div><a class="link" style="font-size:15px" href="${url}" download="${esc(fname)}">${esc(fname)} ${icon('download', 14)}</a>
+          <div class="hint" style="margin:2px 0 0">Open in Word / Google Docs / LibreOffice and give it a final read.</div></div>
+        </div>
+        <div class="row"><button class="ghost" id="apa-copy">${icon('copy', 15)} Copy cleaned text</button></div>
+      </div>`);
+    $('apa-copy').onclick = (ev) => Rewiseed.copyText(finalText, ev.currentTarget);
+  } catch (e) {
+    out.insertAdjacentHTML('beforeend', `<div class="card"><div class="error-box">${icon('alert', 18)}<span>Could not build the document: ${esc(e.message)}</span></div></div>`);
+  }
+  running = false; btn.disabled = false;
+};
+</script>
+</body>
+</html>

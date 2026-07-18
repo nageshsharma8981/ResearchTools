@@ -28,7 +28,7 @@
   <p class="lede">ReWiseEd Research Tools is a private research workbench that runs entirely in your browser. No server, no account, no tracking — bring your own AI key, or run a free local model.</p>
   <div class="stat-row">
     <div class="stat"><b>240M+</b><span>papers searchable</span></div>
-    <div class="stat"><b>8</b><span>research tools</span></div>
+    <div class="stat"><b>9</b><span>research tools</span></div>
     <div class="stat"><b>100%</b><span>private &amp; local</span></div>
     <div class="stat"><b>$0</b><span>with a local model</span></div>
   </div>
@@ -78,6 +78,7 @@
         <li><a href="qualitative-coding-assistant.html">Qualitative Coding</a></li>
         <li><a href="peer-review-simulator.html">Peer Review Simulator</a></li>
         <li><a href="citation-formatter.html">Citation Formatter</a></li>
+        <li><a href="apa-formatter.html">APA 7 Paper Formatter</a></li>
       </ul>
     </div>
   </div>
@@ -102,6 +103,8 @@ const TILES = [
     desc: 'A rigorous but constructive reviewer: strengths, major and minor concerns, and a publication recommendation.' },
   { href: 'citation-formatter.html', icon: 'book', name: 'Citation Formatter',
     desc: 'Turn messy references into clean APA, MLA, Chicago, Harvard, IEEE, or Vancouver bibliographies.' },
+  { href: 'apa-formatter.html', icon: 'doc', name: 'APA 7 Paper Formatter',
+    desc: 'Upload a .docx or paste your paper — download it back as a properly formatted APA 7 Word document, with optional AI citation cleanup.' },
 ];
 document.getElementById('foot-brand').innerHTML = `${Rewiseed.icon('logo', 20)} ReWiseEd Research`;
 document.getElementById('tools').innerHTML = TILES.map(t => `

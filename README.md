@@ -14,6 +14,7 @@ Five standalone research tools that run **entirely in your browser**. No server,
 | Qualitative Coding Assistant | `qualitative-coding-assistant.html` | Braun & Clarke reflexive thematic analysis of interview transcripts — codes, themes, thematic map. |
 | Peer Review Simulator | `peer-review-simulator.html` | Structured peer review with selectable reviewer temperament (constructive → adversarial) and a recommendation. |
 | Citation Formatter | `citation-formatter.html` | Convert messy references into APA 7 / MLA 9 / Chicago / Harvard / IEEE / Vancouver. |
+| APA 7 Paper Formatter | `apa-formatter.html` | Upload a `.docx` (parsed fully in-browser — no upload to any server) or paste text; download a formatted APA 7 Word document: title page, headings, double-spaced TNR 12, page numbers, hanging-indent references. Optional AI pass fixes in-text citations and rebuilds the reference list. |
 
 ## How to use
 
