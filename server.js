@@ -48,6 +48,11 @@ CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires INTEGER NOT NULL
 );
 `);
+// migrations for pre-existing databases
+for (const col of ["terms_version TEXT NOT NULL DEFAULT ''", 'terms_accepted_at INTEGER NOT NULL DEFAULT 0']) {
+  try { db.exec(`ALTER TABLE users ADD COLUMN ${col}`); } catch { /* already present */ }
+}
+const TERMS_VERSION = '2026-07-18';
 
 // ---------- helpers ----------
 const now = () => Date.now();
@@ -213,7 +218,8 @@ app.post('/api/captcha/verify', (req, res) => {
 // ---------- auth routes ----------
 app.post('/api/auth/signup', async (req, res) => {
   if (!rateLimit('signup:' + req.ip, 10, 15 * 60_000)) return res.status(429).json({ error: 'Too many attempts — wait a few minutes.' });
-  const { email, password, name, captchaToken } = req.body || {};
+  const { email, password, name, captchaToken, acceptTerms } = req.body || {};
+  if (acceptTerms !== true) return res.status(400).json({ error: 'You must accept the Terms of Service and Privacy Policy to create an account.' });
   if (!consumeCaptcha(captchaToken)) return res.status(400).json({ error: 'Please complete the puzzle first.' });
   const em = cap(email, 254).toLowerCase();
   if (!EMAIL_RE.test(em)) return res.status(400).json({ error: 'Enter a valid email address.' });
@@ -234,8 +240,8 @@ app.post('/api/auth/signup', async (req, res) => {
   if (existing) { hashPassword(password, rand(16)); return res.json(genericOk); }
   const salt = rand(16);
   const role = SUPERADMINS.includes(em) ? 'superadmin' : 'student';
-  const info = db.prepare('INSERT INTO users (email, name, pass_hash, salt, role, created_at) VALUES (?,?,?,?,?,?)')
-    .run(em, displayName, hashPassword(password, salt), salt, role, now());
+  const info = db.prepare('INSERT INTO users (email, name, pass_hash, salt, role, created_at, terms_version, terms_accepted_at) VALUES (?,?,?,?,?,?,?,?)')
+    .run(em, displayName, hashPassword(password, salt), salt, role, now(), TERMS_VERSION, now());
   const confirmToken = rand(32);
   db.prepare('INSERT INTO tokens (token, user_id, kind, expires) VALUES (?,?,?,?)')
     .run(sha(confirmToken), info.lastInsertRowid, 'confirm', now() + 24 * 3600_000);

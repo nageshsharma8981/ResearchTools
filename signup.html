@@ -29,6 +29,10 @@
         <button type="button" class="icon-btn" id="eye" aria-label="Show or hide password"></button>
       </span>
       <div id="captcha" style="margin-top:16px"></div>
+      <label style="display:flex;gap:9px;align-items:flex-start;margin-top:16px;font-size:13.5px;color:var(--ink-2);cursor:pointer">
+        <input type="checkbox" id="accept-terms" style="width:auto;margin-top:3px"/>
+        <span>I agree to the <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a> and <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+      </label>
       <div class="row">
         <button type="submit" id="submit" style="width:100%;justify-content:center"></button>
       </div>
@@ -60,13 +64,14 @@ document.getElementById('form').addEventListener('submit', async (e) => {
   const password = document.getElementById('password').value;
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return toast('Enter a valid email address.', 'error');
   if (password.length < 8) return toast('Password must be at least 8 characters.', 'error');
+  if (!document.getElementById('accept-terms').checked) return toast('Please accept the Terms and Privacy Policy first.', 'error');
   const captchaToken = captcha.getToken();
   if (!captchaToken) return toast('Please complete the puzzle first.', 'error');
   const btn = document.getElementById('submit');
   btn.disabled = true;
   try {
     const r = await api('/api/auth/signup', { method: 'POST', body: {
-      email, password, name: document.getElementById('name').value, captchaToken,
+      email, password, name: document.getElementById('name').value, captchaToken, acceptTerms: true,
     }});
     document.getElementById('form').hidden = true;
     const done = document.getElementById('done');
