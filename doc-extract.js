@@ -104,14 +104,5 @@ async function extract(file) {
 }
 
 
-  // moderation pre-gate: extracted text is screened BEFORE any tool stores or
-  // processes it (same checker as the live guard and the server)
-  function screenExtracted(text) {
-    const chk = window.Rewiseed?.checkText?.(text);
-    if (chk && !chk.ok) throw new Error(`This file can’t be used. ${chk.message}`);
-    return text;
-  }
-  const _extract = extract;
-  async function extractScreened(file) { return screenExtracted(await _extract(file)); }
-  window.RewiseedDocExtract = { readDocxText, readPdfText, extract: extractScreened };
+  window.RewiseedDocExtract = { readDocxText, readPdfText, extract };
 })();

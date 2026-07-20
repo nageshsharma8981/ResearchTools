@@ -473,8 +473,13 @@
     notice.id = 'mod-notice'; notice.hidden = true; notice.setAttribute('role', 'alert');
     document.body.appendChild(notice);
 
-    const guards = (el) => el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && ['text', 'search'].includes(el.type)));
-    const capFor = (el) => el.tagName === 'TEXTAREA' ? MOD_CAP_TEXTAREA : MOD_CAP_INPUT;
+    // Scope: only short single-line identity fields (names) and chat inputs are
+    // moderated. Long-form research content — every <textarea>, pasted documents,
+    // and the AI research text — flows through untouched, because banned words
+    // ("sex", "murder", "rape") are legitimate in demographics items, criminology
+    // transcripts, clinical and historical research.
+    const guards = (el) => el && el.tagName === 'INPUT' && ['text', 'search'].includes(el.type) && !el.dataset.modSkip;
+    const capFor = () => MOD_CAP_INPUT;
     let flagged = null;
 
     const position = () => {
@@ -565,9 +570,8 @@
   // ---------- LLM client ----------
 
   async function callLLM({ system, user, temperature = 0.2, maxTokens, onStream, signal, cfgOverride }) {
-    // moderation backstop: same checker as the live guard, so the inline warning
-    // and this thrown error always agree
-    if (!cfgOverride) assertTextAllowed({ 'Your text': user });
+    // NOTE: research text is intentionally NOT moderated here — long-form academic
+    // content routinely contains words banned in short identity/chat fields.
     // metering happens before any provider is contacted (including the built-in model)
     if (!cfgOverride) await ensureRunCredit((user || '').length + (system || '').length);
     const cfg = cfgOverride || getCfg();

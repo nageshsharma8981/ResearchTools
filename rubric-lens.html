@@ -206,8 +206,6 @@ function wireUpload(inputId, labelId, badgeId, textareaId, storeKey) {
     try {
       const text = await extract(f);
       if (!text.trim()) throw new Error('No text found in that file.');
-      const chk = Rewiseed.checkText(text);
-      if (!chk.ok) throw new Error(`This file can’t be used. ${chk.message}`);
       $(textareaId).value = text;
       localStorage.setItem(storeKey, text);
       $(badgeId).textContent = `${f.name} · ${text.split(/\s+/).length.toLocaleString()} words`;

@@ -606,7 +606,7 @@ app.put('/api/me', requireAuth, (req, res) => {
       return res.status(400).json({ error: `${k === 'linkedin' ? 'LinkedIn' : 'Twitter/X'} must be a full https:// profile URL on the official domain.` });
     }
   }
-  if (!screenText(res, { Name: clean.name, Institution: clean.org, About: clean.about })) return;
+  if (!screenText(res, { Name: clean.name, Institution: clean.org })) return;
   // profile links: https only (they may be rendered as anchors) — no other schemes
   for (const f of ['linkedin', 'twitter']) {
     if (clean[f] && !/^https:\/\/[^\s]+$/i.test(clean[f])) {
@@ -767,9 +767,7 @@ app.post('/api/library', requireAuth, (req, res) => {
 app.put('/api/library/:id', requireAuth, (req, res) => {
   const row = db.prepare('SELECT * FROM library WHERE id = ? AND user_id = ?').get(Number(req.params.id), req.user.id);
   if (!row) return res.status(404).json({ error: 'Not in your library.' });
-  const noteText = cap(req.body?.notes, 1000);
-  if (!screenText(res, { Notes: noteText })) return;
-  db.prepare('UPDATE library SET notes = ? WHERE id = ?').run(noteText, row.id);
+  db.prepare('UPDATE library SET notes = ? WHERE id = ?').run(cap(req.body?.notes, 1000), row.id);
   res.json({ ok: true });
 });
 app.delete('/api/library/:id', requireAuth, (req, res) => {
