@@ -239,7 +239,7 @@
     const nav = document.createElement('nav');
     nav.className = 'topnav';
     nav.innerHTML = `
-      <a class="brand" href="index.html">${icon('logo', 22)}<span>ItsMyResearch</span></a>
+      <a class="brand" href="index.html"><img src="logo.png" alt="ItsMyResearch" class="brand-logo" onerror="this.outerHTML='${icon('logo', 22).replace(/"/g, '&quot;')}<span>ItsMyResearch</span>'"/></a>
       ${activeHref !== 'index.html' ? `<a class="nav-home" href="index.html">${icon('home', 16)}<span>Home</span></a>` : ''}
       <div class="spacer"></div>
       <details class="tool-menu">

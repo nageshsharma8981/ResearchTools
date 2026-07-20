@@ -124,6 +124,9 @@ a { color: var(--accent); }
   color: var(--ink); text-decoration: none; white-space: nowrap;
 }
 .brand svg { color: var(--accent); }
+.brand-logo { height: 26px; width: auto; display: block; }
+/* the wordmark's navy letters vanish on dark surfaces — render it white there */
+[data-theme="dark"] .brand-logo { filter: brightness(0) invert(0.94); }
 .topnav .spacer { flex: 1; }
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -689,6 +692,7 @@ button.copied, button.ghost.copied {
   .settings-grid { grid-template-columns: 1fr; }
   .search-row { flex-direction: column; }
   .brand span { display: none; }
+  .brand-logo { height: 20px; }
   .paper .links { margin-left: 0; }
 }
 

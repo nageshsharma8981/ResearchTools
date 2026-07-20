@@ -178,7 +178,7 @@ const PHASES = [
       desc: 'Upload a .docx or paste your paper — download it back formatted in APA 7, MLA 9, Chicago, Harvard, Vancouver, or IEEE, with style-true citations and references.' },
   ]},
 ];
-document.getElementById('foot-brand').innerHTML = `${Rewiseed.icon('logo', 20)} ItsMyResearch`;
+document.getElementById('foot-brand').innerHTML = `<img src="logo.png" alt="ItsMyResearch" class="brand-logo" style="height:22px"/>`;
 document.getElementById('tools').outerHTML = PHASES.map(ph => `
   <section class="phase-section">
     <span class="overline">${ph.label}</span>
