@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Abstract &amp; Summary Studio — ReWiseEd</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ReWiseEd Research Tools"/>
+<meta property="og:title" content="Abstract &amp; Summary Studio — ReWiseEd"/>
+<meta property="og:description" content="Upload your thesis or dissertation and generate a grounded APA abstract, executive summary, conference abstract, and plain-language summary — each faithful to what the document actually says."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/abstract-generator"/>
+<meta name="twitter:card" content="summary"/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.out-chips { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 4px; }
+.out-chip { border:1px solid var(--border-strong); background:var(--surface); color:var(--ink-2); border-radius:999px; padding:8px 18px; font-size:13.5px; font-weight:600; cursor:pointer; min-height:40px; }
+button.out-chip:hover:not(:disabled){ background:var(--surface-2); box-shadow:none; transform:none; }
+button.out-chip.on { background:var(--accent-soft); border-color:var(--accent); color:var(--accent-strong); }
+.up-btn { display:inline-flex; align-items:center; gap:7px; cursor:pointer; border:1px solid var(--border-strong); border-radius:var(--radius); padding:8px 15px; font-size:13.5px; font-weight:600; color:var(--ink-2); background:var(--surface); }
+.up-btn:hover { background:var(--surface-2); }
+.sec-note { font-size:12.5px; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Abstract &amp; Summary Studio</h1>
+  <p class="lede">Upload your thesis or dissertation — get back every summary it needs: an APA abstract with keywords, an executive summary for practitioners, a conference abstract, and a plain-language version. Each grounded strictly in what your document actually says.</p>
+</div>
+<main style="max-width:900px">
+  <div id="settings"></div>
+  <div class="card">
+    <span class="overline">Source document</span>
+    <h2>Your thesis or dissertation</h2>
+    <p class="hint">Upload <b>.docx</b>, <b>.pdf</b>, <b>.txt</b>, or <b>.md</b> — parsed entirely in this tab, never uploaded. For long documents the Studio automatically prioritizes your conclusion, findings, and introduction so the summaries reflect the work's substance, and tells you what was skimmed.</p>
+    <div class="up-row" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <label class="up-btn"><input id="file" type="file" accept=".docx,.pdf,.txt,.md" style="display:none"/><span id="up-label">Upload document…</span></label>
+      <span class="sec-note" id="file-badge"></span>
+    </div>
+    <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13.5px;color:var(--muted)">…or paste text</summary>
+      <textarea id="in" rows="7" style="width:100%;margin-top:8px" placeholder="Paste your thesis text (headings help — # Chapter 1. Introduction …)"></textarea>
+    </details>
+    <div class="out-chips" role="group" aria-label="Outputs to generate">
+      <button type="button" class="out-chip on" data-o="abstract">APA abstract + keywords</button>
+      <button type="button" class="out-chip on" data-o="exec">Executive summary</button>
+      <button type="button" class="out-chip" data-o="conference">Conference abstract (250 w)</button>
+      <button type="button" class="out-chip" data-o="lay">Plain-language summary</button>
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:8px">
+      <label style="font-size:13px;font-weight:600;color:var(--ink-2)">Executive summary length
+        <select id="exec-len" style="margin-left:6px"><option value="300">~300 words</option><option value="600" selected>~600 words</option><option value="900">~900 words</option></select>
+      </label>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button id="run"></button>
+      <span class="hint" style="margin:0">⌘/Ctrl + Enter</span>
+    </div>
+  </div>
+  <div id="out"></div>
+  <p class="hint" style="max-width:100%">Every output is generated only from your document — numbers, findings, and claims the document doesn't state are marked <em>[not stated in document]</em> rather than invented. Verify quotes and figures before submission; summaries compress, and compression can shift emphasis.</p>
+</main>
+<script src="shared.js"></script>
+<script src="doc-extract.js"></script>
+<script>
+const { esc, icon, toast, md } = Rewiseed;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('abstract-generator.html');
+Rewiseed.renderSettingsBar('settings');
+$('hero-icon').innerHTML = icon('doc', 26);
+$('run').innerHTML = `${icon('play', 15)} Generate summaries`;
+
+const DKEY = 'rw_abstract_doc';
+$('in').value = localStorage.getItem(DKEY) || '';
+$('in').addEventListener('input', () => localStorage.setItem(DKEY, $('in').value));
+
+$('file').onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  $('up-label').textContent = 'Reading…';
+  try {
+    const text = await RewiseedDocExtract.extract(f);
+    if (!text.trim()) throw new Error('No text found in that file.');
+    $('in').value = text; localStorage.setItem(DKEY, text);
+    $('file-badge').textContent = `${f.name} · ${text.split(/\s+/).length.toLocaleString()} words`;
+    toast(`Loaded ${f.name}`);
+  } catch (err) { toast(err.message, 'error'); $('file-badge').textContent = ''; }
+  $('up-label').textContent = 'Upload document…'; e.target.value = '';
+};
+
+document.querySelectorAll('.out-chip').forEach(b => b.onclick = () => b.classList.toggle('on'));
+
+// ---- smart condensation for long theses: prioritize the sections that carry the substance ----
+const PRIORITY = [/conclusion/i, /discussion/i, /recommendation/i, /result|finding/i, /abstract/i, /introduction|significance/i, /method/i, /literature|review/i];
+function condense(text, cap = 26000) {
+  if (text.length <= cap) return { text, note: null };
+  // split on markdown-ish or plain "Chapter N" headings
+  const parts = text.split(/(?=^#{1,3}\s+|^Chapter\s+\d+[.:]|\n[A-Z][A-Za-z ]{2,60}\n)/m).filter(p => p.trim());
+  if (parts.length < 3) {
+    // no usable structure: take the head and the tail (conclusions live at the end)
+    const half = cap / 2;
+    return { text: text.slice(0, half) + '\n\n[… middle of document skimmed …]\n\n' + text.slice(-half),
+      note: 'No section structure detected — used the opening and closing of the document and skimmed the middle.' };
+  }
+  const scored = parts.map((p, i) => {
+    const head = p.slice(0, 90);
+    let pr = PRIORITY.findIndex(re => re.test(head));
+    if (pr === -1) pr = PRIORITY.length + 1;
+    return { p, i, pr };
+  });
+  scored.sort((a, b) => a.pr - b.pr || a.i - b.i);
+  const kept = []; let used = 0; const skipped = [];
+  for (const s of scored) {
+    if (used + s.p.length <= cap) { kept.push(s); used += s.p.length; }
+    else if (s.pr <= 4 && used < cap) { kept.push({ ...s, p: s.p.slice(0, cap - used) }); used = cap; }
+    else skipped.push(s.p.slice(0, 60).replace(/\n/g, ' ').trim());
+  }
+  kept.sort((a, b) => a.i - b.i);
+  return { text: kept.map(k => k.p).join('\n'), note: `Document is long (${(text.length / 1000).toFixed(0)}k characters) — prioritized conclusion, discussion, findings, and introduction sections; skimmed ${skipped.length} lower-priority section${skipped.length === 1 ? '' : 's'}.` };
+}
+
+const OUTPUTS = {
+  abstract: { title: 'APA abstract + keywords', file: 'abstract',
+    prompt: (len) => `Write an APA 7 dissertation abstract of 150-250 words as ONE paragraph, no citations, past tense for what was done and found. It must state: the problem, the purpose, the method and sample (only as described in the document), the key findings with any numbers the document reports, and the main implication. Then a new line: "Keywords:" followed by 4-6 lowercase keywords drawn from the document, comma-separated, no ending period.` },
+  exec: { title: 'Executive summary', file: 'executive-summary',
+    prompt: (len) => `Write an executive summary of about ${len} words for practitioners and decision-makers who will never read the full document. Structure with these bold mini-headings: **The problem**, **What was done**, **What was found** (the findings with the document's own numbers), **What it means**, **Recommended actions** (a short numbered list drawn from the document's recommendations — if it makes none, derive at most 2 clearly labelled "implied by the findings"). Plain professional language, no citations, no jargon without a gloss.` },
+  conference: { title: 'Conference abstract (250 words)', file: 'conference-abstract',
+    prompt: (len) => `Write a conference submission abstract of AT MOST 250 words, one paragraph: hook the problem in the first sentence, then purpose, method, headline findings, and one sentence of significance. Energetic but precise academic tone. End with a word count in parentheses like "(243 words)".` },
+  lay: { title: 'Plain-language summary', file: 'plain-language-summary',
+    prompt: (len) => `Write a plain-language summary of about 200 words for a general audience (no academic background): what question was asked, how it was studied (in everyday terms), what was learned, and why anyone should care. Short sentences. No jargon, no citations, grade-8 reading level.` },
+};
+
+const SYS = `You summarize a thesis/dissertation. You will receive its (possibly condensed) text. Absolute grounding rules:
+- Use ONLY what the document states. Never invent numbers, sample sizes, methods, findings, or recommendations.
+- Where a required element is missing from the document, write [not stated in document] in its place.
+- Keep the author's terminology for key constructs.
+Return ONLY the requested output, in Markdown.`;
+
+let aborter = null;
+const results = {};
+$('run').onclick = async () => {
+  const btn = $('run');
+  if (aborter) { aborter.abort(); return; }
+  const raw = $('in').value.trim();
+  if (!raw) { toast('Upload or paste your thesis first', 'error'); return; }
+  if (raw.split(/\s+/).length < 150) { toast('That looks too short for a thesis — the Studio needs at least a few pages to summarize faithfully', 'error'); return; }
+  const wanted = [...document.querySelectorAll('.out-chip.on')].map(b => b.dataset.o);
+  if (!wanted.length) { toast('Pick at least one output type', 'error'); return; }
+
+  const { text, note } = condense(raw);
+  const execLen = $('exec-len').value;
+  aborter = new AbortController();
+  btn.classList.add('danger'); btn.innerHTML = `${icon('x', 15)} Stop`;
+  $('out').innerHTML = note ? `<div class="card"><p class="hint" style="margin:0">${icon('alert', 14)} ${esc(note)}</p></div>` : '';
+  Object.keys(results).forEach(k => delete results[k]);
+
+  try {
+    for (const key of wanted) {
+      const o = OUTPUTS[key];
+      $('out').insertAdjacentHTML('beforeend', `
+        <div class="card"><span class="overline">${esc(o.title)}</span>
+          <div class="result" id="st-${key}" aria-live="polite"><div class="stream-status"><span class="spinner"></span>Writing ${esc(o.title.toLowerCase())}…</div></div>
+          <div class="row" id="act-${key}" hidden>
+            <button class="ghost" data-copy="${key}">${icon('copy', 15)} Copy</button>
+            <button class="ghost" data-dl="${key}">${icon('download', 15)} Download .md</button>
+          </div></div>`);
+      let raf = 0, pending = '';
+      const el = $(`st-${key}`);
+      const paint = () => { el.innerHTML = `<div class="cursor-blink">${md(pending)}</div>`; raf = 0; };
+      results[key] = await Rewiseed.callLLM({
+        system: SYS, user: `${o.prompt(execLen)}\n\nDOCUMENT:\n${text}`,
+        temperature: 0.25, signal: aborter.signal,
+        onStream: (t) => { pending = t; if (!raf) raf = requestAnimationFrame(paint); },
+      });
+      if (raf) cancelAnimationFrame(raf);
+      el.innerHTML = md(results[key]);
+      $(`act-${key}`).hidden = false;
+    }
+    if (Object.keys(results).length > 1) {
+      $('out').insertAdjacentHTML('beforeend', `<div class="row"><button class="ghost" id="dl-all">${icon('download', 15)} Download all (.md)</button></div>`);
+      $('dl-all').onclick = () => Rewiseed.downloadText('thesis-summaries.md',
+        Object.entries(results).map(([k, v]) => `# ${OUTPUTS[k].title}\n\n${v}`).join('\n\n---\n\n'));
+    }
+    Rewiseed.track('run');
+  } catch (e) {
+    if (e.name !== 'AbortError') $('out').insertAdjacentHTML('beforeend', `<div class="card"><div class="error-box">${icon('alert', 18)}<span>${esc(e.message)}</span></div></div>`);
+  } finally {
+    aborter = null;
+    btn.classList.remove('danger'); btn.innerHTML = `${icon('play', 15)} Generate summaries`;
+    $('out').querySelectorAll('[data-copy]').forEach(b => b.onclick = () => navigator.clipboard.writeText(results[b.dataset.copy]).then(() => toast('Copied')));
+    $('out').querySelectorAll('[data-dl]').forEach(b => b.onclick = () => Rewiseed.downloadText(`${OUTPUTS[b.dataset.dl].file}.md`, results[b.dataset.dl]));
+  }
+};
+document.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') $('run').click(); });
+</script>
+</body>
+</html>

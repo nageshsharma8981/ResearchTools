@@ -27,13 +27,30 @@
 .overlap-chunk:first-of-type { border-top: 0; }
 .overlap-chunk .snippet { font-size: 13px; color: var(--ink-2); font-style: italic; }
 .file-note { font-size: 12.5px; color: var(--muted); }
+.heatmap { line-height: 2.05; font-size: 14.5px; }
+.heatmap .hs { border-radius: 4px; padding: 1px 3px; cursor: help; }
+.heat-legend { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 10px; }
+.heat-legend .sw { display: inline-block; width: 26px; height: 13px; border-radius: 4px; vertical-align: -2px; margin-right: 5px; }
+.fam-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 12px 0 6px; }
+.fam { background: var(--surface-2); border-radius: var(--radius); padding: 12px 14px; }
+.fam b { display: block; font-size: 14px; margin-bottom: 2px; }
+.fam .lean { font-weight: 700; font-size: 13px; }
+.lean.hi { color: #b3402a; } .lean.md { color: #a16207; } .lean.lo { color: var(--ok, #3a7d44); }
+.uvp-strip { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+.uvp-strip span::before { content: "✓ "; color: var(--accent-strong); font-weight: 700; }
 </style>
 </head>
 <body>
 <div class="hero">
   <span class="tool-icon" id="hero-icon"></span>
   <h1>Originality &amp; AI Checker</h1>
-  <p class="lede">Three independent lenses on a document: stylometric signals, overlap with 240M scholarly works, and an AI-writing forensic assessment. Everything stays in your browser.</p>
+  <p class="lede"><b>The checker that shows its work.</b> No single mystery score — a sentence-level evidence heatmap, three independent signal families that must agree, overlap against 240M scholarly works, and concrete revision guidance. Your document never leaves the browser.</p>
+  <div class="uvp-strip">
+    <span>sentence-level evidence, not one opaque %</span>
+    <span>signals must agree — disagreement is reported, not hidden</span>
+    <span>fix-it guidance, not just accusations</span>
+    <span>100% in-browser · free · no upload</span>
+  </div>
 </div>
 <main class="split">
   <div id="settings"></div>
@@ -154,6 +171,110 @@ function metricsHtml(m) {
   </div>`;
 }
 
+// ---------- 1b. sentence-level evidence heatmap ----------
+
+const COMMON = new Set(('the of and a to in is was for on that with as it at by from be this are or an have has had not but which their its they were can will would there been more also may these than when who into such about out up other some could them then so no only over very').split(' '));
+
+function splitSentences(text) {
+  return (text.match(/[^.!?\n]+[.!?]+["')\]]*|\S[^.!?\n]*(?=\n|$)/g) || []).map(s => s.trim()).filter(s => s.split(/\s+/).length > 2);
+}
+
+// per-sentence scores across three independent families: rhythm, vocabulary, phrasing
+function sentenceAnalysis(text, m) {
+  const sents = splitSentences(text);
+  const lens = sents.map(s => s.split(/\s+/).length);
+  const mean = lens.reduce((a, b) => a + b, 0) / (lens.length || 1);
+  return sents.map((s, i) => {
+    const len = lens[i];
+    const rhythmDev = mean ? Math.abs(len - mean) / mean : 1;      // low deviation = uniform = AI-ish
+    const ws = s.toLowerCase().match(/[a-zà-ɏ']+/g) || [];
+    const commonFrac = ws.length ? ws.filter(w => COMMON.has(w)).length / ws.length : 0;
+    const lower = s.toLowerCase();
+    const stock = AI_PHRASES.filter(p => lower.includes(p));
+    const signals = [];
+    if (rhythmDev < 0.12 && len >= 10) signals.push(`rhythm: length ${len} sits at the document average (${mean.toFixed(0)}) — uniform cadence`);
+    if (commonFrac > 0.62 && ws.length >= 8) signals.push(`vocabulary: ${(commonFrac * 100).toFixed(0)}% high-frequency words — low lexical surprise`);
+    if (stock.length) signals.push(`phrasing: stock phrase${stock.length > 1 ? 's' : ''} “${stock.slice(0, 2).join('”, “')}”`);
+    const score = Math.min(1,
+      (rhythmDev < 0.12 && len >= 10 ? 0.34 : Math.max(0, 0.34 - rhythmDev)) +
+      (ws.length >= 8 ? Math.max(0, (commonFrac - 0.55)) * 1.4 : 0) +
+      Math.min(stock.length, 2) * 0.22);
+    return { s, len, score, signals };
+  });
+}
+
+function familyLeans(m, sents) {
+  const flagged = sents.filter(x => x.score >= 0.45).length;
+  const per1k = m.words ? (m.phraseHits / m.words) * 1000 : 0;
+  const fam = [
+    { name: 'Rhythm', desc: 'sentence-length cadence', lean: m.burstiness < 0.35 ? 'hi' : m.burstiness < 0.55 ? 'md' : 'lo',
+      why: `burstiness ${m.burstiness.toFixed(2)} — ${m.burstiness < 0.35 ? 'very uniform (AI-leaning)' : m.burstiness < 0.55 ? 'moderately varied' : 'strongly varied (human-leaning)'}` },
+    { name: 'Vocabulary', desc: 'lexical variety & surprise', lean: m.ttr < 0.38 ? 'hi' : m.ttr < 0.5 ? 'md' : 'lo',
+      why: `type–token ratio ${(m.ttr * 100).toFixed(0)}%` },
+    { name: 'Phrasing', desc: 'stock AI phrases', lean: per1k > 4 ? 'hi' : per1k > 1.5 ? 'md' : 'lo',
+      why: `${m.phraseHits} stock-phrase hits (${per1k.toFixed(1)} per 1,000 words)` },
+  ];
+  const his = fam.filter(f => f.lean === 'hi').length, los = fam.filter(f => f.lean === 'lo').length;
+  let verdict, cls;
+  if (his >= 2 && !los) { verdict = 'The three families agree: this text carries strong AI-typical patterns.'; cls = 'hi'; }
+  else if (los >= 2 && !his) { verdict = 'The three families agree: this text reads predominantly human-written.'; cls = 'lo'; }
+  else if (his && los) { verdict = `The families disagree (${his} AI-leaning, ${los} human-leaning) — honest answer: inconclusive. Mixed or edited text often looks like this. Do not act on this alone.`; cls = 'md'; }
+  else { verdict = 'Signals are mild and mixed — weak evidence either way.'; cls = 'md'; }
+  return { fam, verdict, cls, flagged };
+}
+
+function heatCard(sents, agg) {
+  const maxShow = 400;
+  const shown = sents.slice(0, maxShow);
+  const html = shown.map(x => {
+    const a = Math.min(0.55, x.score * 0.6);
+    return x.score >= 0.28
+      ? `<span class="hs" style="background:rgba(179,64,42,${a.toFixed(2)})" title="${esc(x.signals.join(' · ') || 'mild combined signal')}">${esc(x.s)}</span>`
+      : `<span>${esc(x.s)}</span>`;
+  }).join(' ');
+  return `
+  <div class="card">
+    <span class="overline">Section 2 · Instant · The evidence</span>
+    <h2>Sentence-level heatmap</h2>
+    <p class="hint">Where the signals actually fire — hover any highlighted sentence to see exactly which of the three families flagged it and why. Single-score checkers can't show you this.</p>
+    <div class="fam-grid">${agg.fam.map(f => `
+      <div class="fam"><b>${f.name}</b><span class="hint" style="margin:0">${f.desc}</span>
+      <span class="lean ${f.lean}">${f.lean === 'hi' ? 'AI-leaning' : f.lean === 'md' ? 'mixed' : 'human-leaning'}</span>
+      <div class="hint" style="margin:2px 0 0">${esc(f.why)}</div></div>`).join('')}
+    </div>
+    <p style="font-size:14px;font-weight:600;margin:10px 0 14px" class="lean ${agg.cls}">${esc(agg.verdict)}</p>
+    <div class="heatmap">${html}${sents.length > maxShow ? `<p class="hint">…heatmap capped at ${maxShow} sentences.</p>` : ''}</div>
+    <div class="heat-legend">
+      <span><span class="sw" style="background:rgba(179,64,42,.12)"></span>mild signal</span>
+      <span><span class="sw" style="background:rgba(179,64,42,.35)"></span>multiple signals</span>
+      <span><span class="sw" style="background:rgba(179,64,42,.55)"></span>strong combined signal</span>
+      <span>${agg.flagged} of ${sents.length} sentences carry strong signals</span>
+    </div>
+  </div>`;
+}
+
+function guidanceCard(sents, m) {
+  const worst = [...sents].sort((a, b) => b.score - a.score).filter(x => x.score >= 0.45).slice(0, 5);
+  if (!worst.length) return '';
+  const tips = worst.map(x => {
+    const fixes = [];
+    for (const sig of x.signals) {
+      if (sig.startsWith('rhythm')) fixes.push('break it up or fold it into a neighbour — vary the cadence');
+      if (sig.startsWith('vocabulary')) fixes.push('replace generic wording with a specific fact, number, or example from your own material');
+      if (sig.startsWith('phrasing')) fixes.push(`cut or replace the stock phrase — say the concrete thing it gestures at`);
+    }
+    return `<li style="margin-bottom:10px"><em style="font-size:13px">“${esc(x.s.length > 140 ? x.s.slice(0, 140) + '…' : x.s)}”</em><br/><span style="font-size:13.5px">${esc([...new Set(fixes)].join('; '))}.</span></li>`;
+  }).join('');
+  return `
+  <div class="card">
+    <span class="overline">Section 3 · Instant · Free</span>
+    <h2>How to fix what was flagged</h2>
+    <p class="hint">Detection without direction is just an accusation. The strongest-flagged sentences, each with the concrete revision that removes the signal — because specific, cited, rhythmically varied prose is also just better writing.</p>
+    <ol style="padding-left:18px">${tips}</ol>
+    <p class="hint" style="margin:0">Also worth doing: ${m.dupes ? `remove the ${m.dupes} repeated 8-word passages; ` : ''}cite a source for any factual claim, and read one paragraph aloud — if every sentence takes the same breath, vary it.</p>
+  </div>`;
+}
+
 // ---------- 2. scholarly overlap (keyless, OpenAlex) ----------
 
 const STOP = new Set('the a an and or of to in on for with by is are was were be been this that those these it its as at from we our their his her they you your not no'.split(' '));
@@ -170,12 +291,12 @@ function pickChunks(text) {
 async function overlapScan(text, container) {
   const chunks = pickChunks(text);
   if (!chunks.length) {
-    container.innerHTML += `<div class="card"><span class="overline">Section 2 · Keyless</span><h2>Scholarly overlap</h2><p class="hint" style="margin:0">Text too short for an overlap scan (needs paragraphs of 25+ words).</p></div>`;
+    container.innerHTML += `<div class="card"><span class="overline">Section 4 · Keyless</span><h2>Scholarly overlap</h2><p class="hint" style="margin:0">Text too short for an overlap scan (needs paragraphs of 25+ words).</p></div>`;
     return [];
   }
   container.insertAdjacentHTML('beforeend', `
     <div class="card" id="overlap-card">
-      <span class="overline">Section 2 · Keyless</span>
+      <span class="overline">Section 4 · Keyless</span>
       <h2>Scholarly overlap</h2>
       <p class="hint">The ${chunks.length} most distinctive passages, checked against OpenAlex's index of 240M works (titles, abstracts, and indexed full text). This is a scholarly-literature check, not a whole-web search.</p>
       <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="${chunks.length}" aria-valuenow="0" id="ov-bar"><div class="progress-fill" id="ov-fill"></div></div>
@@ -264,7 +385,13 @@ $('run').onclick = async () => {
   const m = stylometry(text);
   out.innerHTML = metricsHtml(m);
 
-  // 2. scholarly overlap
+  // 2. sentence heatmap + family agreement + revision guidance (all instant, free)
+  const sents = sentenceAnalysis(text, m);
+  const agg = familyLeans(m, sents);
+  out.insertAdjacentHTML('beforeend', heatCard(sents, agg));
+  out.insertAdjacentHTML('beforeend', guidanceCard(sents, m));
+
+  // 3. scholarly overlap
   const matches = await overlapScan(text, out);
 
   // 3. LLM assessment (only if configured)
@@ -273,7 +400,7 @@ $('run').onclick = async () => {
   if (cfg.apiKey || Rewiseed.isLocalUrl(cfg.baseUrl)) {
     out.insertAdjacentHTML('beforeend', `
       <div class="card">
-        <span class="overline">Section 3 · Uses your key</span>
+        <span class="overline">Section 5 · Uses your key</span>
         <h2>AI-writing assessment</h2>
         <div class="result" id="ai-stream" aria-live="polite"><div class="stream-status"><span class="spinner"></span>Reading like a forensic linguist…</div></div>
       </div>`);
@@ -295,18 +422,24 @@ $('run').onclick = async () => {
   } else {
     out.insertAdjacentHTML('beforeend', `
       <div class="card">
-        <span class="overline">Section 3 · Optional</span>
+        <span class="overline">Section 5 · Optional</span>
         <h2>AI-writing assessment</h2>
         <p class="hint" style="margin:0">Add an API key in <b>API settings</b> (or point at a free local model) to get a forensic AI-writing assessment with quoted evidence.</p>
       </div>`);
   }
 
   // report download
+  const flaggedSents = sents.filter(x => x.score >= 0.45);
   lastReport = [
     `# Originality report`,
     `\n## Stylometric signals\n`,
     `- Words: ${m.words} · Sentences: ${m.sentences} · Avg sentence: ${m.mean.toFixed(1)} words`,
     `- Burstiness: ${m.burstiness.toFixed(2)} · Vocabulary variety: ${(m.ttr * 100).toFixed(0)}% · Repeated 8-word passages: ${m.dupes} · Stock phrases: ${m.phraseHits}${m.hitList.length ? ` (${m.hitList.join(', ')})` : ''}`,
+    `\n## Signal-family agreement\n`,
+    agg.fam.map(f => `- ${f.name} (${f.desc}): ${f.lean === 'hi' ? 'AI-leaning' : f.lean === 'md' ? 'mixed' : 'human-leaning'} — ${f.why}`).join('\n'),
+    `\n> ${agg.verdict}`,
+    `\n## Sentences with strong combined signals (${flaggedSents.length} of ${sents.length})\n`,
+    flaggedSents.slice(0, 12).map(x => `- "${x.s.slice(0, 160)}${x.s.length > 160 ? '…' : ''}"\n  - ${x.signals.join('\n  - ') || 'combined mild signals'}`).join('\n') || '(none)',
     `\n## Scholarly overlap\n`,
     matches.length
       ? matches.map(r => `- ${Math.round(r.score * 100)}% overlap with ${r.work.display_name} (${r.work.publication_year || 'n.d.'}) — ${r.work.doi || r.work.id}\n  > ${r.chunk.slice(0, 200)}…`).join('\n')

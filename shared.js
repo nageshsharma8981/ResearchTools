@@ -225,6 +225,7 @@
     { href: 'qualitative-coding-assistant.html', icon: 'dna', name: 'Qualitative Coding Assistant' },
     { href: 'peer-review-simulator.html', icon: 'grad', name: 'Peer Review Simulator' },
     { href: 'rubric-lens.html', icon: 'clipboard', name: 'RubricLens' },
+    { href: 'abstract-generator.html', icon: 'doc', name: 'Abstract & Summary Studio' },
     { href: 'writing-polisher.html', icon: 'pen', name: 'Academic Writing Polisher' },
     { href: 'citation-formatter.html', icon: 'book', name: 'Citation Formatter' },
     { href: 'apa-formatter.html', icon: 'doc', name: 'Reference Style Generator' },
