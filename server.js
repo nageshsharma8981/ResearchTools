@@ -1,5 +1,5 @@
 // ============================================================
-// ReWiseEd Research Tools — application server
+// ItsMyResearch — application server
 // Static suite + accounts: signup w/ email confirmation,
 // drag-to-match captcha, sessions, roles (superadmin/admin/student),
 // profiles, org-scoped user management.
@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const BASE_URL = (process.env.BASE_URL || `http://localhost:${PORT}`).replace(/\/+$/, '');
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
-const EMAIL_FROM = process.env.EMAIL_FROM || 'ReWiseEd Research <noreply@rewiseed.com>';
+const EMAIL_FROM = process.env.EMAIL_FROM || 'ItsMyResearch <noreply@rewiseed.com>';
 const SUPERADMINS = (process.env.SUPERADMINS || 'nagesh@rewiseed.com,johann@rewiseed.com')
   .toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
 const IS_PROD = !!process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production';
@@ -145,14 +145,14 @@ async function sendEmail(to, subject, html) {
 }
 const resetEmailHtml = (link) => `
 <div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;padding:24px">
-  <h2 style="color:#1c1a17">Reset your ReWiseEd Research password</h2>
+  <h2 style="color:#1c1a17">Reset your ItsMyResearch password</h2>
   <p style="color:#44403a;line-height:1.6">Someone (hopefully you) asked to reset the password for this account. This link works once and expires in 1 hour:</p>
   <p><a href="${link}" style="background:#211e1a;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Choose a new password</a></p>
   <p style="color:#716b60;font-size:13px">If you didn't request this, you can safely ignore it — your password is unchanged.</p>
 </div>`;
 const confirmEmailHtml = (name, link) => `
 <div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;padding:24px">
-  <h2 style="color:#1c1a17">Welcome to ReWiseEd Research${name ? ', ' + name.replace(/[<>&]/g, '') : ''}</h2>
+  <h2 style="color:#1c1a17">Welcome to ItsMyResearch${name ? ', ' + name.replace(/[<>&]/g, '') : ''}</h2>
   <p style="color:#44403a;line-height:1.6">Confirm your email address to activate your account:</p>
   <p><a href="${link}" style="background:#211e1a;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Confirm my email</a></p>
   <p style="color:#716b60;font-size:13px">This link expires in 24 hours. If you didn't create an account, ignore this email.</p>
@@ -302,7 +302,7 @@ app.post('/api/auth/signup', async (req, res) => {
       db.prepare('INSERT INTO tokens (token, user_id, kind, expires) VALUES (?,?,?,?)')
         .run(sha(confirmToken), existing.id, 'confirm', now() + 24 * 3600_000);
       const link = `${BASE_URL}/api/auth/confirm?token=${confirmToken}`;
-      sendEmail(em, 'Confirm your ReWiseEd Research account', confirmEmailHtml(displayName, link))
+      sendEmail(em, 'Confirm your ItsMyResearch account', confirmEmailHtml(displayName, link))
         .then(s => { if (s.dev) console.log(`[dev-email] re-confirmation for ${em}: ${link}`); })
         .catch(() => {});
     }
@@ -317,7 +317,7 @@ app.post('/api/auth/signup', async (req, res) => {
     .run(sha(confirmToken), info.lastInsertRowid, 'confirm', now() + 24 * 3600_000);
   const link = `${BASE_URL}/api/auth/confirm?token=${confirmToken}`;
   try {
-    const sent = await sendEmail(em, 'Confirm your ReWiseEd Research account', confirmEmailHtml(displayName, link));
+    const sent = await sendEmail(em, 'Confirm your ItsMyResearch account', confirmEmailHtml(displayName, link));
     if (sent.dev) {
       console.log(`[dev-email] confirmation for ${em}: ${link}`);
       return res.json({ ...genericOk, devConfirmLink: link, devNote: 'Email sending not configured (RESEND_API_KEY unset) — use this link.' });
@@ -353,7 +353,7 @@ app.post('/api/auth/resend-confirm', async (req, res) => {
       .run(sha(confirmToken), u.id, 'confirm', now() + 24 * 3600_000);
     const link = `${BASE_URL}/api/auth/confirm?token=${confirmToken}`;
     try {
-      const sent = await sendEmail(em, 'Confirm your ReWiseEd Research account', confirmEmailHtml(u.name, link));
+      const sent = await sendEmail(em, 'Confirm your ItsMyResearch account', confirmEmailHtml(u.name, link));
       if (sent.dev) console.log(`[dev-email] resend confirmation for ${em}: ${link}`);
     } catch { /* generic response regardless; failure already logged */ }
   }
@@ -394,7 +394,7 @@ app.post('/api/auth/forgot', async (req, res) => {
   db.prepare('INSERT INTO tokens (token, user_id, kind, expires) VALUES (?,?,?,?)').run(sha(token), u.id, 'reset', now() + 3600_000);
   const link = `${BASE_URL}/reset.html?token=${token}`;
   try {
-    const sent = await sendEmail(em, 'Reset your ReWiseEd Research password', resetEmailHtml(link));
+    const sent = await sendEmail(em, 'Reset your ItsMyResearch password', resetEmailHtml(link));
     if (sent.dev) { console.log(`[dev-email] reset for ${em}: ${link}`); return res.json({ ...genericOk, devResetLink: link }); }
   } catch (e) {
     console.error('reset email failed:', e.message);
@@ -570,7 +570,7 @@ app.get('/api/data', async (req, res) => {
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 75_000);
-    const r = await fetch(key, { signal: ctrl.signal, headers: { 'User-Agent': 'ReWiseEd-Research/1.0 (+https://www.itsmyresearch.com)' } });
+    const r = await fetch(key, { signal: ctrl.signal, headers: { 'User-Agent': 'ItsMyResearch/1.0 (+https://www.itsmyresearch.com)' } });
     clearTimeout(timer);
     const body = await r.text();
     if (!r.ok) return res.status(r.status).json({ error: `Upstream returned ${r.status}.` });
@@ -679,7 +679,7 @@ app.use((req, res, next) => {
   if (!u) return next();
   const allowed = parseToolAccess(u.tool_access);
   if (!allowed.length || allowed.includes(name)) return next();
-  res.status(403).send(`<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Tool not enabled — ReWiseEd</title><link rel="stylesheet" href="/shared.css"/></head>
+  res.status(403).send(`<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Tool not enabled — ItsMyResearch</title><link rel="stylesheet" href="/shared.css"/></head>
 <body><div class="hero"><h1>Tool not enabled</h1><p class="lede">Your administrator hasn't enabled this tool for your account. If you think that's a mistake, contact your institution's admin.</p></div>
 <main style="max-width:480px;text-align:center"><div class="card"><a href="/index.html"><button type="button">Back to home</button></a></div></main>
 <script src="/shared.js"></script><script>Rewiseed.renderNav('');</script></body></html>`);
@@ -697,4 +697,4 @@ app.get(['/reference-style-generator', '/reference-style-generator.html'], (_req
 app.get(['/pls-sem', '/pls-sem.html'], (_req, res) => res.redirect(301, '/ai-pls'));
 app.use(express.static(__dirname, { extensions: ['html'], index: 'index.html' }));
 
-app.listen(PORT, '0.0.0.0', () => console.log(`ReWiseEd Research serving on :${PORT} (email: ${RESEND_API_KEY ? 'live' : 'dev mode'})`));
+app.listen(PORT, '0.0.0.0', () => console.log(`ItsMyResearch serving on :${PORT} (email: ${RESEND_API_KEY ? 'live' : 'dev mode'})`));

@@ -8,7 +8,7 @@
 
   function scenes(name) {
     return [
-      { kicker: 'ReWiseEd Research', h: 'Research, done <em>systematically.</em>',
+      { kicker: 'ItsMyResearch', h: 'Research, done <em>systematically.</em>',
         p: 'A complete research workbench that runs in your browser — private by architecture, honest about AI.' },
       { kicker: 'Discover', icons: ['search', 'doi', 'gap'], h: 'Start with the <em>literature.</em>',
         p: 'Search 240M+ scholarly works, resolve any DOI, and surface the gaps other researchers missed — all without an API key.' },

@@ -1,5 +1,5 @@
 // ============================================================
-// ReWiseEd Research Tools — shared runtime
+// ItsMyResearch — shared runtime
 // BYOK LLM client (OpenAI-compatible), settings UI, markdown
 // renderer, theming, toasts, and the common tool harness.
 // No external dependencies. API config lives in localStorage.
@@ -239,7 +239,7 @@
     const nav = document.createElement('nav');
     nav.className = 'topnav';
     nav.innerHTML = `
-      <a class="brand" href="index.html">${icon('logo', 22)}<span>ReWiseEd Research</span></a>
+      <a class="brand" href="index.html">${icon('logo', 22)}<span>ItsMyResearch</span></a>
       ${activeHref !== 'index.html' ? `<a class="nav-home" href="index.html">${icon('home', 16)}<span>Home</span></a>` : ''}
       <div class="spacer"></div>
       <details class="tool-menu">

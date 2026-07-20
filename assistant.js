@@ -36,17 +36,17 @@
     return scored.slice(0, k).map(x => x.chunk);
   }
 
-  const SYS = `You are the ReWiseEd Research Tools assistant. Answer questions about the platform using ONLY the documentation excerpts provided in the user message. Hard rules:
+  const SYS = `You are the ItsMyResearch assistant. Answer questions about the platform using ONLY the documentation excerpts provided in the user message. Hard rules:
 - If the excerpts do not contain the answer, reply exactly: "That's not covered in my documentation." — optionally pointing to the closest relevant page. Never guess or invent features, prices, limits, or behavior.
 - Never mention features, tools, or policies that are not in the excerpts.
 - Be concise (2-6 sentences or a short list). Cite the source pages you used at the end as markdown links, e.g. [Privacy](/privacy).
-- If asked for opinions, comparisons with competitors, or anything beyond the platform docs, say that you only answer questions about ReWiseEd Research Tools.`;
+- If asked for opinions, comparisons with competitors, or anything beyond the platform docs, say that you only answer questions about ItsMyResearch.`;
 
   // ---------- UI ----------
   function mount() {
     const btn = document.createElement('button');
     btn.id = 'assistant-fab';
-    btn.setAttribute('aria-label', 'Ask the ReWiseEd assistant');
+    btn.setAttribute('aria-label', 'Ask the ItsMyResearch assistant');
     btn.innerHTML = icon('chat', 22);
     btn.onclick = toggle;
     document.body.appendChild(btn);
@@ -55,7 +55,7 @@
   function panelHtml() {
     return `
       <div class="asst-head">
-        <span class="asst-title">${icon('chat', 16)} Ask ReWiseEd</span>
+        <span class="asst-title">${icon('chat', 16)} Ask ItsMyResearch</span>
         <span class="badge gold" title="Answers come only from the platform documentation">grounded</span>
         <span style="flex:1"></span>
         <button type="button" class="icon-btn" id="asst-clear" aria-label="Clear conversation">${icon('stop', 14)}</button>
@@ -76,7 +76,7 @@
       panel = document.createElement('div');
       panel.id = 'assistant-panel';
       panel.setAttribute('role', 'dialog');
-      panel.setAttribute('aria-label', 'ReWiseEd assistant');
+      panel.setAttribute('aria-label', 'ItsMyResearch assistant');
       panel.innerHTML = panelHtml();
       document.body.appendChild(panel);
       panel.querySelector('#asst-close').onclick = toggle;
@@ -104,7 +104,7 @@
     try { sessionStorage.setItem(HISTORY_KEY, msgsEl().innerHTML.slice(0, 100_000)); } catch {}
   }
   function greet() {
-    addMsg('bot', `<p>Hi — I answer questions about ReWiseEd Research Tools, strictly from the platform documentation. If I don't know, I'll say so rather than guess.</p>`);
+    addMsg('bot', `<p>Hi — I answer questions about ItsMyResearch, strictly from the platform documentation. If I don't know, I'll say so rather than guess.</p>`);
     renderSuggestions();
   }
   function renderSuggestions() {
@@ -138,7 +138,7 @@
       if (!await ensureKb()) throw new Error('Documentation is unavailable right now.');
       const hits = retrieve(q);
       if (!hits.length) {
-        thinking.innerHTML = `<p>That's not covered in my documentation — I only answer questions about ReWiseEd Research Tools. Try asking about the tools, privacy, accounts, or admin features.</p>`;
+        thinking.innerHTML = `<p>That's not covered in my documentation — I only answer questions about ItsMyResearch. Try asking about the tools, privacy, accounts, or admin features.</p>`;
       } else {
         const cfg = window.Rewiseed.getCfg();
         const hasAI = cfg.apiKey || window.Rewiseed.isLocalUrl(cfg.baseUrl);

@@ -2,7 +2,7 @@
   "name": "rewiseed-research-tools",
   "version": "1.0.0",
   "private": true,
-  "description": "ReWiseEd Research Tools — offline-first, bring-your-own-key research suite",
+  "description": "ItsMyResearch — offline-first, bring-your-own-key research suite",
   "scripts": {
     "start": "node server.js"
   },

@@ -1,4 +1,4 @@
-# ReWiseEd Research Tools
+# ItsMyResearch
 
 Twenty research tools spanning the full research lifecycle — discovery, design, analysis, writing, and review — that run **in your browser**. Seven are fully keyless (literature search, DOI lookup, citation graphs, scholar profiles, statistics, citation formatting); the AI tools use the free built-in browser model, your own OpenAI-compatible key, or a local model for fully offline use. Optional accounts add a saved-paper library, recommendations, and admin-managed tool access.
 
