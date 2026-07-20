@@ -30,6 +30,7 @@ Seventeen research tools spanning the full research lifecycle — discovery, des
 1. Unzip the folder anywhere and double-click `index.html` (or any tool page).
 2. Open **API settings** and pick a provider:
    - **Built-in browser model — free, no key**: downloads an open model (~2 GB) once via WebGPU (Chrome/Edge), then everything runs on your device
+   - **Anthropic (Claude)** — `https://api.anthropic.com/v1` (e.g. `claude-sonnet-5`; key from console.anthropic.com, calls go directly from your browser)
    - **OpenAI** — `https://api.openai.com/v1` (e.g. `gpt-4o-mini`)
    - **OpenRouter** — `https://openrouter.ai/api/v1` (any model slug)
    - **Groq** — `https://api.groq.com/openai/v1` (e.g. `llama-3.3-70b-versatile`)

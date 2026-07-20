@@ -29,6 +29,7 @@
     return /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:|\/|$)/i.test(u || '') || isBuiltin(u);
   }
   function isBuiltin(u) { return String(u || '').startsWith('webllm:'); }
+  function isAnthropic(u) { return String(u || '').includes('api.anthropic.com'); }
 
   // ---------- built-in browser model (WebLLM, WebGPU) ----------
   let _webllm = null, _webllmModel = '';
@@ -311,6 +312,7 @@
   // ---------- settings panel ----------
 
   const PRESETS = {
+    anthropic: { label: 'Anthropic (Claude)', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-sonnet-5' },
     openai: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
     openrouter: { label: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', model: 'anthropic/claude-3.5-haiku' },
     groq: { label: 'Groq', baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
@@ -428,28 +430,47 @@
       openSettings();
       throw new Error('No API key set. Open “API settings” above and paste one (or point Base URL at a local model — Ollama / LM Studio need no key).');
     }
-    const body = {
-      model: cfg.model || 'gpt-4o-mini',
-      temperature,
-      stream: !!onStream,
-      messages: [
-        ...(system ? [{ role: 'system', content: system }] : []),
-        { role: 'user', content: user },
-      ],
-    };
-    if (maxTokens) body.max_tokens = maxTokens;
+    const anthropic = isAnthropic(baseUrl);
+    let url, headers, body;
+    if (anthropic) {
+      // Anthropic Messages API: system is top-level, max_tokens is required,
+      // and this header is what makes browser-direct calls allowed.
+      url = `${baseUrl}/messages`;
+      headers = {
+        'Content-Type': 'application/json',
+        'x-api-key': cfg.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      };
+      body = {
+        model: cfg.model || 'claude-sonnet-5',
+        temperature,
+        stream: !!onStream,
+        max_tokens: maxTokens || 4096,
+        ...(system ? { system } : {}),
+        messages: [{ role: 'user', content: user }],
+      };
+    } else {
+      url = `${baseUrl}/chat/completions`;
+      headers = {
+        'Content-Type': 'application/json',
+        ...(cfg.apiKey ? { Authorization: `Bearer ${cfg.apiKey}` } : {}),
+      };
+      body = {
+        model: cfg.model || 'gpt-4o-mini',
+        temperature,
+        stream: !!onStream,
+        messages: [
+          ...(system ? [{ role: 'system', content: system }] : []),
+          { role: 'user', content: user },
+        ],
+      };
+      if (maxTokens) body.max_tokens = maxTokens;
+    }
 
     let res;
     try {
-      res = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(cfg.apiKey ? { Authorization: `Bearer ${cfg.apiKey}` } : {}),
-        },
-        body: JSON.stringify(body),
-        signal,
-      });
+      res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal });
     } catch (e) {
       if (e.name === 'AbortError') throw e;
       throw new Error(isLocalUrl(baseUrl)
@@ -461,9 +482,11 @@
       const hints = { 401: 'Check your API key.', 403: 'Key lacks access to this model.', 404: 'Check the Base URL — it should end in /v1.', 429: 'Rate limited — wait a moment and retry.' };
       throw new Error(`${res.status} from provider. ${hints[res.status] || ''} ${text}`.trim());
     }
+    const extract = (j) => anthropic
+      ? (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('')
+      : (j.choices?.[0]?.message?.content || '');
     if (!onStream) {
-      const j = await res.json();
-      return j.choices?.[0]?.message?.content || '';
+      return extract(await res.json());
     }
 
     const reader = res.body.getReader();
@@ -483,16 +506,19 @@
         const data = s.slice(5).trim();
         if (data === '[DONE]') continue;
         try {
-          const delta = JSON.parse(data).choices?.[0]?.delta?.content || '';
+          const j = JSON.parse(data);
+          if (anthropic && j.type === 'error') throw new Error(j.error?.message || 'Provider error mid-stream');
+          const delta = anthropic
+            ? (j.type === 'content_block_delta' ? (j.delta?.text || '') : '')
+            : (j.choices?.[0]?.delta?.content || '');
           if (delta) { full += delta; onStream(full); }
-        } catch { /* partial/keepalive frame */ }
+        } catch (e) { if (anthropic && e.message && !(e instanceof SyntaxError)) throw e; /* else partial/keepalive frame */ }
       }
     }
     if (!full && raw.trim()) {
       // some providers/proxies ignore stream:true and reply with plain JSON
       try {
-        const j = JSON.parse(raw);
-        full = j.choices?.[0]?.message?.content || '';
+        full = extract(JSON.parse(raw));
         if (full) onStream(full);
       } catch { /* genuinely empty stream */ }
     }
