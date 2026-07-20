@@ -431,6 +431,15 @@
       throw new Error('No API key set. Open “API settings” above and paste one (or point Base URL at a local model — Ollama / LM Studio need no key).');
     }
     const anthropic = isAnthropic(baseUrl);
+    // catch the classic mixup: right key, wrong provider selected
+    if (cfg.apiKey?.startsWith('sk-ant-') && !anthropic) {
+      openSettings();
+      throw new Error(`That looks like an Anthropic Claude key (sk-ant-…), but requests are going to ${baseUrl}. In API settings, pick “Anthropic (Claude)” in the Provider dropdown — it sets the Base URL to https://api.anthropic.com/v1 — then Save.`);
+    }
+    if (anthropic && cfg.apiKey && !cfg.apiKey.startsWith('sk-ant-')) {
+      openSettings();
+      throw new Error('The provider is set to Anthropic (Claude), but this key doesn’t look like an Anthropic key — they start with sk-ant-. Get one at console.anthropic.com, or switch the Provider dropdown to match your key.');
+    }
     let url, headers, body;
     if (anthropic) {
       // Anthropic Messages API: system is top-level, max_tokens is required,
@@ -478,9 +487,15 @@
         : `Network error reaching ${baseUrl}: ${e.message}`);
     }
     if (!res.ok) {
-      const text = (await res.text().catch(() => '')).slice(0, 300);
-      const hints = { 401: 'Check your API key.', 403: 'Key lacks access to this model.', 404: 'Check the Base URL — it should end in /v1.', 429: 'Rate limited — wait a moment and retry.' };
-      throw new Error(`${res.status} from provider. ${hints[res.status] || ''} ${text}`.trim());
+      const text = (await res.text().catch(() => '')).slice(0, 400);
+      // providers report an empty balance as 429 too — waiting doesn't fix that one
+      if (/insufficient_quota|exceeded your current quota|credit balance is too low|billing/i.test(text)) {
+        throw new Error(`Your ${anthropic ? 'Anthropic' : 'provider'} account is out of credits. The key is valid, but there’s no remaining balance — add credits on the provider’s billing page, or switch provider in API settings (the built-in browser model is free and needs no key).`);
+      }
+      let detail = text;
+      try { const j = JSON.parse(text); detail = j.error?.message || j.message || text; } catch { /* not JSON */ }
+      const hints = { 401: 'Check your API key.', 403: 'Key lacks access to this model.', 404: anthropic ? 'Check the model name — e.g. claude-sonnet-5.' : 'Check the Base URL — it should end in /v1.', 429: 'Rate limited — wait a moment and retry.' };
+      throw new Error(`${res.status} from provider. ${hints[res.status] || ''} ${detail}`.trim().slice(0, 300));
     }
     const extract = (j) => anthropic
       ? (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('')
