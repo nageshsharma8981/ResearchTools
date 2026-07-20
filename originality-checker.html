@@ -109,7 +109,11 @@ $('file').addEventListener('change', (e) => {
   const f = e.target.files[0];
   if (!f) return;
   if (f.size > 2_000_000) { toast('File too large (2 MB max)', 'error'); return; }
-  f.text().then(t => { $('in').value = t; $('in').dispatchEvent(new Event('input')); toast(`Loaded ${f.name}`); });
+  f.text().then(t => {
+    const chk = Rewiseed.checkText(t);
+    if (!chk.ok) { toast(`This file can’t be used. ${chk.message}`, 'error', 6000); return; }
+    $('in').value = t; $('in').dispatchEvent(new Event('input')); toast(`Loaded ${f.name}`);
+  });
 });
 
 const EXAMPLE = `The impact of social media on adolescent wellbeing has become an increasingly important area of research. It is important to note that social media platforms play a crucial role in shaping the daily experiences of young people. Furthermore, these platforms offer both opportunities and challenges in the ever-evolving digital landscape.

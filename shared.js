@@ -437,6 +437,88 @@
     if (d) { d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
   }
 
+  // ---------- content moderation (client copy) ----------
+  // KEEP IN SYNC with the server copy in server.js ("content moderation (server copy)").
+  // Whole words only + common suffix variants; case-insensitive. Deliberately safe on
+  // class / skills / Essex / bombastic / assessment / rapid / terror.
+  const BANNED_RE = /\b(?:sex(?:es|ed|ing)?|crap(?:s|py|ped|ping)?|shit(?:s|ty|ted|ting)?|boobs?|fuck(?:s|ed|ing|ers?)?|kill(?:s|ed|ing|ers?)?|bomb(?:s|ed|ing|ers?)?|murder(?:s|ed|ing|ous|ers?)?|rap(?:e|es|ed|ing|ists?)|porn(?:o|os|ography|ographic)?|terror(?:ism|ists?))\b/i;
+  const HIDDEN_CHARS_RE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F​-‏‪-‮⁦-⁩﻿]/;
+  const MOD_CAP_INPUT = 10_000;      // single-line fields
+  const MOD_CAP_TEXTAREA = 200_000;  // long-form fields match the platform's run limit
+
+  function checkText(text, cap = MOD_CAP_TEXTAREA) {
+    const s = String(text ?? '');
+    const m = BANNED_RE.exec(s);
+    if (m) return { ok: false, word: m[0], message: `The word "${m[0]}" is not allowed — please remove it to continue.` };
+    if (HIDDEN_CHARS_RE.test(s)) return { ok: false, word: null, message: 'Hidden or invisible control characters were found — re-paste as plain text to continue.' };
+    if (s.length > cap) return { ok: false, word: null, message: `Text is ${(s.length - cap).toLocaleString()} characters over the ${cap.toLocaleString()}-character limit — please shorten it.` };
+    return { ok: true };
+  }
+  // throwing backstop for every write path — same checker as the live guard
+  function assertTextAllowed(fields) {
+    for (const [label, value] of Object.entries(fields || {})) {
+      const r = checkText(value);
+      if (!r.ok) { const e = new Error(`${label}: ${r.message}`); e.moderation = true; throw e; }
+    }
+  }
+
+  // one global guard: watches every free-text field via document-level capture
+  // listeners; no per-form wiring. Flags live as-you-type, blocks Enter/submit.
+  function mountModerationGuard() {
+    const css = document.createElement('style');
+    css.textContent = `[data-mod-flag]{outline:2px solid #b3402a !important;outline-offset:1px}
+#mod-notice{position:absolute;z-index:9999;background:#b3402a;color:#fff;font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:8px;max-width:340px;box-shadow:0 4px 14px rgba(0,0,0,.25);pointer-events:none}`;
+    document.head.appendChild(css);
+    const notice = document.createElement('div'); // portal on document.body only
+    notice.id = 'mod-notice'; notice.hidden = true; notice.setAttribute('role', 'alert');
+    document.body.appendChild(notice);
+
+    const guards = (el) => el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && ['text', 'search'].includes(el.type)));
+    const capFor = (el) => el.tagName === 'TEXTAREA' ? MOD_CAP_TEXTAREA : MOD_CAP_INPUT;
+    let flagged = null;
+
+    const position = () => {
+      if (!flagged || notice.hidden) return;
+      const r = flagged.getBoundingClientRect();
+      notice.style.left = `${Math.max(8, r.left + scrollX)}px`;
+      notice.style.top = `${r.bottom + scrollY + 6}px`;
+    };
+    const validate = (el) => {
+      if (!guards(el)) return true;
+      const r = checkText(el.value, capFor(el));
+      if (!r.ok) {
+        el.setAttribute('data-mod-flag', '1'); el.setAttribute('aria-invalid', 'true');
+        flagged = el; notice.textContent = r.message; notice.hidden = false; position();
+        return false;
+      }
+      el.removeAttribute('data-mod-flag'); el.removeAttribute('aria-invalid');
+      if (flagged === el) { flagged = null; notice.hidden = true; }
+      return true;
+    };
+    const anyFlaggedIn = (root) => root?.querySelector?.('[data-mod-flag]') || null;
+
+    document.addEventListener('input', (e) => validate(e.target), true);
+    document.addEventListener('focusin', (e) => { if (guards(e.target)) validate(e.target); }, true);
+    document.addEventListener('focusout', (e) => { if (flagged === e.target) { notice.hidden = true; } }, true);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && guards(e.target) && !validate(e.target)) { e.preventDefault(); e.stopPropagation(); }
+    }, true);
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest?.('button[type="submit"], input[type="submit"]');
+      if (!btn) return;
+      const bad = anyFlaggedIn(btn.form || btn.closest('form'));
+      if (bad) { e.preventDefault(); e.stopPropagation(); flagged = bad; notice.textContent = checkText(bad.value, capFor(bad)).message; notice.hidden = false; position(); bad.focus(); }
+    }, true);
+    document.addEventListener('submit', (e) => {
+      const bad = anyFlaggedIn(e.target);
+      if (bad) { e.preventDefault(); e.stopPropagation(); bad.focus(); }
+    }, true);
+    addEventListener('scroll', position, true);
+    addEventListener('resize', position);
+  }
+  if (document.body) mountModerationGuard();
+  else document.addEventListener('DOMContentLoaded', mountModerationGuard);
+
   // ---------- billing / run metering ----------
   let _billing = null;
   async function billingStatus(force = false) {
@@ -483,6 +565,9 @@
   // ---------- LLM client ----------
 
   async function callLLM({ system, user, temperature = 0.2, maxTokens, onStream, signal, cfgOverride }) {
+    // moderation backstop: same checker as the live guard, so the inline warning
+    // and this thrown error always agree
+    if (!cfgOverride) assertTextAllowed({ 'Your text': user });
     // metering happens before any provider is contacted (including the built-in model)
     if (!cfgOverride) await ensureRunCredit((user || '').length + (system || '').length);
     const cfg = cfgOverride || getCfg();
@@ -934,7 +1019,7 @@
   }
 
   window.Rewiseed = {
-    renderNav, renderSettingsBar, openSettings, billingStatus,
+    renderNav, renderSettingsBar, openSettings, billingStatus, checkText, assertTextAllowed,
     callLLM, md, esc, icon, toast, track,
     downloadText, copyText, getCfg, isLocalUrl,
     mountStreamingTool, playIntro, saveToLibrary, fetchWithTimeout,

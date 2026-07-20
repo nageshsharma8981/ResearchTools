@@ -429,6 +429,8 @@ $('file').addEventListener('change', async (e) => {
   if (f.size > 25 * 1024 * 1024) { toast('File too large (25 MB max) — paste the text instead.', 'error', 5000); return; }
   try {
     const text = f.name.endsWith('.docx') ? await readDocxText(await f.arrayBuffer()) : await f.text();
+    const chk = Rewiseed.checkText(text);
+    if (!chk.ok) { toast(`This file can’t be used. ${chk.message}`, 'error', 6000); return; }
     if (!text.trim()) {
       toast(`${f.name} contains no readable text — nothing was loaded.`, 'error', 5000);
       return;

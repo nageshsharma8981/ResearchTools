@@ -129,6 +129,9 @@
     const inp = panel.querySelector('#asst-in');
     const q = inp.value.trim();
     if (!q) return;
+    // moderation: rejected messages toast and are never sent
+    const chk = window.Rewiseed?.checkText?.(q);
+    if (chk && !chk.ok) { window.Rewiseed.toast(chk.message, 'error', 5000); return; }
     inp.value = '';
     panel.querySelector('#asst-suggest').innerHTML = '';
     addMsg('user', `<p>${esc(q)}</p>`);
