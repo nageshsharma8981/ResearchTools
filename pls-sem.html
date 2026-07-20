@@ -39,13 +39,18 @@ button.ind-chip.on { background:var(--accent-soft); border-color:var(--accent); 
 .result-section .hint { margin:0 0 10px; }
 .progress-track { height:8px; border-radius:99px; background:var(--surface-2); overflow:hidden; margin-top:10px; }
 .progress-fill { height:100%; background:var(--accent); border-radius:99px; transition:width .2s; }
+.mode-tab { background:var(--surface); color:var(--ink-2); border:1px solid var(--border-strong); border-radius:999px; padding:9px 20px; min-height:44px; font-size:14px; font-weight:600; cursor:pointer; }
+button.mode-tab:hover:not(:disabled) { background:var(--surface-2); color:var(--ink); box-shadow:none; transform:none; }
+button.mode-tab.active { background:var(--accent-soft); color:var(--accent-strong); border-color:var(--accent); }
+.role-row { margin-bottom:12px; }
+.role-row .role-label { font-size:12.5px; font-weight:700; color:var(--ink-2); text-transform:uppercase; letter-spacing:.05em; display:block; margin-bottom:6px; }
 </style>
 </head>
 <body>
 <div class="hero">
   <span class="tool-icon" id="hero-icon"></span>
   <h1>AI PLS</h1>
-  <p class="lede">SmartPLS-style partial least squares structural equation modeling in your browser — TAM template, drag-and-drop model canvas, the full quality-criteria report with 5,000-resample bootstrapping, and an optional AI interpretation of your results. Your data never leaves this device. Free, keyless.</p>
+  <p class="lede">One workbench, three methods — pick what fits your question: full PLS-SEM (TAM template, drag-and-drop canvas, 5,000-resample bootstrapping, complete quality report), PROCESS-style mediation and moderation (Hayes Models 4 & 1), and multiple regression. Plus an optional AI interpretation of your results. Your data never leaves this device. Free, keyless.</p>
 </div>
 <main style="max-width:940px">
   <div id="settings"></div>
@@ -68,6 +73,44 @@ button.ind-chip.on { background:var(--accent-soft); border-color:var(--accent); 
     <div id="data-status" style="margin-top:10px"></div>
   </div>
 
+  <div class="mode-tabs" role="tablist" aria-label="Analysis method" style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 14px">
+    <button type="button" class="mode-tab active" data-m="pls" role="tab">PLS-SEM</button>
+    <button type="button" class="mode-tab" data-m="med" role="tab">Mediation &amp; Moderation</button>
+    <button type="button" class="mode-tab" data-m="reg" role="tab">Regression</button>
+  </div>
+
+  <div id="m-med" hidden>
+    <div class="card">
+      <span class="overline">Step 2 · Variables</span>
+      <h2>Mediation or moderation on observed scores</h2>
+      <p class="hint">PROCESS-style analysis on your columns. Pick one or more items per role — multiple items are averaged into a scale score. Mediation is Hayes Model 4 (X → M → Y with a bootstrapped indirect effect); moderation is Model 1 (X × W interaction with simple slopes at W = mean ± 1 SD).</p>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px">
+        <label style="font-size:13px;font-weight:600;color:var(--ink-2)">Analysis
+          <select id="med-kind" style="margin-left:6px"><option value="mediation">Mediation (Model 4)</option><option value="moderation">Moderation (Model 1)</option></select>
+        </label>
+        <label style="font-size:13px;font-weight:600;color:var(--ink-2)">Bootstrap
+          <select id="med-boot" style="margin-left:6px"><option>1000</option><option selected>5000</option></select>
+        </label>
+      </div>
+      <div id="med-roles"></div>
+      <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button id="run-med"></button>
+        <span id="med-status" role="status" style="font-size:13.5px;color:var(--muted)"></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="m-reg" hidden>
+    <div class="card">
+      <span class="overline">Step 2 · Variables</span>
+      <h2>Multiple linear regression</h2>
+      <p class="hint">Plain OLS on your columns — the workhorse every methods course starts with. Pick one dependent variable and any number of predictors.</p>
+      <div id="reg-roles"></div>
+      <div style="margin-top:14px"><button id="run-reg"></button></div>
+    </div>
+  </div>
+
+  <div id="m-pls">
   <div class="card">
     <span class="overline">Step 2 · Model</span>
     <h2>Define constructs and paths</h2>
@@ -115,10 +158,11 @@ button.ind-chip.on { background:var(--accent-soft); border-color:var(--accent); 
     </div>
     <div class="progress-track" id="prog" hidden><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
   </div>
+  </div>
 
   <div id="out"></div>
 
-  <p class="hint" style="max-width:100%">Method notes: reflective (Mode A) measurement with the Lohmöller PLS algorithm; path coefficients are standardized OLS estimates on the final latent scores; bootstrap uses percentile confidence intervals with construct-level sign alignment, and p-values use the normal approximation to the t statistic. Results can differ slightly from SmartPLS 4 (initialization, sign-correction, and stopping details vary between implementations). Formative (Mode B) measurement, moderation, and higher-order constructs aren't supported yet. This is an independent tool, not affiliated with SmartPLS GmbH — for formative-heavy or non-recursive models, use dedicated software and cite it.</p>
+  <p class="hint" style="max-width:100%">Method notes: PLS-SEM uses reflective (Mode A) measurement with the Lohmöller algorithm; bootstrap uses percentile confidence intervals with construct-level sign alignment; p-values use the normal approximation to the t statistic. Results can differ slightly from SmartPLS 4 (initialization, sign-correction, and stopping details vary between implementations). Mediation and moderation run PROCESS-style Models 4 and 1 (Hayes) on observed scale scores — for other model numbers use dedicated software. Not included, honestly: covariance-based SEM (CB-SEM needs maximum-likelihood covariance fitting — use lavaan or AMOS and cite them), GSCA, and formative (Mode B) measurement within PLS. Independent tool, not affiliated with SmartPLS GmbH.</p>
 </main>
 <script src="shared.js"></script>
 <script>
@@ -325,6 +369,206 @@ $('add-path').onclick = () => {
   spec.paths.push([f, t]); saveSpec(); renderModel();
 };
 renderModel();
+
+// ---------- method tabs (SmartPLS-style launcher: PLS-SEM / PROCESS / Regression) ----------
+let method = 'pls';
+const medSpec = { x: [], mw: [], y: [] };
+const regSpec = { dv: '', ivs: [] };
+document.querySelectorAll('.mode-tab').forEach(b => b.onclick = () => {
+  method = b.dataset.m;
+  document.querySelectorAll('.mode-tab').forEach(x => x.classList.toggle('active', x === b));
+  $('m-pls').hidden = method !== 'pls';
+  $('m-med').hidden = method !== 'med';
+  $('m-reg').hidden = method !== 'reg';
+  $('out').innerHTML = '';
+});
+
+function renderRolePickers() {
+  const names = data?.names || [];
+  const chipRow = (role, sel, multiNote) => `<div class="role-row"><span class="role-label">${role} <span style="font-weight:500;text-transform:none;letter-spacing:0">${multiNote}</span></span>
+    <div class="ind-chips">${names.length ? names.map(n => `<button type="button" class="ind-chip ${sel.includes(n) ? 'on' : ''}" data-role-chip data-n="${esc(n)}">${esc(n)}</button>`).join('') : '<span class="hint" style="margin:0">Load data first (Step 1).</span>'}</div></div>`;
+  const kind = $('med-kind').value;
+  $('med-roles').innerHTML =
+    chipRow('X — predictor', medSpec.x, '(multiple items are averaged)') +
+    chipRow(kind === 'mediation' ? 'M — mediator' : 'W — moderator', medSpec.mw, '') +
+    chipRow('Y — outcome', medSpec.y, '');
+  const roleOf = (el) => el.closest('.role-row') === $('med-roles').children[0] ? medSpec.x : el.closest('.role-row') === $('med-roles').children[1] ? medSpec.mw : medSpec.y;
+  $('med-roles').querySelectorAll('[data-role-chip]').forEach(c => c.onclick = () => {
+    const arr = roleOf(c), n = c.dataset.n;
+    arr.includes(n) ? arr.splice(arr.indexOf(n), 1) : arr.push(n);
+    renderRolePickers();
+  });
+  $('reg-roles').innerHTML = `
+    <div class="role-row"><span class="role-label">Dependent variable</span>
+      <select id="reg-dv">${['<option value="">— pick —</option>', ...names.map(n => `<option ${regSpec.dv === n ? 'selected' : ''}>${esc(n)}</option>`)].join('')}</select></div>
+    <div class="role-row"><span class="role-label">Predictors</span>
+      <div class="ind-chips">${names.length ? names.map(n => `<button type="button" class="ind-chip ${regSpec.ivs.includes(n) ? 'on' : ''}" data-iv="${esc(n)}">${esc(n)}</button>`).join('') : '<span class="hint" style="margin:0">Load data first (Step 1).</span>'}</div></div>`;
+  const dvSel = $('reg-dv'); if (dvSel) dvSel.onchange = () => { regSpec.dv = dvSel.value; };
+  $('reg-roles').querySelectorAll('[data-iv]').forEach(c => c.onclick = () => {
+    const n = c.dataset.iv;
+    regSpec.ivs.includes(n) ? regSpec.ivs.splice(regSpec.ivs.indexOf(n), 1) : regSpec.ivs.push(n);
+    renderRolePickers();
+  });
+}
+$('med-kind').addEventListener('change', renderRolePickers);
+$('run-med').innerHTML = `${icon('sigma', 15)} Run analysis`;
+$('run-reg').innerHTML = `${icon('sigma', 15)} Run regression`;
+// re-render the role pickers whenever the model view refreshes (i.e. on data load)
+const _renderModel = renderModel;
+renderModel = function () { _renderModel(); renderRolePickers(); };
+renderRolePickers();
+
+// raw-score OLS with full inference (SEs from σ²(X'X)⁻¹)
+function olsRaw(Xcols, y) {
+  const n = y.length, p = Xcols.length, k = p + 1;
+  const cols = [Array(n).fill(1), ...Xcols];
+  const XtX = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => { let s = 0; for (let r = 0; r < n; r++) s += cols[i][r] * cols[j][r]; return s; }));
+  const Xty = cols.map(c => { let s = 0; for (let r = 0; r < n; r++) s += c[r] * y[r]; return s; });
+  const b = solve(XtX.map(r => [...r]), [...Xty]);
+  let rss = 0, tss = 0; const my = mean(y);
+  for (let r = 0; r < n; r++) { let yh = 0; for (let i = 0; i < k; i++) yh += b[i] * cols[i][r]; rss += (y[r] - yh) ** 2; tss += (y[r] - my) ** 2; }
+  const df = n - k, sigma2 = rss / Math.max(1, df);
+  const invCols = [];
+  for (let j = 0; j < k; j++) { const e = Array(k).fill(0); e[j] = 1; invCols.push(solve(XtX.map(r => [...r]), e)); }
+  const se = b.map((_, i) => Math.sqrt(Math.max(0, sigma2 * invCols[i][i])));
+  const t = b.map((v, i) => se[i] > 0 ? v / se[i] : 0);
+  const r2 = tss > 0 ? Math.max(0, 1 - rss / tss) : 0;
+  return { b, se, t, p: t.map(pNorm2), r2, adjR2: 1 - (1 - r2) * (n - 1) / Math.max(1, df), F: p ? (r2 / p) / ((1 - r2) / Math.max(1, df) || 1e-12) : 0, df, n, cov: (i, j) => sigma2 * invCols[j][i] };
+}
+
+// complete-case scale scores: each group of items → row mean
+function scaleScores(groups) {
+  const all = [...new Set(groups.flat())];
+  const keep = [];
+  const N = data.cols[all[0]].length;
+  for (let r = 0; r < N; r++) if (all.every(c => !Number.isNaN(data.cols[c][r]))) keep.push(r);
+  const score = (items) => keep.map(r => items.reduce((s, c) => s + data.cols[c][r], 0) / items.length);
+  return { scores: groups.map(score), n: keep.length, dropped: N - keep.length };
+}
+
+const sd = (a) => { const m = mean(a); return Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / a.length); };
+const pFmt = (p) => p < 0.001 ? '< .001' : p.toFixed(3).replace(/^0/, '');
+
+// ---------- regression ----------
+$('run-reg').onclick = () => {
+  try {
+    if (!data) throw new Error('Load a dataset first (Step 1).');
+    if (!regSpec.dv) throw new Error('Pick a dependent variable.');
+    if (!regSpec.ivs.length) throw new Error('Pick at least one predictor.');
+    if (regSpec.ivs.includes(regSpec.dv)) throw new Error('The dependent variable cannot also be a predictor.');
+    const { scores, n, dropped } = scaleScores([[regSpec.dv], ...regSpec.ivs.map(v => [v])]);
+    if (n < regSpec.ivs.length + 10) throw new Error(`Only ${n} complete rows — too few for ${regSpec.ivs.length} predictors.`);
+    const [y, ...X] = scores;
+    const m = olsRaw(X, y);
+    const sy = sd(y);
+    // VIF from standardized inter-predictor regressions
+    const Xs = X.map(a => standardize(a));
+    const vif = X.map((_, i) => X.length === 1 ? 1 : 1 / Math.max(1e-9, 1 - ols(Xs.filter((_, j) => j !== i), Xs[i]).r2));
+    Rewiseed.track('run');
+    $('out').innerHTML = `<div class="card">
+      <span class="overline">Multiple regression · n = ${n}${dropped ? ` (${dropped} incomplete rows dropped)` : ''}</span>
+      <h2>${esc(regSpec.dv)} regressed on ${regSpec.ivs.length} predictor${regSpec.ivs.length === 1 ? '' : 's'}</h2>
+      <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Term</th><th>B</th><th>SE</th><th>β</th><th>t</th><th>p</th><th>VIF</th></tr></thead><tbody>
+        <tr><td><b>(Intercept)</b></td><td>${f3(m.b[0])}</td><td>${f3(m.se[0])}</td><td>—</td><td>${m.t[0].toFixed(2)}</td><td>${pFmt(m.p[0])}</td><td>—</td></tr>
+        ${regSpec.ivs.map((v, i) => `<tr><td><b>${esc(v)}</b></td><td>${f3(m.b[i + 1])}<span class="sig">${stars(m.p[i + 1])}</span></td><td>${f3(m.se[i + 1])}</td><td>${f3(m.b[i + 1] * sd(X[i]) / (sy || 1))}</td><td>${m.t[i + 1].toFixed(2)}</td><td>${pFmt(m.p[i + 1])}</td><td class="${vif[i] > 5 ? 'fail' : 'pass'}">${vif[i].toFixed(2)}</td></tr>`).join('')}
+      </tbody></table></div>
+      <p style="font-size:14px;margin-top:12px">R² = <b>${f3(m.r2)}</b> (adjusted ${f3(m.adjR2)}) · F(${regSpec.ivs.length}, ${m.df}) = ${m.F.toFixed(2)} · The model explains ${(m.r2 * 100).toFixed(1)}% of the variance in ${esc(regSpec.dv)}.</p>
+      <p class="hint">B = unstandardized coefficient · β = standardized · p-values via normal approximation (df = ${m.df}). * p&lt;.05 · ** p&lt;.01 · *** p&lt;.001.</p>
+    </div>`;
+  } catch (e) {
+    const msg = e.message === 'ZERO_VAR' ? 'One of the selected columns has zero variance — every value is identical. Deselect it.' : e.message;
+    $('out').innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>${esc(msg)}</span></div></div>`;
+  }
+};
+
+// ---------- mediation (Model 4) & moderation (Model 1) ----------
+let medRunning = false;
+$('run-med').onclick = async () => {
+  if (medRunning) return;
+  try {
+    if (!data) throw new Error('Load a dataset first (Step 1).');
+    const kind = $('med-kind').value;
+    if (!medSpec.x.length || !medSpec.mw.length || !medSpec.y.length) throw new Error(`Assign columns to all three roles (X, ${kind === 'mediation' ? 'M' : 'W'}, Y).`);
+    const overlap = medSpec.x.filter(c => medSpec.y.includes(c) || medSpec.mw.includes(c)).concat(medSpec.mw.filter(c => medSpec.y.includes(c)));
+    if (overlap.length) throw new Error(`“${overlap[0]}” is assigned to two roles — each column can play only one part here.`);
+    const { scores, n, dropped } = scaleScores([medSpec.x, medSpec.mw, medSpec.y]);
+    if (n < 30) throw new Error(`Only ${n} complete rows — too few for a stable ${kind} analysis.`);
+    const [x, mw, y] = scores;
+    medRunning = true; $('run-med').disabled = true;
+    const B = +$('med-boot').value;
+
+    if (kind === 'mediation') {
+      const mA = olsRaw([x], mw);              // a: X → M
+      const mB = olsRaw([x, mw], y);           // c' (X) and b (M)
+      const mC = olsRaw([x], y);               // c: total
+      const a = mA.b[1], bcoef = mB.b[2], cP = mB.b[1], c = mC.b[1];
+      const ind = a * bcoef;
+      // percentile bootstrap of a*b
+      let seed = 20260720; const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+      const samples = [];
+      for (let bi = 0; bi < B; bi++) {
+        const idx2 = Array.from({ length: n }, () => Math.floor(rnd() * n));
+        const xr = idx2.map(r => x[r]), mr = idx2.map(r => mw[r]), yr = idx2.map(r => y[r]);
+        try { samples.push(olsRaw([xr], mr).b[1] * olsRaw([xr, mr], yr).b[2]); } catch { /* degenerate resample */ }
+        if (bi % 250 === 249) { $('med-status').textContent = `Bootstrapping ${bi + 1}/${B}…`; await yieldNow(); }
+      }
+      $('med-status').textContent = '';
+      samples.sort((q, w) => q - w);
+      const lo = samples[Math.floor(0.025 * (samples.length - 1))], hi = samples[Math.ceil(0.975 * (samples.length - 1))];
+      const sig = lo > 0 || hi < 0;
+      Rewiseed.track('run');
+      $('out').innerHTML = `<div class="card">
+        <span class="overline">Mediation (Hayes Model 4) · n = ${n}${dropped ? ` (${dropped} dropped)` : ''} · ${samples.length.toLocaleString()} bootstrap resamples</span>
+        <h2>${esc(medSpec.x.join('+'))} → ${esc(medSpec.mw.join('+'))} → ${esc(medSpec.y.join('+'))}</h2>
+        <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Path</th><th>B</th><th>SE</th><th>t</th><th>p</th></tr></thead><tbody>
+          <tr><td><b>a &nbsp;(X → M)</b></td><td>${f3(a)}<span class="sig">${stars(mA.p[1])}</span></td><td>${f3(mA.se[1])}</td><td>${mA.t[1].toFixed(2)}</td><td>${pFmt(mA.p[1])}</td></tr>
+          <tr><td><b>b &nbsp;(M → Y, controlling X)</b></td><td>${f3(bcoef)}<span class="sig">${stars(mB.p[2])}</span></td><td>${f3(mB.se[2])}</td><td>${mB.t[2].toFixed(2)}</td><td>${pFmt(mB.p[2])}</td></tr>
+          <tr><td><b>c′ (direct X → Y)</b></td><td>${f3(cP)}<span class="sig">${stars(mB.p[1])}</span></td><td>${f3(mB.se[1])}</td><td>${mB.t[1].toFixed(2)}</td><td>${pFmt(mB.p[1])}</td></tr>
+          <tr><td><b>c &nbsp;(total X → Y)</b></td><td>${f3(c)}<span class="sig">${stars(mC.p[1])}</span></td><td>${f3(mC.se[1])}</td><td>${mC.t[1].toFixed(2)}</td><td>${pFmt(mC.p[1])}</td></tr>
+          <tr><td><b>a×b (indirect)</b></td><td><b>${f3(ind)}</b></td><td colspan="3">95% bootstrap CI [${f3(lo)}, ${f3(hi)}] — <b class="${sig ? 'pass' : 'fail'}">${sig ? 'significant (CI excludes zero)' : 'not significant (CI includes zero)'}</b></td></tr>
+        </tbody></table></div>
+        <p style="font-size:14px;margin-top:12px">${sig
+          ? (Math.abs(cP) > 0.001 && mB.p[1] < 0.05 ? 'The indirect effect is significant while the direct path remains — consistent with <b>partial mediation</b>.' : 'The indirect effect is significant and the direct path is not — consistent with <b>full mediation</b>.')
+          : 'No significant indirect effect — the data do not support mediation through this variable.'}
+          R² for Y = ${f3(mB.r2)}.</p>
+        <p class="hint">Percentile bootstrap on a×b (${samples.length.toLocaleString()} resamples); coefficient p-values via normal approximation. Mediation language describes statistical consistency, not proven causality.</p>
+      </div>`;
+    } else {
+      // moderation: center X and W, add interaction
+      const mx = mean(x), mww = mean(mw);
+      const xc = x.map(v => v - mx), wc = mw.map(v => v - mww);
+      const xw = xc.map((v, i) => v * wc[i]);
+      const m1 = olsRaw([xc, wc, xw], y);
+      const m0 = olsRaw([xc, wc], y);
+      const dR2 = Math.max(0, m1.r2 - m0.r2);
+      const sw = sd(wc);
+      const slopes = [-sw, 0, sw].map(w0 => {
+        const slope = m1.b[1] + m1.b[3] * w0;
+        const v = m1.cov(1, 1) + w0 * w0 * m1.cov(3, 3) + 2 * w0 * m1.cov(1, 3);
+        const se2 = Math.sqrt(Math.max(0, v)), tt = se2 > 0 ? slope / se2 : 0;
+        return { w0, slope, se: se2, t: tt, p: pNorm2(tt) };
+      });
+      Rewiseed.track('run');
+      $('out').innerHTML = `<div class="card">
+        <span class="overline">Moderation (Hayes Model 1) · n = ${n}${dropped ? ` (${dropped} dropped)` : ''}</span>
+        <h2>Does ${esc(medSpec.mw.join('+'))} moderate ${esc(medSpec.x.join('+'))} → ${esc(medSpec.y.join('+'))}?</h2>
+        <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Term</th><th>B</th><th>SE</th><th>t</th><th>p</th></tr></thead><tbody>
+          <tr><td><b>X (centered)</b></td><td>${f3(m1.b[1])}<span class="sig">${stars(m1.p[1])}</span></td><td>${f3(m1.se[1])}</td><td>${m1.t[1].toFixed(2)}</td><td>${pFmt(m1.p[1])}</td></tr>
+          <tr><td><b>W (centered)</b></td><td>${f3(m1.b[2])}<span class="sig">${stars(m1.p[2])}</span></td><td>${f3(m1.se[2])}</td><td>${m1.t[2].toFixed(2)}</td><td>${pFmt(m1.p[2])}</td></tr>
+          <tr><td><b>X × W (interaction)</b></td><td><b>${f3(m1.b[3])}</b><span class="sig">${stars(m1.p[3])}</span></td><td>${f3(m1.se[3])}</td><td>${m1.t[3].toFixed(2)}</td><td>${pFmt(m1.p[3])}</td></tr>
+        </tbody></table></div>
+        <p style="font-size:14px;margin:12px 0 4px"><b>${m1.p[3] < 0.05 ? `Moderation supported` : `No significant moderation`}</b> — interaction ΔR² = ${f3(dR2)} (model R² = ${f3(m1.r2)}).</p>
+        <h3 style="font-size:15px;margin-top:14px">Simple slopes of X → Y</h3>
+        <div class="tbl-wrap"><table class="data-table"><thead><tr><th>At W =</th><th>Slope</th><th>SE</th><th>t</th><th>p</th></tr></thead><tbody>
+          ${slopes.map((s, i) => `<tr><td><b>${['mean − 1 SD', 'mean', 'mean + 1 SD'][i]}</b></td><td>${f3(s.slope)}<span class="sig">${stars(s.p)}</span></td><td>${f3(s.se)}</td><td>${s.t.toFixed(2)}</td><td>${pFmt(s.p)}</td></tr>`).join('')}
+        </tbody></table></div>
+        <p class="hint">X and W mean-centered before forming the interaction; p-values via normal approximation.</p>
+      </div>`;
+    }
+  } catch (e) {
+    $('out').innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>${esc(e.message)}</span></div></div>`;
+  } finally { medRunning = false; $('run-med').disabled = false; $('med-status').textContent = ''; }
+};
 
 // ---------- math ----------
 const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
