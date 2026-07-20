@@ -167,7 +167,7 @@ function render(order) {
       ${p.abstract ? `<div class="abstract">${esc(p.abstract)}</div>` : ''}
       <div class="paper-foot">
         <span class="badge">${p.citedBy.toLocaleString()} citations</span>
-        ${p.oa ? `<span class="badge ok">open access</span>` : ''}
+        ${p.oa ? `<span class="badge ok">open access</span>` : `<span class="badge warn" title="Full text requires publisher or library access — details here come from public metadata and the abstract only">paywalled</span>`}
         <span class="links">
           ${p.doi ? `<a class="link" href="https://doi.org/${esc(p.doi)}" target="_blank" rel="noreferrer">DOI ${icon('external', 12)}</a>` : ''}
           ${p.oa ? `<a class="link" href="${esc(p.oa)}" target="_blank" rel="noreferrer">PDF ${icon('external', 12)}</a>` : ''}
@@ -176,6 +176,9 @@ function render(order) {
         </span>
       </div>
     </article>`).join('');
+  if (list.some(p => !p.oa)) {
+    out.insertAdjacentHTML('beforeend', `<p class="hint" style="margin:10px 0 0">${icon('alert', 13)} <b>About paywalled papers:</b> for results marked <em>paywalled</em>, everything shown here comes from public metadata and the abstract only. For complete and authoritative content — full methods, results, tables, and exact quotations — please consult the publisher's version via the DOI link or your institution's library access.</p>`);
+  }
 
   out.querySelectorAll('[data-savelib]').forEach(b => b.onclick = () => {
     const p = results.find(x => x.id === b.dataset.savelib);

@@ -32,7 +32,7 @@
   async function byTopics(topicIds, excludeIds = [], perPage = 12) {
     if (!topicIds.length) return [];
     const filter = `topics.id:${topicIds.slice(0, 5).map(shortId).join('|')}`;
-    const r = await T(`${OA}/works?filter=${filter}&sort=cited_by_count:desc&per_page=${perPage + excludeIds.length}&select=id,doi,title,publication_year,authorships,cited_by_count,primary_location,topics`);
+    const r = await T(`${OA}/works?filter=${filter}&sort=cited_by_count:desc&per_page=${perPage + excludeIds.length}&select=id,doi,title,publication_year,authorships,cited_by_count,primary_location,topics,open_access`);
     if (!r.ok) throw new Error(`OpenAlex returned ${r.status}`);
     const ex = new Set(excludeIds.map(x => shortId(x).toLowerCase()));
     const exDois = new Set(excludeIds.filter(x => /^10\./.test(x)).map(x => x.toLowerCase()));
@@ -49,6 +49,7 @@
       <div class="meta">${esc(authorLine(w))} · ${esc(venue) || 'Unknown venue'} · ${w.publication_year || 'n.d.'}</div>
       <div class="paper-foot">
         <span class="badge">${(w.cited_by_count || 0).toLocaleString()} citations</span>
+        ${w.open_access ? (w.open_access.is_oa ? '<span class="badge ok">open access</span>' : '<span class="badge warn" title="Full text requires publisher or library access — details here come from public metadata and the abstract only">paywalled</span>') : ''}
         <span class="links">
           ${doi ? `<a class="link" href="https://doi.org/${esc(doi)}" target="_blank" rel="noopener noreferrer">DOI ${icon('external', 12)}</a>` : ''}
           <a class="link" href="${esc(w.id)}" target="_blank" rel="noopener noreferrer">OpenAlex ${icon('external', 12)}</a>
@@ -82,7 +83,7 @@
       container.innerHTML = `
         ${topics.length ? `<p class="hint" style="margin:6px 0 10px">Shared topics: ${topics.map(t => `<span class="badge">${esc(t.display_name)}</span>`).join(' ')}</p>` : ''}
         ${works.map(w => paperCard(w)).join('')}
-        <p class="hint" style="margin:6px 0 0">Related works come from OpenAlex's similarity model — a starting point, not a systematic search.</p>`;
+        <p class="hint" style="margin:6px 0 0">Related works come from OpenAlex's similarity model — a starting point, not a systematic search.${works.some(w => w.open_access && !w.open_access.is_oa) ? ' ' + PAYWALL_NOTE : ''}</p>`;
       wireSaveButtons(container);
     } catch (e) {
       container.innerHTML = `<div class="error-box" style="margin-top:10px">${icon('alert', 16)}<span>${esc(e.message)}</span></div>`;
@@ -100,12 +101,15 @@
     return (await r.json()).results || [];
   }
   async function topWorks(filterKey, id, n = 6) {
-    const r = await T(`${OA}/works?filter=${filterKey}:${shortId(id)}&sort=cited_by_count:desc&per_page=${n}&select=id,doi,title,publication_year,authorships,cited_by_count,primary_location`);
+    const r = await T(`${OA}/works?filter=${filterKey}:${shortId(id)}&sort=cited_by_count:desc&per_page=${n}&select=id,doi,title,publication_year,authorships,cited_by_count,primary_location,open_access`);
     return r.ok ? ((await r.json()).results || []) : [];
   }
 
+  // Shown wherever a list may contain paywalled papers.
+  const PAYWALL_NOTE = 'About paywalled papers: details shown here come from public metadata and the abstract only. For complete and authoritative content — full methods, results, tables, and exact quotations — please consult the publisher’s version via the DOI link or your institution’s library access.';
+
   window.RewiseedDiscovery = {
     relatedFor, byTopics, renderRelated, paperCard, wireSaveButtons,
-    authorSearch, institutionSearch, topWorks, shortId, authorLine,
+    authorSearch, institutionSearch, topWorks, shortId, authorLine, PAYWALL_NOTE,
   };
 })();

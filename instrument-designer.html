@@ -48,6 +48,12 @@
         <option value="standard" selected>Standard (~10 min)</option>
         <option value="deep">In-depth</option>
       </select>
+      <label class="field-label" style="margin:0" for="approach">Data type</label>
+      <select id="approach">
+        <option value="quant" selected>Quantitative (closed scales)</option>
+        <option value="qual">Qualitative (open-ended)</option>
+        <option value="mixed">Mixed methods (both)</option>
+      </select>
     </div>
     <div class="row">
       <button id="run"></button>
@@ -75,6 +81,12 @@ Rewiseed.mountStreamingTool({
   buildSystem: () => {
     const kind = document.getElementById('kind').value;
     const len = document.getElementById('len').value;
+    const approach = document.getElementById('approach').value;
+    const approachRule = approach === 'quant'
+      ? `\nData type: QUANTITATIVE. Survey items must be closed-ended with explicit response scales (Likert batteries, frequency scales, numeric entry) — analyzable statistically. Open-ended items only as an optional final "anything to add" question.`
+      : approach === 'qual'
+        ? `\nData type: QUALITATIVE. Survey items must be open-ended free-text questions that elicit rich description (experience, meaning, examples), each with a one-line note on what it is designed to surface and a suggested minimum-response hint. No Likert batteries. Note the intended analysis (e.g. thematic analysis) in the design notes.`
+        : `\nData type: MIXED METHODS. For each construct provide BOTH a closed-ended quantitative section (explicit scales) AND a matched open-ended qualitative question that deepens it (e.g. "You rated X — tell us about a specific time…"). In the design notes, say which research question each side answers and how the strands will be integrated (e.g. explanatory sequential).`;
     const parts = [];
     if (kind !== 'interview') parts.push(`## Survey questionnaire
 - **Screening & consent note** — one short paragraph including eligibility items, and an explicit anonymity/confidentiality assurance: state that responses are anonymous (or confidential, if identifiers are unavoidable — say which and why), that no personally identifying information will be reported, and how data will be stored and for how long.
@@ -91,6 +103,7 @@ Rewiseed.mountStreamingTool({
 - **Interviewer notes** — pacing, neutrality reminders, saturation guidance.`);
     return `You are a research methods expert designing data-collection instruments. Produce Markdown with exactly these sections:
 ${parts.join('\n')}
+${approachRule}
 Rules:
 - Ground everything in the user's research questions and constraints; respect stated limits (time, anonymity, IRB, population) strictly.
 - Items must be single-barreled, neutral, and jargon-free at the stated population's level. No leading or double-negative items.

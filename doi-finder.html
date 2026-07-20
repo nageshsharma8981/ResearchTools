@@ -205,6 +205,7 @@ $('lookup').onclick = async () => {
         <div class="row">
           ${oaUrl ? `<a class="link" href="${esc(oaUrl)}" target="_blank" rel="noreferrer" style="margin-right:6px">Open access PDF ${icon('external', 12)}</a>` : ''}
           <button class="ghost" id="show-related">${icon('graph', 15)} Papers like this</button>
+          ${oaUrl ? '' : `<p class="hint" style="flex-basis:100%;margin:8px 0 0">${icon('alert', 13)} <b>Paywalled paper</b> — this record is built from public metadata and the abstract. For the complete and authoritative version (full methods, results, and page numbers for citation), use the DOI link with your institution's library access or the publisher's site.</p>`}
           <span class="push"></span>
           <button class="ghost" id="save-lib">${icon('library', 15)} Save to library</button>
           <button class="ghost" id="copy-cite">${icon('copy', 15)} Copy citation</button>

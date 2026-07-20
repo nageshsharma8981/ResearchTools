@@ -133,7 +133,7 @@ async function showProfile(r) {
       <h2 style="font-size:17px">Top papers</h2>
       ${works.length ? `<div id="tw">${works.map(w => D.paperCard(w)).join('')}</div>` : `<p class="hint" style="margin:0">No indexed works found.</p>`}
     </div>
-    <p class="hint" style="max-width:100%">Metrics are OpenAlex's and update as their index grows; h-index and citation counts run lower than Google Scholar's because coverage differs. Name matches can conflate distinct people — check the affiliation and ORCID.</p>`;
+    <p class="hint" style="max-width:100%">Metrics are OpenAlex's and update as their index grows; h-index and citation counts run lower than Google Scholar's because coverage differs. Name matches can conflate distinct people — check the affiliation and ORCID.${works.some(w => w.open_access && !w.open_access.is_oa) ? ' ' + D.PAYWALL_NOTE : ''}</p>`;
   const tw = $('tw'); if (tw) D.wireSaveButtons(tw);
 }
 

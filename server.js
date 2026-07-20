@@ -82,12 +82,12 @@ const TOOL_IDS = new Set([
   'research-gap-identifier', 'research-question-generator', 'instrument-designer',
   'qualitative-coding-assistant', 'peer-review-simulator', 'citation-formatter', 'apa-formatter',
   'stats-advisor', 'literature-matrix', 'writing-polisher', 'citation-graph',
-  'data-explorer', 'data-sources', 'scholar-profiles', 'pls-sem', 'rubric-lens',
+  'data-explorer', 'data-sources', 'scholar-profiles', 'ai-pls', 'rubric-lens',
   'abstract-generator',
 ]);
 // things that report usage but are not grantable/gateable pages
 const TRACKABLE = new Set([...TOOL_IDS, 'assistant', 'library']);
-const parseToolAccess = (s) => String(s || '').split(',').map(x => x.trim()).filter(x => TOOL_IDS.has(x));
+const parseToolAccess = (s) => String(s || '').split(',').map(x => x.trim()).map(x => x === 'pls-sem' ? 'ai-pls' : x).filter(x => TOOL_IDS.has(x)); // pls-sem: legacy id after the AI PLS rename
 
 // ---------- helpers ----------
 const now = () => Date.now();
@@ -694,6 +694,7 @@ app.use((req, res, next) => {
 });
 // legacy-friendly alias: the APA formatter grew into the Reference Style Generator
 app.get(['/reference-style-generator', '/reference-style-generator.html'], (_req, res) => res.redirect(301, '/apa-formatter'));
+app.get(['/pls-sem', '/pls-sem.html'], (_req, res) => res.redirect(301, '/ai-pls'));
 app.use(express.static(__dirname, { extensions: ['html'], index: 'index.html' }));
 
 app.listen(PORT, '0.0.0.0', () => console.log(`ReWiseEd Research serving on :${PORT} (email: ${RESEND_API_KEY ? 'live' : 'dev mode'})`));
