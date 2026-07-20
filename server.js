@@ -634,6 +634,8 @@ app.use((req, res, next) => {
   if (BLOCKED_STATIC.test(req.path)) return res.status(404).send('Not found');
   next();
 });
+// legacy-friendly alias: the APA formatter grew into the Reference Style Generator
+app.get(['/reference-style-generator', '/reference-style-generator.html'], (_req, res) => res.redirect(301, '/apa-formatter'));
 app.use(express.static(__dirname, { extensions: ['html'], index: 'index.html' }));
 
 app.listen(PORT, '0.0.0.0', () => console.log(`ReWiseEd Research serving on :${PORT} (email: ${RESEND_API_KEY ? 'live' : 'dev mode'})`));

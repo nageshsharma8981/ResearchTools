@@ -227,7 +227,7 @@
     { href: 'rubric-lens.html', icon: 'clipboard', name: 'RubricLens' },
     { href: 'writing-polisher.html', icon: 'pen', name: 'Academic Writing Polisher' },
     { href: 'citation-formatter.html', icon: 'book', name: 'Citation Formatter' },
-    { href: 'apa-formatter.html', icon: 'doc', name: 'APA 7 Paper Formatter' },
+    { href: 'apa-formatter.html', icon: 'doc', name: 'Reference Style Generator' },
     { href: 'citation-graph.html', icon: 'graph', name: 'Citation Graph Explorer' },
     { href: 'scholar-profiles.html', icon: 'user', name: 'Author & Institution Profiles' },
   ];

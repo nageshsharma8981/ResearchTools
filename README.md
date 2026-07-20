@@ -25,7 +25,7 @@ Seventeen research tools spanning the full research lifecycle — discovery, des
 | RubricLens | `rubric-lens.html` | Match a draft against the assignment rubric: per-criterion band with evidence quotes from your own text, gap to the top band, and the highest-impact fixes. Accepts pasted text or .docx/.pdf/.txt uploads for both draft and rubric (parsed fully in-browser). Three grader personas. |
 | Peer Review Simulator | `peer-review-simulator.html` | Structured peer review with selectable reviewer temperament (constructive → adversarial) and a recommendation. |
 | Citation Formatter | `citation-formatter.html` | Precise keyless mode: DOI-match each reference and render Crossref's official citation (APA 7 / MLA 9 / Chicago / Harvard / IEEE / Vancouver) — exact, never invented. AI mode covers DOI-less references. |
-| APA 7 Paper Formatter | `apa-formatter.html` | Upload a `.docx` (parsed fully in-browser — no upload to any server) or paste text; download a formatted APA 7 Word document: title page, headings, double-spaced TNR 12, page numbers, hanging-indent references. Optional AI pass fixes in-text citations and rebuilds the reference list. |
+| Reference Style Generator | `apa-formatter.html` | Upload a `.docx` (parsed fully in-browser — no upload to any server) or paste text; download a formatted Word document in APA 7, MLA 9, Chicago 17 (author–date), Harvard, Vancouver/ICMJE, or IEEE — each with its own title page/first-page header, page-number style, and reference-list conventions (hanging indent or numbered). Optional AI pass rewrites in-text citations and the reference list to match the chosen style exactly. |
 
 ## How to use
 
