@@ -6,10 +6,10 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
-<title>PLS-SEM Analyzer — ReWiseEd</title>
+<title>AI PLS — ReWiseEd</title>
 <meta property="og:type" content="website"/>
 <meta property="og:site_name" content="ReWiseEd Research Tools"/>
-<meta property="og:title" content="PLS-SEM Analyzer — ReWiseEd"/>
+<meta property="og:title" content="AI PLS — ReWiseEd"/>
 <meta property="og:description" content="Run partial least squares structural equation modeling in your browser: measurement model, reliability, discriminant validity, bootstrapped path coefficients. Data never leaves your device."/>
 <meta property="og:url" content="https://www.itsmyresearch.com/pls-sem"/>
 <meta name="twitter:card" content="summary"/>
@@ -44,10 +44,11 @@ button.ind-chip.on { background:var(--accent-soft); border-color:var(--accent); 
 <body>
 <div class="hero">
   <span class="tool-icon" id="hero-icon"></span>
-  <h1>PLS-SEM Analyzer</h1>
-  <p class="lede">Partial least squares structural equation modeling in your browser — measurement model quality, discriminant validity, and bootstrapped path coefficients. Your data never leaves this device. Free, keyless.</p>
+  <h1>AI PLS</h1>
+  <p class="lede">SmartPLS-style partial least squares structural equation modeling in your browser — TAM template, drag-and-drop model canvas, the full quality-criteria report with 5,000-resample bootstrapping, and an optional AI interpretation of your results. Your data never leaves this device. Free, keyless.</p>
 </div>
 <main style="max-width:940px">
+  <div id="settings"></div>
 
   <div class="card">
     <span class="overline">Step 1 · Data</span>
@@ -121,9 +122,10 @@ button.ind-chip.on { background:var(--accent-soft); border-color:var(--accent); 
 </main>
 <script src="shared.js"></script>
 <script>
-const { esc, icon, toast } = Rewiseed;
+const { esc, icon, toast, md } = Rewiseed;
 const $ = (id) => document.getElementById(id);
 Rewiseed.renderNav('pls-sem.html');
+Rewiseed.renderSettingsBar('settings');
 $('hero-icon').innerHTML = icon('sigma', 26);
 $('run').innerHTML = `${icon('sigma', 15)} Run PLS-SEM`;
 
@@ -661,10 +663,12 @@ function render(est, boot, meta) {
     <div class="result-section"><h3>Write-up</h3><div class="result" style="font-size:14px">${apa}</div></div>
 
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px">
+      <button id="ai-interpret">${icon('sparkle', 15)} AI interpretation</button>
       <button class="ghost" id="dl-report">${icon('download', 15)} Download report (.md)</button>
       <button class="ghost" id="dl-scores">${icon('download', 15)} Latent scores (.csv)</button>
       <button class="ghost" id="copy-apa">${icon('copy', 15)} Copy write-up</button>
     </div>
+    <div id="ai-interp-out"></div>
   </div>`;
 
   wireDiagram(diagram.pos);
@@ -676,6 +680,42 @@ function render(est, boot, meta) {
     Rewiseed.downloadText('latent-scores.csv', lines.join('\n'));
   };
   $('copy-apa').onclick = (e) => { navigator.clipboard.writeText($('out').querySelector('.result').innerText).then(() => toast('Write-up copied')); };
+  // the "AI" in AI PLS: an interpretation of the numbers, using the user's model.
+  // Only aggregate statistics leave the browser — never the raw data.
+  $('ai-interpret').onclick = async (e) => {
+    const btn = e.currentTarget; btn.disabled = true;
+    const box = $('ai-interp-out');
+    box.innerHTML = `<div class="result" id="interp-stream" style="margin-top:14px" aria-live="polite"><div class="stream-status"><span class="spinner"></span>Reading your model like a methods advisor…</div></div>`;
+    const summary = {
+      n: meta.n, scheme: meta.scheme, bootstrap: boot ? boot.B : 0,
+      reliability: relRows.map(r => ({ construct: r.name, items: r.m, alpha: +f3(r.alpha), rhoA: +f3(r.rhoA), CR: +f3(r.cr), AVE: +f3(r.ave) })),
+      paths: pathRows.map(r => ({ path: `${r.f} → ${r.t}`, beta: +f3(r.b), t: r.bs ? +r.bs.t.toFixed(2) : null, p: r.bs ? +r.bs.p.toFixed(4) : null, ci95: r.bs ? [+f3(r.bs.lo), +f3(r.bs.hi)] : null, f2: +f3(r.f2), vif: +r.vif.toFixed(2) })),
+      r2: Object.fromEntries(Object.entries(est.structural).map(([nm, s]) => [nm, +f3(s.r2)])),
+      htmtAbove090: C.flatMap((a, i) => C.map((b, j) => j > i && htmt[i][j] > 0.9 ? `${a.name}↔${b.name}: ${f3(htmt[i][j])}` : null)).filter(Boolean),
+      totalEffects: C.flatMap((a, ai) => C.map((b, bi) => Math.abs(est.totalEffects[ai][bi]) >= 1e-6 ? { pair: `${a.name} → ${b.name}`, total: +f3(est.totalEffects[ai][bi]), direct: +f3(est.direct[ai][bi]) } : null)).filter(Boolean),
+    };
+    try {
+      let raf = 0, pending = '';
+      const paint = () => { $('interp-stream').innerHTML = `<div class="cursor-blink">${md(pending)}</div>`; raf = 0; };
+      const out = await Rewiseed.callLLM({
+        system: `You are a PLS-SEM methods advisor interpreting results for a doctoral researcher. You receive aggregate statistics only. Write in Markdown:
+## What the model says
+Which hypothesized paths are supported (β, t, p, CI), effect magnitudes in plain language (f²: 0.02 small / 0.15 medium / 0.35 large), and what the R² values mean here.
+## Quality of the measurement
+Reliability and validity read across α, ρA, CR, AVE — name any construct that needs attention and what to do about it. Mention HTMT only if flags were provided.
+## What to check or do next
+3-5 concrete, prioritized suggestions (e.g. mediation follow-up on notable indirect effects, item pruning, robustness checks).
+Be precise with the numbers given; never invent statistics not provided; keep it under 450 words.`,
+        user: JSON.stringify(summary), temperature: 0.2,
+        onStream: (t) => { pending = t; if (!raf) raf = requestAnimationFrame(paint); },
+      });
+      if (raf) cancelAnimationFrame(raf);
+      $('interp-stream').innerHTML = md(out) + `<p class="hint" style="margin:10px 0 0">AI interpretation of the aggregate results — verify against the tables above; only the summary statistics were sent to your model, never your data.</p>`;
+      Rewiseed.track('run');
+    } catch (err) {
+      $('interp-stream').innerHTML = `<div class="error-box">${icon('alert', 16)}<span>${esc(err.message)}</span></div>`;
+    } finally { btn.disabled = false; }
+  };
 }
 
 function buildAPA(est, pathRows, relRows, meta, boot) {
@@ -717,30 +757,56 @@ function buildReport(est, pathRows, relRows, htmt, meta, boot, apaHtml) {
 }
 
 function drawDiagram(est) {
+  // SmartPLS-style canvas: construct circles with R², indicator boxes fanned
+  // off each construct with loadings on the arrows. Constructs are draggable
+  // (indicators travel with them).
   const C = spec.constructs;
   const order = topoOrder(C, spec.paths);
   const layer = {}; order.forEach(nm => { const pd = spec.paths.filter(([, t]) => t === nm).map(([f]) => f); layer[nm] = pd.length ? 1 + Math.max(...pd.map(f => layer[f])) : 0; });
   const maxL = Math.max(...Object.values(layer));
   const byLayer = Array.from({ length: maxL + 1 }, () => []);
   order.forEach(nm => byLayer[layer[nm]].push(nm));
-  const H = Math.max(...byLayer.map(l => l.length)) * 100 + 60;
-  const W = (maxL + 1) * 210 + 60;
+  const rows = Math.max(...byLayer.map(l => l.length));
+  const H = rows * 190 + 240;
+  const W = (maxL + 1) * 300 + 380;
   const pos = {};
-  byLayer.forEach((names, l) => names.forEach((nm, i) => { pos[nm] = { x: 130 + l * 210, y: (H / (names.length + 1)) * (i + 1) }; }));
+  byLayer.forEach((names, l) => names.forEach((nm, i) => { pos[nm] = { x: 210 + l * 300, y: 120 + (H - 240) / (names.length + 1) * (i + 1) }; }));
   const edges = spec.paths.map(([f, t]) => {
     const s = est.structural[t], beta = s.b[s.preds.indexOf(f)];
-    return `<line class="dg-edge" data-from="${esc(f)}" data-to="${esc(t)}" stroke="var(--ink-2)" stroke-width="${Math.max(1, Math.abs(beta) * 4)}" marker-end="url(#arr)" opacity="0.75"/>
-      <text class="dg-lbl" data-from="${esc(f)}" data-to="${esc(t)}" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--accent-strong)">${f3(beta)}</text>`;
+    return `<line class="dg-edge" data-from="${esc(f)}" data-to="${esc(t)}" stroke="var(--ink-2)" stroke-width="${Math.max(1.2, Math.abs(beta) * 4)}" marker-end="url(#arr)" opacity="0.8"/>
+      <text class="dg-lbl" data-from="${esc(f)}" data-to="${esc(t)}" text-anchor="middle" font-size="13" font-weight="700" fill="var(--accent-strong)">${f3(beta)}</text>`;
   }).join('');
-  const nodes = C.map(c => {
+  const nodes = C.map((c, k) => {
     const s = est.structural[c.name];
+    const nSuccs = spec.paths.filter(([f]) => f === c.name).length;
+    const nPreds = spec.paths.filter(([, t]) => t === c.name).length;
+    // indicator fan direction: exogenous → left, terminal → right, middle → up/down
+    const side = !nPreds ? [-1, 0] : !nSuccs ? [1, 0] : (pos[c.name].y < H / 2 ? [0, -1] : [0, 1]);
+    const m = c.inds.length;
+    const inds = c.inds.map((ind, i) => {
+      const off = m === 1 ? 0 : -((m - 1) * 42) / 2 + i * 42;   // spread along the perpendicular
+      const bx = side[0] ? side[0] * 175 : off * 1.7;            // box center, relative to construct
+      const by = side[0] ? off : side[1] * 145;
+      // arrow construct → indicator (reflective), loading label at midpoint
+      const d = Math.hypot(bx, by) || 1;
+      const sx2 = bx / d * 64, sy2 = by / d * 31;                // leave the ellipse edge
+      const ex = bx - bx / d * 40, ey = by - by / d * 16;        // stop at the box edge
+      return `<line x1="${sx2}" y1="${sy2}" x2="${ex}" y2="${ey}" stroke="var(--ink-2)" stroke-width="1" marker-end="url(#arr-s)" opacity="0.6"/>
+        <text x="${(sx2 + ex) / 2 + (side[1] ? 18 : 0)}" y="${(sy2 + ey) / 2 - 4}" text-anchor="middle" font-size="10.5" fill="var(--ink-2)">${f3(est.loadings[k][i])}</text>
+        <rect x="${bx - 34}" y="${by - 13}" width="68" height="26" rx="4" fill="var(--warn-soft, #fdf3d8)" stroke="var(--border-strong)"/>
+        <text x="${bx}" y="${by + 4}" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--ink)">${esc(ind.length > 9 ? ind.slice(0, 8) + '…' : ind)}</text>`;
+    }).join('');
     return `<g class="dg-node" data-c="${esc(c.name)}" style="cursor:grab">
-      <ellipse cx="0" cy="0" rx="62" ry="30" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.6"/>
-      <text x="0" y="${s ? -2 : 4}" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--ink)" style="pointer-events:none">${esc(c.name.length > 16 ? c.name.slice(0, 15) + '…' : c.name)}</text>
-      ${s ? `<text x="0" y="14" text-anchor="middle" font-size="10.5" fill="var(--muted)" style="pointer-events:none">R² = ${f3(s.r2)}</text>` : ''}</g>`;
+      ${inds}
+      <ellipse cx="0" cy="0" rx="62" ry="31" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+      <text x="0" y="${s ? -4 : 4}" text-anchor="middle" font-size="12" font-weight="700" fill="var(--ink)" style="pointer-events:none">${esc(c.name.length > 16 ? c.name.slice(0, 15) + '…' : c.name)}</text>
+      ${s ? `<text x="0" y="13" text-anchor="middle" font-size="12" font-weight="700" fill="var(--accent-strong)" style="pointer-events:none">${f3(s.r2)}</text>` : ''}</g>`;
   }).join('');
   return { svg: `<svg id="pls-diagram" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Structural model diagram — drag constructs to rearrange" style="display:block;margin:0 auto;max-width:none">
-    <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ink-2)"/></marker></defs>
+    <defs>
+      <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ink-2)"/></marker>
+      <marker id="arr-s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ink-2)"/></marker>
+    </defs>
     ${edges}${nodes}</svg>`, pos };
 }
 
