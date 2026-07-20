@@ -120,6 +120,7 @@
     chart: 'M3 3v16a2 2 0 0 0 2 2h16M7 16l4-6 4 3 5-8',
     globe: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z',
     user: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+    compass: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36z',
   };
 
   function icon(name, size = 20) {
@@ -211,6 +212,7 @@
   // ---------- top navigation ----------
 
   const TOOLS = [
+    { href: 'research-journey.html', icon: 'compass', name: 'Research Journey (start here)' },
     { href: 'smart-literature-finder.html', icon: 'search', name: 'Smart Literature Finder' },
     { href: 'doi-finder.html', icon: 'doi', name: 'DOI Finder & Lookup' },
     { href: 'originality-checker.html', icon: 'shield', name: 'Originality & AI Checker' },

@@ -4,6 +4,8 @@ Twenty research tools spanning the full research lifecycle — discovery, design
 
 ## The tools
 
+New researchers: start at **/research-journey** — the whole workflow as eight plain-language steps with the right tools linked under each.
+
 | Tool | File | What it does |
 |---|---|---|
 | Smart Literature Finder | `smart-literature-finder.html` | Search 240M+ scholarly works via OpenAlex (keyless). Year/open-access filters, citation sorting, BibTeX export, optional AI relevance rerank. |

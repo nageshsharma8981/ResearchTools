@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>The Research Journey — ReWiseEd</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ReWiseEd Research Tools"/>
+<meta property="og:title" content="The Research Journey — ReWiseEd"/>
+<meta property="og:description" content="The whole research workflow, start to finish, in plain language — with the right tool under every step. Built for first-time researchers."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/research-journey"/>
+<meta name="twitter:card" content="summary"/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.glance { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:18px auto 0; max-width:820px; }
+.glance a { display:inline-flex; align-items:center; gap:7px; border:1px solid var(--border-strong); background:var(--surface); border-radius:999px; padding:7px 15px; font-size:13px; font-weight:600; color:var(--ink-2); text-decoration:none; }
+.glance a:hover { background:var(--accent-soft); color:var(--accent-strong); border-color:var(--accent); }
+.glance .n { display:inline-flex; width:20px; height:20px; border-radius:50%; background:var(--accent-soft); color:var(--accent-strong); font-size:11.5px; align-items:center; justify-content:center; font-weight:700; }
+.journey { position:relative; max-width:860px; margin:0 auto; }
+.journey::before { content:''; position:absolute; left:27px; top:30px; bottom:80px; width:2px; background:linear-gradient(var(--accent) 0%, var(--border-strong) 100%); opacity:.5; }
+.stage { display:grid; grid-template-columns:56px 1fr; gap:0 18px; margin-bottom:26px; position:relative; }
+.stage .node { width:56px; height:56px; border-radius:50%; background:var(--accent-soft); border:2px solid var(--accent); color:var(--accent-strong); display:flex; align-items:center; justify-content:center; font-family:var(--font-serif); font-size:22px; font-weight:700; position:sticky; top:90px; z-index:1; }
+.stage .card { margin:0; }
+.youre-here { font-size:13px; color:var(--accent-strong); font-weight:600; margin:0 0 6px; }
+.youre-here::before { content:'📍 '; }
+.stage h2 { margin-bottom:2px; }
+.stage .q { font-size:14px; color:var(--muted); font-style:italic; margin:0 0 10px; }
+.tool-chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+.tool-chips a { display:inline-flex; flex-direction:column; gap:1px; border:1px solid var(--border-strong); background:var(--surface-2); border-radius:var(--radius); padding:9px 14px; text-decoration:none; min-width:150px; }
+.tool-chips a:hover { border-color:var(--accent); background:var(--accent-soft); }
+.tool-chips b { font-size:13.5px; color:var(--ink); }
+.tool-chips span { font-size:11.5px; color:var(--muted); }
+.tool-chips .free::after { content:' · keyless'; color:var(--accent-strong); font-weight:600; }
+.handoff { font-size:12.5px; color:var(--muted); margin-top:10px; }
+.handoff::before { content:'⛓ '; }
+.finish { text-align:center; padding:26px 0 6px; position:relative; }
+.finish .flag { font-size:34px; }
+@media (max-width:600px){ .stage{grid-template-columns:40px 1fr;gap:0 12px} .stage .node{width:40px;height:40px;font-size:17px} .journey::before{left:19px} }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>The Research Journey</h1>
+  <p class="lede">Research isn’t a mystery — it’s a path with eight steps, and every researcher before you has walked it. Find where you are, see what happens next, and use the right tool at each step. Everything here works in your browser.</p>
+  <div class="glance" id="glance"></div>
+</div>
+<main style="max-width:900px">
+  <div class="journey" id="journey"></div>
+  <div class="finish">
+    <div class="flag">🎓</div>
+    <h2>Submitted.</h2>
+    <p class="hint" style="max-width:520px;margin:6px auto 0">That’s the whole map. Nobody walks it in a straight line — you’ll loop back, and that’s not failure, that’s research. Whenever you’re lost, come back here, find your step, and take the next small action.</p>
+  </div>
+</main>
+<script src="shared.js"></script>
+<script>
+const { esc, icon } = Rewiseed;
+Rewiseed.renderNav('research-journey.html');
+document.getElementById('hero-icon').innerHTML = icon('compass', 26);
+
+const T = (href, name, what, free) => ({ href, name, what, free });
+const STAGES = [
+  { title: 'Explore the field', q: '“What’s out there, and who works on it?”',
+    here: 'You are here if you have a topic you care about — or just a vague itch — but don’t yet know what’s been studied.',
+    body: 'Search broadly and read greedily. You’re not committing to anything yet; you’re building a feel for the conversation you’re about to join — the big papers, the running debates, the people and places doing the work.',
+    tools: [T('smart-literature-finder.html', 'Smart Literature Finder', 'search 240M papers', true),
+            T('scholar-profiles.html', 'Author & Institution Profiles', 'who leads this field', true),
+            T('data-sources.html', 'Data Source Directory', 'where official data lives', true)],
+    handoff: 'Found papers you like? Save them — the next step is building your collection.' },
+  { title: 'Map what’s known', q: '“How does it all connect?”',
+    here: 'You are here if you have a pile of interesting papers and need to turn it into an organized picture.',
+    body: 'Follow citations backwards (what a paper builds on) and forwards (who built on it), keep everything in one library, and lay the papers side by side until you can say — in one paragraph — what the field agrees on and where it argues.',
+    tools: [T('citation-graph.html', 'Citation Graph Explorer', 'walk citation networks', true),
+            T('doi-finder.html', 'DOI Finder & “papers like this”', 'expand from any paper', true),
+            T('library.html', 'My Library', 'collect + recommendations'),
+            T('literature-matrix.html', 'Literature Synthesis Matrix', 'compare papers side by side')],
+    handoff: 'Your synthesis matrix feeds straight into the Gap Identifier.' },
+  { title: 'Find your gap', q: '“What hasn’t been answered yet?”',
+    here: 'You are here if you know the field but can’t yet say what YOUR contribution will be.',
+    body: 'A good study lives in a gap: a question nobody asked, a population nobody studied, a contradiction nobody resolved. This is the step that turns “I’m interested in X” into “X is missing, and I can supply it.”',
+    tools: [T('research-gap-identifier.html', 'Research Gap Identifier', 'gaps, contradictions, weaknesses')],
+    handoff: 'Each gap hands off directly to the Question Generator.' },
+  { title: 'Ask the question', q: '“Precisely what am I testing?”',
+    here: 'You are here if you have a gap but your question still sounds like an essay title, not something testable.',
+    body: 'A research question earns its place when it names its variables and could in principle be answered wrong. You’ll leave this step with questions, hypotheses, and a first idea of the study design.',
+    tools: [T('research-question-generator.html', 'Research Question Generator', 'RQs, IV/DV, hypotheses')],
+    handoff: 'Questions flow into the Survey & Interview Designer.' },
+  { title: 'Design the study', q: '“How exactly will I measure this?”',
+    here: 'You are here if you know your question and need instruments, a sampling plan, and an analysis plan — before collecting anything.',
+    body: 'Decide quantitative, qualitative, or mixed. Build the survey or interview guide (with validated instruments and proper references), and plan the analysis NOW — knowing your statistical test before data collection is the cheapest insurance in research. This is also where ethics live: consent, anonymity, IRB.',
+    tools: [T('instrument-designer.html', 'Survey & Interview Designer', 'quant / qual / mixed instruments'),
+            T('stats-advisor.html', 'Statistical Test Advisor', 'plan the analysis early')],
+    handoff: 'The design feeds the Stats Advisor; the instrument goes to your IRB and your participants.' },
+  { title: 'Gather the data', q: '“Where does my evidence come from?”',
+    here: 'You are here if your design is approved and it’s time to collect — or to find existing data instead.',
+    body: 'Run your survey or interviews — or skip primary collection entirely and use official statistics (often the smartest move for a first project). Protect your participants: anonymize transcripts before any AI touches them; the coding tool does this for you by default.',
+    tools: [T('data-explorer.html', 'Statistical Data Explorer', 'World Bank data, in-app', true),
+            T('data-sources.html', 'Data Source Directory', 'IMF, OECD, UN, more', true)],
+    handoff: 'Data in hand → the analysis step. Transcripts in hand → the Qualitative Coding Assistant.' },
+  { title: 'Analyze', q: '“What does the data actually say?”',
+    here: 'You are here if you have data and need results you can defend.',
+    body: 'Numbers: run the model — from a t-test up to full structural equation modeling — and let the quality criteria (reliability, validity, significance) tell you what holds. Words: code the transcripts into themes, systematically. Every statistic in these tools cites the methodologist who invented it.',
+    tools: [T('ai-pls.html', 'AI PLS', 'PLS-SEM, mediation, regression', true),
+            T('qualitative-coding-assistant.html', 'Qualitative Coding Assistant', 'themes from transcripts'),
+            T('stats-advisor.html', 'Statistical Test Advisor', 'the right test + code')],
+    handoff: 'Results and the APA write-ups they generate flow into your chapters.' },
+  { title: 'Write, check, defend', q: '“Is it ready for other eyes?”',
+    here: 'You are here if the work is done and it needs to become a document someone else will judge.',
+    body: 'Draft the abstract and summaries from your own document, polish the prose, format citations and the whole paper in the required style — then attack it yourself before anyone else does: check originality, score it against the rubric, and run a simulated peer review.',
+    tools: [T('abstract-generator.html', 'Abstract & Summary Studio', 'abstract + exec summary'),
+            T('writing-polisher.html', 'Academic Writing Polisher', 'tone + clarity'),
+            T('citation-formatter.html', 'Citation Formatter', 'exact citations', true),
+            T('apa-formatter.html', 'Reference Style Generator', 'APA/MLA/Chicago… .docx'),
+            T('originality-checker.html', 'Originality & AI Checker', 'evidence, not one score', true),
+            T('rubric-lens.html', 'RubricLens', 'grade before it’s graded'),
+            T('peer-review-simulator.html', 'Peer Review Simulator', 'Reviewer 2, on demand')],
+    handoff: 'Then submit — and scroll down.' },
+];
+
+document.getElementById('glance').innerHTML = STAGES.map((s, i) =>
+  `<a href="#stage-${i + 1}"><span class="n">${i + 1}</span>${esc(s.title)}</a>`).join('');
+
+document.getElementById('journey').innerHTML = STAGES.map((s, i) => `
+  <section class="stage" id="stage-${i + 1}">
+    <div class="node" aria-hidden="true">${i + 1}</div>
+    <div class="card">
+      <p class="youre-here">${esc(s.here)}</p>
+      <h2>${esc(s.title)}</h2>
+      <p class="q">${esc(s.q)}</p>
+      <p style="font-size:14.5px;color:var(--ink-2);line-height:1.65;margin:0">${esc(s.body)}</p>
+      <div class="tool-chips">${s.tools.map(t =>
+        `<a href="${t.href}"><b class="${t.free ? 'free' : ''}">${esc(t.name)}</b><span>${esc(t.what)}</span></a>`).join('')}</div>
+      ${s.handoff ? `<p class="handoff">${esc(s.handoff)}</p>` : ''}
+    </div>
+  </section>`).join('');
+</script>
+</body>
+</html>
