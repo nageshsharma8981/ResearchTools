@@ -162,7 +162,8 @@ button.mode-tab.active { background:var(--accent-soft); color:var(--accent-stron
 
   <div id="out"></div>
 
-  <p class="hint" style="max-width:100%">Method notes: PLS-SEM uses reflective (Mode A) measurement with the Lohmöller algorithm; bootstrap uses percentile confidence intervals with construct-level sign alignment; p-values use the normal approximation to the t statistic. Results can differ slightly from SmartPLS 4 (initialization, sign-correction, and stopping details vary between implementations). Mediation and moderation run PROCESS-style Models 4 and 1 (Hayes) on observed scale scores — for other model numbers use dedicated software. Not included, honestly: covariance-based SEM (CB-SEM needs maximum-likelihood covariance fitting — use lavaan or AMOS and cite them), GSCA, and formative (Mode B) measurement within PLS. Independent tool, not affiliated with SmartPLS GmbH.</p>
+  <p class="hint" style="max-width:100%">Method notes: PLS-SEM uses reflective (Mode A) measurement with the Lohmöller algorithm; bootstrap uses percentile confidence intervals with construct-level sign alignment; p-values use the normal approximation to the t statistic. Results can differ slightly from SmartPLS 4 (initialization, sign-correction, and stopping details vary between implementations). Mediation and moderation run PROCESS-style Models 4 and 1 (Hayes) on observed scale scores — for other model numbers use dedicated software. Not included, honestly: covariance-based SEM (CB-SEM needs maximum-likelihood covariance fitting — use lavaan or AMOS and cite them), GSCA, and formative (Mode B) measurement within PLS. Independent tool, not affiliated with SmartPLS GmbH; all methods implemented from the published literature.</p>
+  <p class="hint" style="max-width:100%">Methods &amp; attribution: PLS algorithm — Wold (1982), Lohmöller (1989) · bootstrap resampling — Efron (1979) · Cronbach's α (1951) · composite reliability &amp; AVE — Fornell &amp; Larcker (1981) · ρA — Dijkstra &amp; Henseler (2015) · HTMT — Henseler, Ringle &amp; Sarstedt (2015) · mediation/moderation frameworks — Hayes (2013/2022) · reporting guidance — Hair et al., <em>A Primer on PLS-SEM</em>. Please cite the original methodologists in your write-up.</p>
 </main>
 <script src="shared.js"></script>
 <script>
@@ -743,7 +744,7 @@ $('run').onclick = async () => {
     const est = pls(cols, spec.constructs, spec.paths, scheme);
     Rewiseed.track('run');
 
-    // bootstrap (SmartPLS reporting standard: 5,000 resamples)
+    // bootstrap (5,000 resamples — the reporting standard in the PLS-SEM literature)
     const B = $('nboot').value === 'custom'
       ? Math.max(100, Math.min(10000, Math.round(+$('nboot-custom').value || 5000)))
       : +$('nboot').value;
