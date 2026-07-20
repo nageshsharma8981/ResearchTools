@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>PLS-SEM Analyzer — ReWiseEd</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ReWiseEd Research Tools"/>
+<meta property="og:title" content="PLS-SEM Analyzer — ReWiseEd"/>
+<meta property="og:description" content="Run partial least squares structural equation modeling in your browser: measurement model, reliability, discriminant validity, bootstrapped path coefficients. Data never leaves your device."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/pls-sem"/>
+<meta name="twitter:card" content="summary"/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.construct-row { border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; margin-bottom:10px; }
+.construct-row .head { display:flex; gap:10px; align-items:center; margin-bottom:8px; }
+.construct-row input[type=text] { max-width:220px; font-weight:600; }
+.ind-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.ind-chip { font-size:12.5px; padding:4px 12px; border-radius:999px; border:1px solid var(--border-strong); background:var(--surface); color:var(--ink-2); cursor:pointer; min-height:0; }
+button.ind-chip:hover:not(:disabled) { box-shadow:none; transform:none; background:var(--surface-2); }
+button.ind-chip.on { background:var(--accent-soft); border-color:var(--accent); color:var(--accent-strong); font-weight:600; }
+.path-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
+.path-list .badge { margin:0 6px 6px 0; }
+.data-table { width:100%; border-collapse:collapse; font-size:13.5px; }
+.data-table th, .data-table td { padding:7px 10px; border-bottom:1px solid var(--border); text-align:right; font-variant-numeric:tabular-nums; }
+.data-table th:first-child, .data-table td:first-child { text-align:left; }
+.data-table th { color:var(--muted); font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; }
+.tbl-wrap { overflow-x:auto; }
+.sig { color:var(--accent-strong); font-weight:700; }
+.fail { color:#b3402a; font-weight:600; }
+.pass { color:var(--ok, #3a7d44); font-weight:600; }
+.diag-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface-2); }
+.result-section { margin-top:22px; }
+.result-section h3 { font-size:16px; margin-bottom:2px; }
+.result-section .hint { margin:0 0 10px; }
+.progress-track { height:8px; border-radius:99px; background:var(--surface-2); overflow:hidden; margin-top:10px; }
+.progress-fill { height:100%; background:var(--accent); border-radius:99px; transition:width .2s; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>PLS-SEM Analyzer</h1>
+  <p class="lede">Partial least squares structural equation modeling in your browser — measurement model quality, discriminant validity, and bootstrapped path coefficients. Your data never leaves this device. Free, keyless.</p>
+</div>
+<main style="max-width:940px">
+
+  <div class="card">
+    <span class="overline">Step 1 · Data</span>
+    <h2>Load your dataset</h2>
+    <p class="hint">A plain numeric CSV: one row per respondent, one column per indicator (survey item), with a header row. Non-numeric columns are ignored; rows with missing values on used indicators are dropped listwise. Nothing is uploaded — parsing happens in this tab.</p>
+    <div class="row" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <label class="ghost" style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;border:1px solid var(--border-strong);border-radius:var(--radius);padding:9px 16px;font-size:14px;font-weight:600">
+        <input id="file" type="file" accept=".csv,.tsv,.txt" style="display:none"/>
+        <span id="file-label">Upload CSV…</span>
+      </label>
+      <button type="button" class="chip" id="load-example">Try the example dataset (TAM, n = 250)</button>
+    </div>
+    <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13.5px;color:var(--muted)">…or paste CSV text</summary>
+      <textarea id="paste" rows="5" style="width:100%;margin-top:8px;font-family:var(--font-mono,monospace);font-size:12.5px" placeholder="peou1,peou2,pu1,pu2,int1,int2&#10;4,5,3,4,4,4&#10;2,2,3,2,1,2"></textarea>
+      <button type="button" class="ghost" id="parse-paste" style="margin-top:8px">Use pasted data</button>
+    </details>
+    <div id="data-status" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <span class="overline">Step 2 · Model</span>
+    <h2>Define constructs and paths</h2>
+    <p class="hint">Each latent construct gets a name and its reflective indicators (Mode A). Then draw the structural paths. The model must be recursive — no loops.</p>
+    <div id="constructs"></div>
+    <button type="button" class="ghost" id="add-construct">+ Add construct</button>
+    <div style="margin-top:16px">
+      <span class="overline">Structural paths</span>
+      <div class="path-row">
+        <select id="path-from" aria-label="Path from"></select>
+        <span aria-hidden="true">→</span>
+        <select id="path-to" aria-label="Path to"></select>
+        <button type="button" class="ghost" id="add-path">Add path</button>
+      </div>
+      <div class="path-list" id="path-list"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="overline">Step 3 · Estimate</span>
+    <h2>Run the model</h2>
+    <div class="settings-grid" style="display:flex;gap:14px;flex-wrap:wrap">
+      <label>Weighting scheme
+        <select id="scheme"><option value="path" selected>Path (SmartPLS default)</option><option value="factor">Factor</option><option value="centroid">Centroid</option></select>
+      </label>
+      <label>Bootstrap samples
+        <select id="nboot"><option>200</option><option selected>500</option><option>1000</option><option value="0">Skip bootstrapping</option></select>
+      </label>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button id="run"></button>
+      <span id="run-status" role="status" style="font-size:13.5px;color:var(--muted)"></span>
+    </div>
+    <div class="progress-track" id="prog" hidden><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+  </div>
+
+  <div id="out"></div>
+
+  <p class="hint" style="max-width:100%">Method notes: reflective (Mode A) measurement with the Lohmöller PLS algorithm; path coefficients are standardized OLS estimates on the final latent scores; bootstrap uses percentile confidence intervals with construct-level sign alignment, and p-values use the normal approximation to the t statistic. Results can differ slightly from SmartPLS 4 (initialization, sign-correction, and stopping details vary between implementations). Formative (Mode B) measurement, moderation, and higher-order constructs aren't supported yet. This is an independent tool, not affiliated with SmartPLS GmbH — for formative-heavy or non-recursive models, use dedicated software and cite it.</p>
+</main>
+<script src="shared.js"></script>
+<script>
+const { esc, icon, toast } = Rewiseed;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('pls-sem.html');
+$('hero-icon').innerHTML = icon('sigma', 26);
+$('run').innerHTML = `${icon('sigma', 15)} Run PLS-SEM`;
+
+// ---------- state ----------
+let data = null;            // { cols: {name: Float64Array-ish number[]}, names: [], n }
+let spec = { constructs: [], paths: [] };  // constructs: [{name, inds: []}], paths: [[from,to]]
+try { const s = JSON.parse(localStorage.getItem('rw_plssem_spec') || 'null'); if (s?.constructs) spec = s; } catch {}
+const saveSpec = () => localStorage.setItem('rw_plssem_spec', JSON.stringify(spec));
+
+// ---------- CSV ----------
+function parseCSV(text) {
+  const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
+  if (lines.length < 3) throw new Error('Need a header row plus at least 2 data rows.');
+  const head = lines[0];
+  const delim = [',', ';', '\t'].sort((a, b) => head.split(b).length - head.split(a).length)[0];
+  const names = head.split(delim).map(s => s.trim().replace(/^"|"$/g, ''));
+  const raw = names.map(() => []);
+  for (let i = 1; i < lines.length; i++) {
+    const cells = lines[i].split(delim);
+    for (let j = 0; j < names.length; j++) raw[j].push((cells[j] ?? '').trim());
+  }
+  const cols = {}, dropped = [];
+  names.forEach((nm, j) => {
+    if (!nm) return;
+    const vals = raw[j].map(v => v === '' ? NaN : Number(v));
+    const nonEmpty = vals.filter(v => !Number.isNaN(v)).length;
+    if (nonEmpty >= raw[j].length * 0.8 && nonEmpty >= 3) cols[nm] = vals;
+    else dropped.push(nm);
+  });
+  if (!Object.keys(cols).length) throw new Error('No numeric columns found — is this a numeric CSV with a header row?');
+  return { cols, names: Object.keys(cols), n: lines.length - 1, dropped };
+}
+
+function setData(d, label) {
+  data = d;
+  $('data-status').innerHTML = `<span class="badge ok">${icon('check', 12)} ${esc(label)} — ${d.n} rows, ${d.names.length} numeric columns</span>
+    ${d.dropped?.length ? `<span class="badge warn">ignored non-numeric: ${esc(d.dropped.join(', ').slice(0, 80))}</span>` : ''}
+    <div class="hint" style="margin-top:6px">Columns: ${d.names.map(n => `<code>${esc(n)}</code>`).join(' ')}</div>`;
+  renderModel();
+}
+
+$('file').onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  $('file-label').textContent = f.name;
+  try { setData(parseCSV(await f.text()), f.name); } catch (err) { toast(err.message, 'error'); }
+};
+$('parse-paste').onclick = () => {
+  try { setData(parseCSV($('paste').value), 'pasted data'); } catch (err) { toast(err.message, 'error'); }
+};
+
+// deterministic example: classic TAM (perceived ease of use → usefulness → intention)
+$('load-example').onclick = () => {
+  let s = 42; const rnd = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const normal = () => Math.sqrt(-2 * Math.log(rnd() || 1e-9)) * Math.cos(2 * Math.PI * rnd());
+  const rows = [['peou1,peou2,peou3,pu1,pu2,pu3,int1,int2,int3']];
+  for (let i = 0; i < 250; i++) {
+    const peou = normal();
+    const pu = 0.55 * peou + Math.sqrt(1 - 0.55 ** 2) * normal();
+    const int = 0.5 * pu + 0.25 * peou + Math.sqrt(0.45) * normal();
+    const item = (lat, lam) => (lam * lat + Math.sqrt(1 - lam * lam) * normal()).toFixed(3);
+    rows.push([peou, peou, peou].map((l, k) => item(l, [0.85, 0.8, 0.75][k]))
+      .concat([pu, pu, pu].map((l, k) => item(l, [0.85, 0.8, 0.75][k])))
+      .concat([int, int, int].map((l, k) => item(l, [0.85, 0.8, 0.75][k]))).join(','));
+  }
+  setData(parseCSV(rows.join('\n')), 'TAM example');
+  spec = {
+    constructs: [
+      { name: 'Ease of Use', inds: ['peou1', 'peou2', 'peou3'] },
+      { name: 'Usefulness', inds: ['pu1', 'pu2', 'pu3'] },
+      { name: 'Intention', inds: ['int1', 'int2', 'int3'] },
+    ],
+    paths: [['Ease of Use', 'Usefulness'], ['Ease of Use', 'Intention'], ['Usefulness', 'Intention']],
+  };
+  saveSpec(); renderModel();
+  toast('Example loaded — scroll down and press Run');
+};
+
+// ---------- model builder ----------
+function renderModel() {
+  const names = data?.names || [];
+  $('constructs').innerHTML = spec.constructs.map((c, i) => `
+    <div class="construct-row">
+      <div class="head">
+        <input type="text" value="${esc(c.name)}" data-ci="${i}" aria-label="Construct name" placeholder="Construct name"/>
+        <button type="button" class="ghost" data-del="${i}" style="min-height:32px;padding:4px 12px;font-size:12.5px">Remove</button>
+      </div>
+      <div class="ind-chips">${names.length
+        ? names.map(n => `<button type="button" class="ind-chip ${c.inds.includes(n) ? 'on' : ''}" data-ci="${i}" data-ind="${esc(n)}">${esc(n)}</button>`).join('')
+        : '<span class="hint" style="margin:0">Load data first to pick indicators.</span>'}</div>
+    </div>`).join('') || '<p class="hint">No constructs yet — add one, or load the example.</p>';
+  $('constructs').querySelectorAll('input[data-ci]').forEach(inp => inp.onchange = () => {
+    const old = spec.constructs[+inp.dataset.ci].name, nv = inp.value.trim() || old;
+    spec.constructs[+inp.dataset.ci].name = nv;
+    spec.paths = spec.paths.map(([f, t]) => [f === old ? nv : f, t === old ? nv : t]);
+    saveSpec(); renderModel();
+  });
+  $('constructs').querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+    const nm = spec.constructs[+b.dataset.del].name;
+    spec.constructs.splice(+b.dataset.del, 1);
+    spec.paths = spec.paths.filter(([f, t]) => f !== nm && t !== nm);
+    saveSpec(); renderModel();
+  });
+  $('constructs').querySelectorAll('.ind-chip').forEach(b => b.onclick = () => {
+    const c = spec.constructs[+b.dataset.ci], ind = b.dataset.ind;
+    const owner = spec.constructs.find(x => x !== c && x.inds.includes(ind));
+    if (owner) { toast(`“${ind}” already belongs to ${owner.name}`, 'error'); return; }
+    c.inds.includes(ind) ? c.inds.splice(c.inds.indexOf(ind), 1) : c.inds.push(ind);
+    saveSpec(); renderModel();
+  });
+  const opts = spec.constructs.map(c => `<option>${esc(c.name)}</option>`).join('');
+  $('path-from').innerHTML = opts; $('path-to').innerHTML = opts;
+  $('path-list').innerHTML = spec.paths.map(([f, t], i) =>
+    `<span class="badge">${esc(f)} → ${esc(t)} <button type="button" data-dp="${i}" style="all:unset;cursor:pointer;margin-left:5px;font-weight:700" aria-label="Remove path">×</button></span>`).join('')
+    || '<span class="hint" style="margin:0">No paths yet.</span>';
+  $('path-list').querySelectorAll('[data-dp]').forEach(b => b.onclick = () => { spec.paths.splice(+b.dataset.dp, 1); saveSpec(); renderModel(); });
+}
+$('add-construct').onclick = () => { spec.constructs.push({ name: `Construct ${spec.constructs.length + 1}`, inds: [] }); saveSpec(); renderModel(); };
+$('add-path').onclick = () => {
+  const f = $('path-from').value, t = $('path-to').value;
+  if (!f || !t) return;
+  if (f === t) { toast('A construct cannot predict itself', 'error'); return; }
+  if (spec.paths.some(p => p[0] === f && p[1] === t)) { toast('That path already exists', 'error'); return; }
+  spec.paths.push([f, t]); saveSpec(); renderModel();
+};
+renderModel();
+
+// ---------- math ----------
+const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+function standardize(a) {
+  const m = mean(a), sd = Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / a.length);
+  if (sd < 1e-12) throw new Error('ZERO_VAR');
+  return a.map(v => (v - m) / sd);
+}
+const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
+const corr = (a, b) => dot(a, b) / a.length; // both standardized
+function solve(A, b) { // gaussian elimination, small symmetric systems
+  const n = b.length, M = A.map((r, i) => [...r, b[i]]);
+  for (let c = 0; c < n; c++) {
+    let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    [M[c], M[p]] = [M[p], M[c]];
+    if (Math.abs(M[c][c]) < 1e-12) throw new Error('Singular matrix — two constructs or indicators are perfectly collinear.');
+    for (let r = 0; r < n; r++) { if (r === c) continue; const f = M[r][c] / M[c][c]; for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k]; }
+  }
+  return M.map((row, i) => row[n] / row[i]);
+}
+function ols(preds, y) { // standardized arrays → betas, R²
+  const k = preds.length;
+  const S = preds.map(a => preds.map(b => corr(a, b)));
+  const c = preds.map(a => corr(a, y));
+  const b = solve(S, c);
+  return { b, r2: Math.max(0, Math.min(1, dot(b, c))), S, c };
+}
+const erf = x => { const s = x < 0 ? -1 : 1; x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x); return s * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x)); };
+const pNorm2 = t => Math.max(1e-12, 1 - erf(Math.abs(t) / Math.SQRT2)); // two-tailed, normal approx
+
+function topoOrder(constructs, paths) {
+  const nameSet = constructs.map(c => c.name);
+  const indeg = Object.fromEntries(nameSet.map(n => [n, 0]));
+  paths.forEach(([, t]) => indeg[t]++);
+  const q = nameSet.filter(n => !indeg[n]), order = [];
+  while (q.length) {
+    const n = q.shift(); order.push(n);
+    paths.filter(([f]) => f === n).forEach(([, t]) => { if (--indeg[t] === 0) q.push(t); });
+  }
+  if (order.length !== nameSet.length) throw new Error('The structural model contains a loop. PLS-SEM needs a recursive model — remove one path in the cycle.');
+  return order;
+}
+
+// core PLS estimation on standardized column data
+function pls(cols, constructs, paths, scheme) {
+  const K = constructs.length, n = cols[constructs[0].inds[0]].length;
+  const preds = Object.fromEntries(constructs.map(c => [c.name, paths.filter(([, t]) => t === c.name).map(([f]) => f)]));
+  const succs = Object.fromEntries(constructs.map(c => [c.name, paths.filter(([f]) => f === c.name).map(([, t]) => t)]));
+  const X = constructs.map(c => c.inds.map(i => cols[i]));
+  let W = constructs.map(c => c.inds.map(() => 1));
+  const std = a => { const m = mean(a), sd = Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / n) || 1e-12; return a.map(v => (v - m) / sd); };
+  const score = (k) => std(Array.from({ length: n }, (_, r) => X[k].reduce((s, col, i) => s + W[k][i] * col[r], 0)));
+  let Y = constructs.map((_, k) => score(k));
+  const idx = Object.fromEntries(constructs.map((c, k) => [c.name, k]));
+  let iter = 0;
+  for (; iter < 300; iter++) {
+    // inner estimation
+    const Z = constructs.map((c, k) => {
+      const terms = [];
+      if (scheme === 'path') {
+        const pd = preds[c.name].map(f => Y[idx[f]]);
+        if (pd.length) { const { b } = ols(pd, Y[k]); pd.forEach((y, i) => terms.push([b[i], y])); }
+        succs[c.name].forEach(t => terms.push([corr(Y[k], Y[idx[t]]), Y[idx[t]]]));
+      } else {
+        [...preds[c.name], ...succs[c.name]].forEach(o => {
+          const r = corr(Y[k], Y[idx[o]]);
+          terms.push([scheme === 'centroid' ? Math.sign(r) : r, Y[idx[o]]]);
+        });
+      }
+      return std(Array.from({ length: n }, (_, r) => terms.reduce((s, [w, y]) => s + w * y[r], 0)));
+    });
+    // outer estimation (Mode A)
+    const Wnew = constructs.map((c, k) => X[k].map(col => corr(col, Z[k])));
+    const norm = w => { const l = Math.hypot(...w) || 1; return w.map(v => v / l); };
+    const delta = Math.max(...W.map((w, k) => { const a = norm(w), b = norm(Wnew[k]); return Math.max(...a.map((v, i) => Math.abs(v - b[i]))); }));
+    W = Wnew; Y = constructs.map((_, k) => score(k));
+    if (delta < 1e-7) break;
+  }
+  // sign convention: majority of loadings positive
+  const loadings = constructs.map((c, k) => X[k].map(col => corr(col, Y[k])));
+  constructs.forEach((c, k) => { if (loadings[k].reduce((s, l) => s + l, 0) < 0) { Y[k] = Y[k].map(v => -v); W[k] = W[k].map(v => -v); loadings[k] = loadings[k].map(v => -v); } });
+  // structural model
+  const structural = {};
+  constructs.forEach((c, k) => {
+    const pd = preds[c.name]; if (!pd.length) return;
+    const P = pd.map(f => Y[idx[f]]);
+    const { b, r2 } = ols(P, Y[k]);
+    const f2 = pd.map((_, i) => {
+      if (pd.length === 1) return r2 / Math.max(1e-9, 1 - r2);
+      const rest = P.filter((_, j) => j !== i);
+      const r2x = ols(rest, Y[k]).r2;
+      return (r2 - r2x) / Math.max(1e-9, 1 - r2);
+    });
+    const vif = pd.map((_, i) => {
+      if (pd.length === 1) return 1;
+      const others = P.filter((_, j) => j !== i);
+      return 1 / Math.max(1e-9, 1 - ols(others, P[i]).r2);
+    });
+    structural[c.name] = { preds: pd, b, r2, adjR2: 1 - (1 - r2) * (n - 1) / (n - pd.length - 1), f2, vif };
+  });
+  const lvCorr = constructs.map((_, a) => constructs.map((_, b) => corr(Y[a], Y[b])));
+  return { Y, W, loadings, structural, lvCorr, iter: iter + 1, n };
+}
+
+// ---------- run ----------
+// setTimeout is heavily throttled in background tabs (can stall the bootstrap
+// for minutes); MessageChannel yields a macrotask without that throttling.
+const yieldNow = () => new Promise(res => { const ch = new MessageChannel(); ch.port1.onmessage = () => res(); ch.port2.postMessage(0); });
+let cancelBoot = false;
+$('run').onclick = async () => {
+  const btn = $('run');
+  if (btn.dataset.running) { cancelBoot = true; return; }
+  try {
+    if (!data) throw new Error('Load a dataset first (Step 1) — or click the example.');
+    if (spec.constructs.length < 2) throw new Error('Define at least two constructs (Step 2).');
+    for (const c of spec.constructs) {
+      if (!c.inds.length) throw new Error(`“${c.name}” has no indicators — click its column chips to assign some.`);
+      for (const i of c.inds) if (!data.cols[i]) throw new Error(`“${c.name}” uses column “${i}”, which isn't in the current dataset.`);
+    }
+    if (!spec.paths.length) throw new Error('Add at least one structural path (Step 2).');
+    topoOrder(spec.constructs, spec.paths);
+    const iso = spec.constructs.find(c => !spec.paths.some(([f, t]) => f === c.name || t === c.name));
+    if (iso) throw new Error(`“${iso.name}” is not connected to any path — connect it or remove it.`);
+
+    // listwise deletion on used columns, then standardize
+    const used = spec.constructs.flatMap(c => c.inds);
+    const keep = [];
+    for (let r = 0; r < data.cols[used[0]].length; r++) if (used.every(u => !Number.isNaN(data.cols[u][r]))) keep.push(r);
+    const dropped = data.cols[used[0]].length - keep.length;
+    if (keep.length < used.length + 10) throw new Error(`Only ${keep.length} complete rows for these indicators — too few for ${used.length} indicators. PLS needs more observations than indicators (ideally 10× the largest predictor count).`);
+    const cols = {};
+    for (const u of used) {
+      try { cols[u] = standardize(keep.map(r => data.cols[u][r])); }
+      catch { throw new Error(`Column “${u}” has zero variance — every value is identical. Remove it from the model.`); }
+    }
+
+    const scheme = $('scheme').value;
+    const est = pls(cols, spec.constructs, spec.paths, scheme);
+    Rewiseed.track('run');
+
+    // bootstrap
+    const B = +$('nboot').value;
+    let boot = null;
+    if (B > 0) {
+      btn.dataset.running = '1'; btn.classList.add('danger'); btn.innerHTML = `${icon('x', 15)} Cancel`;
+      $('prog').hidden = false; cancelBoot = false;
+      const pathKeys = spec.paths.map(([f, t]) => `${f}→${t}`);
+      const samples = Object.fromEntries(pathKeys.map(k => [k, []]));
+      let failed = 0;
+      const nk = keep.length;
+      let seed = 1234567; const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+      for (let b = 0; b < B; b++) {
+        if (cancelBoot) break;
+        try {
+          const ridx = Array.from({ length: nk }, () => Math.floor(rnd() * nk));
+          const bcols = {};
+          for (const u of used) bcols[u] = standardize(ridx.map(r => cols[u][r]));
+          const be = pls(bcols, spec.constructs, spec.paths, scheme);
+          // construct-level sign alignment against the original solution
+          const flip = spec.constructs.map((c, k) => dot(be.loadings[k], est.loadings[k]) < 0 ? -1 : 1);
+          spec.paths.forEach(([f, t]) => {
+            const ki = spec.constructs.findIndex(c => c.name === t);
+            const fi = spec.constructs.findIndex(c => c.name === f);
+            const bs = be.structural[t];
+            samples[`${f}→${t}`].push(bs.b[bs.preds.indexOf(f)] * flip[fi] * flip[ki]);
+          });
+        } catch { failed++; }
+        if (b % 20 === 19) { $('prog-fill').style.width = `${Math.round(100 * b / B)}%`; $('run-status').textContent = `Bootstrapping ${b + 1}/${B}…`; await yieldNow(); }
+      }
+      $('prog').hidden = true; $('run-status').textContent = '';
+      btn.dataset.running = ''; btn.classList.remove('danger'); btn.innerHTML = `${icon('sigma', 15)} Run PLS-SEM`;
+      const done = samples[pathKeys[0]].length;
+      if (done >= 50) boot = { samples, B: done, failed, cancelled: cancelBoot };
+      else if (cancelBoot) toast('Bootstrap cancelled — showing estimates without significance tests');
+    }
+    render(est, boot, { n: keep.length, dropped, scheme, B });
+  } catch (e) {
+    $('prog').hidden = true; $('run-status').textContent = '';
+    btn.dataset.running = ''; btn.classList.remove('danger'); btn.innerHTML = `${icon('sigma', 15)} Run PLS-SEM`;
+    $('out').innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>${esc(e.message)}</span></div></div>`;
+  }
+};
+
+// ---------- results ----------
+const f3 = v => (Math.abs(v) < 1e-4 ? '0.000' : v.toFixed(3));
+const stars = p => p < 0.001 ? '***' : p < 0.01 ? '**' : p < 0.05 ? '*' : '';
+
+function render(est, boot, meta) {
+  const C = spec.constructs;
+  const relRows = C.map((c, k) => {
+    const lam = est.loadings[k], m = lam.length;
+    const sumL = lam.reduce((s, l) => s + l, 0);
+    const sumE = lam.reduce((s, l) => s + (1 - l * l), 0);
+    const cr = (sumL ** 2) / ((sumL ** 2) + sumE);
+    const ave = lam.reduce((s, l) => s + l * l, 0) / m;
+    let alpha = NaN;
+    if (m > 1) {
+      // standardized alpha from implied average inter-item correlation r̄ = mean λiλj (i≠j)
+      let sum = 0, cnt = 0;
+      for (let i = 0; i < m; i++) for (let j = 0; j < m; j++) if (i !== j) { sum += lam[i] * lam[j]; cnt++; }
+      const rbar = sum / cnt;
+      alpha = (m * rbar) / (1 + (m - 1) * rbar);
+    }
+    return { name: c.name, m, alpha, cr, ave };
+  });
+  // HTMT needs raw item correlations — derive from loadings + lv correlations (implied): r(xi,yj) ≈ λi λj r(LVx,LVy); mono ≈ λiλj
+  const htmt = C.map((a, i) => C.map((b, j) => {
+    if (i >= j) return null;
+    const la = est.loadings[i], lb = est.loadings[j], r = Math.abs(est.lvCorr[i][j]);
+    const hetero = mean(la.flatMap(x => lb.map(y => Math.abs(x * y * r))));
+    const mono = blk => { const l = est.loadings[blk]; if (l.length < 2) return 1; let s = 0, c2 = 0; for (let x = 0; x < l.length; x++) for (let y = x + 1; y < l.length; y++) { s += Math.abs(l[x] * l[y]); c2++; } return s / c2; };
+    return hetero / Math.sqrt(mono(i) * mono(j));
+  }));
+
+  const bootStat = (f, t) => {
+    if (!boot) return null;
+    const s = boot.samples[`${f}→${t}`]; if (!s?.length) return null;
+    const m = mean(s), sd = Math.sqrt(s.reduce((a, v) => a + (v - m) ** 2, 0) / (s.length - 1));
+    const sorted = [...s].sort((a, b) => a - b);
+    const q = p2 => sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(p2 * (sorted.length - 1))))];
+    const b0 = est.structural[t].b[est.structural[t].preds.indexOf(f)];
+    const tval = sd > 1e-12 ? b0 / sd : 0;
+    return { mean: m, sd, t: tval, p: pNorm2(tval), lo: q(0.025), hi: q(0.975) };
+  };
+
+  const flTable = `<div class="tbl-wrap"><table class="data-table"><thead><tr><th></th>${C.map(c => `<th>${esc(c.name)}</th>`).join('')}</tr></thead><tbody>
+    ${C.map((a, i) => `<tr><td><b>${esc(a.name)}</b></td>${C.map((b, j) =>
+      j > i ? '<td></td>' : j === i ? `<td><b>${f3(Math.sqrt(relRows[i].ave))}</b></td>` : `<td>${f3(est.lvCorr[i][j])}</td>`).join('')}</tr>`).join('')}
+  </tbody></table></div>`;
+
+  const htmtTable = `<div class="tbl-wrap"><table class="data-table"><thead><tr><th></th>${C.slice(1).map(c => `<th>${esc(c.name)}</th>`).join('')}</tr></thead><tbody>
+    ${C.slice(0, -1).map((a, i) => `<tr><td><b>${esc(a.name)}</b></td>${C.slice(1).map((b, j0) => {
+      const j = j0 + 1; if (j <= i) return '<td></td>';
+      const v = htmt[i][j];
+      return `<td class="${v > 0.9 ? 'fail' : ''}">${f3(v)}${v > 0.9 ? ' ⚠' : ''}</td>`;
+    }).join('')}</tr>`).join('')}
+  </tbody></table></div>`;
+
+  const pathRows = spec.paths.map(([f, t]) => {
+    const s = est.structural[t], b = s.b[s.preds.indexOf(f)], vif = s.vif[s.preds.indexOf(f)], f2 = s.f2[s.preds.indexOf(f)];
+    const bs = bootStat(f, t);
+    return { f, t, b, vif, f2, bs };
+  });
+
+  const diagram = drawDiagram(est);
+  const apa = buildAPA(est, pathRows, relRows, meta, boot);
+
+  $('out').innerHTML = `
+  <div class="card">
+    <span class="overline">Results · n = ${meta.n}${meta.dropped ? ` (${meta.dropped} incomplete rows dropped)` : ''} · ${est.iter} iterations · ${meta.scheme} weighting${boot ? ` · ${boot.B} bootstrap samples${boot.failed ? ` (${boot.failed} failed)` : ''}${boot.cancelled ? ' (cancelled early)' : ''}` : ' · no bootstrap'}</span>
+    <h2>Model results</h2>
+    <div class="diag-wrap">${diagram}</div>
+
+    <div class="result-section"><h3>Outer loadings</h3><p class="hint">Reflective indicators should load ≥ 0.708 on their construct (≥ 0.5 acceptable in exploratory work).</p>
+    <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Construct</th><th>Indicator</th><th>Loading</th></tr></thead><tbody>
+      ${C.map((c, k) => c.inds.map((ind, i) => `<tr><td>${i === 0 ? `<b>${esc(c.name)}</b>` : ''}</td><td>${esc(ind)}</td><td class="${est.loadings[k][i] < 0.5 ? 'fail' : est.loadings[k][i] < 0.708 ? '' : 'pass'}">${f3(est.loadings[k][i])}</td></tr>`).join('')).join('')}
+    </tbody></table></div></div>
+
+    <div class="result-section"><h3>Construct reliability and validity</h3><p class="hint">Targets: α and CR ≥ 0.70, AVE ≥ 0.50. Single-indicator constructs show CR = AVE = 1 by definition.</p>
+    <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Construct</th><th>Items</th><th>Cronbach's α</th><th>CR (ρc)</th><th>AVE</th></tr></thead><tbody>
+      ${relRows.map(r => `<tr><td><b>${esc(r.name)}</b></td><td>${r.m}</td><td class="${r.m === 1 ? '' : r.alpha >= 0.7 ? 'pass' : 'fail'}">${r.m === 1 ? '—' : f3(r.alpha)}</td><td class="${r.cr >= 0.7 ? 'pass' : 'fail'}">${f3(r.cr)}</td><td class="${r.ave >= 0.5 ? 'pass' : 'fail'}">${f3(r.ave)}</td></tr>`).join('')}
+    </tbody></table></div></div>
+
+    <div class="result-section"><h3>Discriminant validity — Fornell–Larcker</h3><p class="hint">Diagonal (bold) is √AVE; it should exceed every correlation in its row and column.</p>${flTable}</div>
+    <div class="result-section"><h3>Discriminant validity — HTMT</h3><p class="hint">Values should stay below 0.90 (0.85 for conceptually distinct constructs). Computed from model-implied item correlations.</p>${htmtTable}</div>
+
+    <div class="result-section"><h3>Structural model — path coefficients</h3>
+    ${boot ? '' : '<p class="hint">Run with bootstrapping to get t statistics, p-values, and confidence intervals.</p>'}
+    <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Path</th><th>β</th>${boot ? '<th>Boot M</th><th>SE</th><th>t</th><th>p</th><th>95% CI</th>' : ''}<th>f²</th><th>VIF</th></tr></thead><tbody>
+      ${pathRows.map(r => `<tr><td><b>${esc(r.f)} → ${esc(r.t)}</b></td><td>${f3(r.b)}<span class="sig">${r.bs ? stars(r.bs.p) : ''}</span></td>
+        ${r.bs ? `<td>${f3(r.bs.mean)}</td><td>${f3(r.bs.sd)}</td><td>${r.bs.t.toFixed(2)}</td><td>${r.bs.p < 0.001 ? '&lt; .001' : r.bs.p.toFixed(3).slice(1)}</td><td>[${f3(r.bs.lo)}, ${f3(r.bs.hi)}]</td>` : boot ? '<td colspan="5">—</td>' : ''}
+        <td>${f3(r.f2)}</td><td class="${r.vif > 5 ? 'fail' : r.vif > 3 ? '' : 'pass'}">${r.vif.toFixed(2)}</td></tr>`).join('')}
+    </tbody></table></div>
+    <p class="hint">${boot ? '* p &lt; .05 · ** p &lt; .01 · *** p &lt; .001 (two-tailed). ' : ''}f²: 0.02 small, 0.15 medium, 0.35 large. VIF above 5 signals collinearity trouble; above 3 warrants a look.</p></div>
+
+    <div class="result-section"><h3>Explained variance</h3>
+    <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Endogenous construct</th><th>R²</th><th>Adjusted R²</th></tr></thead><tbody>
+      ${Object.entries(est.structural).map(([nm, s]) => `<tr><td><b>${esc(nm)}</b></td><td>${f3(s.r2)}</td><td>${f3(s.adjR2)}</td></tr>`).join('')}
+    </tbody></table></div></div>
+
+    <div class="result-section"><h3>Write-up</h3><div class="result" style="font-size:14px">${apa}</div></div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px">
+      <button class="ghost" id="dl-report">${icon('download', 15)} Download report (.md)</button>
+      <button class="ghost" id="dl-scores">${icon('download', 15)} Latent scores (.csv)</button>
+      <button class="ghost" id="copy-apa">${icon('copy', 15)} Copy write-up</button>
+    </div>
+  </div>`;
+
+  $('dl-report').onclick = () => Rewiseed.downloadText('pls-sem-report.md', buildReport(est, pathRows, relRows, htmt, meta, boot, apa));
+  $('dl-scores').onclick = () => {
+    const head = 'row,' + C.map(c => `"${c.name}"`).join(',');
+    const lines = [head];
+    for (let r = 0; r < est.n; r++) lines.push([r + 1, ...C.map((_, k) => est.Y[k][r].toFixed(5))].join(','));
+    Rewiseed.downloadText('latent-scores.csv', lines.join('\n'));
+  };
+  $('copy-apa').onclick = (e) => { navigator.clipboard.writeText($('out').querySelector('.result').innerText).then(() => toast('Write-up copied')); };
+}
+
+function buildAPA(est, pathRows, relRows, meta, boot) {
+  const relOk = relRows.every(r => r.cr >= 0.7 && r.ave >= 0.5);
+  const p1 = `A partial least squares structural equation model (PLS-SEM, ${meta.scheme} weighting scheme, Mode A) was estimated on ${meta.n} complete observations${boot ? ` with ${boot.B} bootstrap resamples` : ''}. ${relOk ? `All constructs met conventional reliability and convergent-validity thresholds (composite reliability ≥ .70; AVE ≥ .50).` : `Some constructs fell short of conventional reliability or convergent-validity thresholds — see the tables above before interpreting paths.`}`;
+  const p2 = pathRows.map(r => {
+    const sig = r.bs ? (r.bs.p < 0.05 ? `β = ${f3(r.b)}, t = ${r.bs.t.toFixed(2)}, p ${r.bs.p < 0.001 ? '< .001' : '= ' + r.bs.p.toFixed(3).slice(1)}, 95% CI [${f3(r.bs.lo)}, ${f3(r.bs.hi)}] — significant` : `β = ${f3(r.b)}, t = ${r.bs.t.toFixed(2)}, p = ${r.bs.p.toFixed(3).slice(1)} — not significant`) : `β = ${f3(r.b)}`;
+    return `${r.f} → ${r.t}: ${sig}.`;
+  }).join(' ');
+  const p3 = Object.entries(est.structural).map(([nm, s]) => `The model explained ${(s.r2 * 100).toFixed(1)}% of the variance in ${nm} (R² = ${f3(s.r2)}).`).join(' ');
+  return `<p>${p1}</p><p>${p2}</p><p>${p3}</p>`;
+}
+
+function buildReport(est, pathRows, relRows, htmt, meta, boot, apaHtml) {
+  const C = spec.constructs;
+  const L = [`# PLS-SEM report`, ``, `n = ${meta.n} · scheme = ${meta.scheme} · ${boot ? boot.B + ' bootstrap samples' : 'no bootstrap'} · generated by ReWiseEd Research Tools (itsmyresearch.com)`, ``];
+  L.push(`## Outer loadings`, ``, `| Construct | Indicator | Loading |`, `|---|---|---|`);
+  C.forEach((c, k) => c.inds.forEach((ind, i) => L.push(`| ${c.name} | ${ind} | ${f3(est.loadings[k][i])} |`)));
+  L.push(``, `## Reliability & convergent validity`, ``, `| Construct | Items | alpha | CR | AVE |`, `|---|---|---|---|---|`);
+  relRows.forEach(r => L.push(`| ${r.name} | ${r.m} | ${r.m === 1 ? '—' : f3(r.alpha)} | ${f3(r.cr)} | ${f3(r.ave)} |`));
+  L.push(``, `## Fornell–Larcker (diagonal = √AVE)`, ``, `| | ${C.map(c => c.name).join(' | ')} |`, `|---|${C.map(() => '---').join('|')}|`);
+  C.forEach((a, i) => L.push(`| **${a.name}** | ${C.map((b, j) => j > i ? '' : j === i ? `**${f3(Math.sqrt(relRows[i].ave))}**` : f3(est.lvCorr[i][j])).join(' | ')} |`));
+  L.push(``, `## HTMT`, ``);
+  C.forEach((a, i) => C.forEach((b, j) => { if (j > i) L.push(`- ${a.name} ↔ ${b.name}: ${f3(htmt[i][j])}${htmt[i][j] > 0.9 ? ' ⚠ above 0.90' : ''}`); }));
+  L.push(``, `## Structural paths`, ``, `| Path | β |${boot ? ' Boot M | SE | t | p | 95% CI |' : ''} f² | VIF |`, `|---|---|${boot ? '---|---|---|---|---|' : ''}---|---|`);
+  pathRows.forEach(r => L.push(`| ${r.f} → ${r.t} | ${f3(r.b)}${r.bs ? stars(r.bs.p) : ''} |${r.bs ? ` ${f3(r.bs.mean)} | ${f3(r.bs.sd)} | ${r.bs.t.toFixed(2)} | ${r.bs.p < 0.001 ? '<.001' : r.bs.p.toFixed(3)} | [${f3(r.bs.lo)}, ${f3(r.bs.hi)}] |` : ''} ${f3(r.f2)} | ${r.vif.toFixed(2)} |`));
+  L.push(``, `## R²`, ``);
+  Object.entries(est.structural).forEach(([nm, s]) => L.push(`- ${nm}: R² = ${f3(s.r2)} (adj. ${f3(s.adjR2)})`));
+  const tmp = document.createElement('div'); tmp.innerHTML = apaHtml;
+  L.push(``, `## Write-up`, ``, tmp.innerText, ``, `---`, `Method: Lohmöller PLS algorithm, Mode A reflective measurement, ${meta.scheme} inner weighting; bootstrap percentile CIs with construct-level sign alignment; p-values via normal approximation. Independent implementation — not affiliated with SmartPLS GmbH.`);
+  return L.join('\n');
+}
+
+function drawDiagram(est) {
+  const C = spec.constructs;
+  const order = topoOrder(C, spec.paths);
+  const layer = {}; order.forEach(nm => { const pd = spec.paths.filter(([, t]) => t === nm).map(([f]) => f); layer[nm] = pd.length ? 1 + Math.max(...pd.map(f => layer[f])) : 0; });
+  const maxL = Math.max(...Object.values(layer));
+  const byLayer = Array.from({ length: maxL + 1 }, () => []);
+  order.forEach(nm => byLayer[layer[nm]].push(nm));
+  const H = Math.max(...byLayer.map(l => l.length)) * 92 + 50;
+  const W = (maxL + 1) * 210 + 60;
+  const pos = {};
+  byLayer.forEach((names, l) => names.forEach((nm, i) => { pos[nm] = { x: 130 + l * 210, y: (H / (names.length + 1)) * (i + 1) }; }));
+  const idx = Object.fromEntries(C.map((c, k) => [c.name, k]));
+  const edges = spec.paths.map(([f, t]) => {
+    const a = pos[f], b = pos[t];
+    const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+    const sx = a.x + dx / d * 62, sy = a.y + dy / d * 30, ex = b.x - dx / d * 68, ey = b.y - dy / d * 32;
+    const s = est.structural[t], beta = s.b[s.preds.indexOf(f)];
+    return `<line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="var(--ink-2)" stroke-width="${Math.max(1, Math.abs(beta) * 4)}" marker-end="url(#arr)" opacity="0.75"/>
+      <text x="${(sx + ex) / 2}" y="${(sy + ey) / 2 - 7}" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--accent-strong)">${f3(beta)}</text>`;
+  }).join('');
+  const nodes = C.map(c => {
+    const p = pos[c.name], s = est.structural[c.name];
+    return `<ellipse cx="${p.x}" cy="${p.y}" rx="60" ry="30" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.6"/>
+      <text x="${p.x}" y="${p.y + (s ? -2 : 4)}" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--ink)">${esc(c.name.length > 14 ? c.name.slice(0, 13) + '…' : c.name)}</text>
+      ${s ? `<text x="${p.x}" y="${p.y + 14}" text-anchor="middle" font-size="10.5" fill="var(--muted)">R² = ${f3(s.r2)}</text>` : ''}`;
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Structural model diagram" style="display:block;margin:0 auto;max-width:none">
+    <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ink-2)"/></marker></defs>
+    ${edges}${nodes}</svg>`;
+}
+</script>
+</body>
+</html>

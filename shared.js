@@ -221,6 +221,7 @@
     { href: 'research-question-generator.html', icon: 'flask', name: 'Research Question Generator' },
     { href: 'instrument-designer.html', icon: 'clipboard', name: 'Survey & Interview Designer' },
     { href: 'stats-advisor.html', icon: 'sigma', name: 'Statistical Test Advisor' },
+    { href: 'pls-sem.html', icon: 'sigma', name: 'PLS-SEM Analyzer' },
     { href: 'qualitative-coding-assistant.html', icon: 'dna', name: 'Qualitative Coding Assistant' },
     { href: 'peer-review-simulator.html', icon: 'grad', name: 'Peer Review Simulator' },
     { href: 'writing-polisher.html', icon: 'pen', name: 'Academic Writing Polisher' },

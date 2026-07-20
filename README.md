@@ -19,6 +19,7 @@ Seventeen research tools spanning the full research lifecycle — discovery, des
 | Research Gap Identifier | `research-gap-identifier.html` | Find unexplored gaps, contradictions, and methodological weaknesses in a literature set. |
 | Research Question Generator | `research-question-generator.html` | Turn a topic into precise, testable research questions — each with independent, dependent, and control variables, hypotheses, and a suggested design. |
 | Survey & Interview Designer | `instrument-designer.html` | Turn research questions into a survey questionnaire (proper scales, validated instruments, attention checks, pilot notes) or a semi-structured interview guide with probes. |
+| PLS-SEM Analyzer | `pls-sem.html` | SmartPLS-style partial least squares SEM, fully in-browser: outer loadings, α/CR/AVE, Fornell–Larcker, HTMT, bootstrapped path coefficients, R²/f²/VIF, path diagram, APA write-up. Keyless; data never leaves the device. |
 | Statistical Test Advisor | `stats-advisor.html` | The right statistical test per research question — assumptions with checks, non-parametric fallbacks, effect sizes, APA results templates, starter R/Python/SPSS code. |
 | Qualitative Coding Assistant | `qualitative-coding-assistant.html` | Braun & Clarke reflexive thematic analysis of interview transcripts — codes, themes, thematic map. |
 | Peer Review Simulator | `peer-review-simulator.html` | Structured peer review with selectable reviewer temperament (constructive → adversarial) and a recommendation. |
