@@ -22,6 +22,7 @@ Seventeen research tools spanning the full research lifecycle — discovery, des
 | PLS-SEM Analyzer | `pls-sem.html` | SmartPLS-style partial least squares SEM, fully in-browser: outer loadings, α/CR/AVE, Fornell–Larcker, HTMT, bootstrapped path coefficients, R²/f²/VIF, path diagram, APA write-up. Keyless; data never leaves the device. |
 | Statistical Test Advisor | `stats-advisor.html` | The right statistical test per research question — assumptions with checks, non-parametric fallbacks, effect sizes, APA results templates, starter R/Python/SPSS code. |
 | Qualitative Coding Assistant | `qualitative-coding-assistant.html` | Braun & Clarke reflexive thematic analysis of interview transcripts — codes, themes, thematic map. |
+| RubricLens | `rubric-lens.html` | Match a draft against the assignment rubric: per-criterion band with evidence quotes from your own text, gap to the top band, and the highest-impact fixes. Accepts pasted text or .docx/.pdf/.txt uploads for both draft and rubric (parsed fully in-browser). Three grader personas. |
 | Peer Review Simulator | `peer-review-simulator.html` | Structured peer review with selectable reviewer temperament (constructive → adversarial) and a recommendation. |
 | Citation Formatter | `citation-formatter.html` | Precise keyless mode: DOI-match each reference and render Crossref's official citation (APA 7 / MLA 9 / Chicago / Harvard / IEEE / Vancouver) — exact, never invented. AI mode covers DOI-less references. |
 | APA 7 Paper Formatter | `apa-formatter.html` | Upload a `.docx` (parsed fully in-browser — no upload to any server) or paste text; download a formatted APA 7 Word document: title page, headings, double-spaced TNR 12, page numbers, hanging-indent references. Optional AI pass fixes in-text citations and rebuilds the reference list. |
@@ -33,6 +34,7 @@ Seventeen research tools spanning the full research lifecycle — discovery, des
    - **Built-in browser model — free, no key**: downloads an open model (~2 GB) once via WebGPU (Chrome/Edge), then everything runs on your device
    - **Anthropic (Claude)** — `https://api.anthropic.com/v1` (e.g. `claude-sonnet-5`; key from console.anthropic.com, calls go directly from your browser)
    - **OpenAI** — `https://api.openai.com/v1` (e.g. `gpt-4o-mini`)
+   - **Google Gemini** — `https://generativelanguage.googleapis.com/v1beta/openai` (e.g. `gemini-2.5-flash`; key from aistudio.google.com/apikey)
    - **OpenRouter** — `https://openrouter.ai/api/v1` (any model slug)
    - **Groq** — `https://api.groq.com/openai/v1` (e.g. `llama-3.3-70b-versatile`)
    - **Together / DeepInfra / Fireworks** — their `/v1` endpoints

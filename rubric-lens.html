@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>RubricLens — ReWiseEd</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ReWiseEd Research Tools"/>
+<meta property="og:title" content="RubricLens — ReWiseEd"/>
+<meta property="og:description" content="See your work through your grader's eyes: match your draft against the rubric, criterion by criterion, with evidence, gaps, and the fixes that move your grade most."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/rubric-lens"/>
+<meta name="twitter:card" content="summary"/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.pane-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media (max-width:820px){ .pane-grid { grid-template-columns:1fr; } }
+.pane { border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; background:var(--surface); }
+.pane h3 { font-size:15px; margin-bottom:2px; }
+.pane textarea { width:100%; min-height:200px; margin-top:10px; font-size:13.5px; }
+.up-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px; }
+.up-btn { display:inline-flex; align-items:center; gap:7px; cursor:pointer; border:1px solid var(--border-strong); border-radius:var(--radius); padding:7px 14px; font-size:13px; font-weight:600; color:var(--ink-2); background:var(--surface); }
+.up-btn:hover { background:var(--surface-2); }
+.file-badge { font-size:12px; color:var(--muted); }
+.persona-row { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 0; }
+.persona { border:1px solid var(--border-strong); background:var(--surface); color:var(--ink-2); border-radius:999px; padding:8px 18px; font-size:13.5px; font-weight:600; cursor:pointer; min-height:40px; }
+button.persona:hover:not(:disabled){ background:var(--surface-2); box-shadow:none; transform:none; }
+button.persona.on { background:var(--accent-soft); border-color:var(--accent); color:var(--accent-strong); }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>RubricLens</h1>
+  <p class="lede">See your work through your grader's eyes. Load your draft and the assignment rubric — get a criterion-by-criterion verdict with evidence from your own text, what's missing for the top band, and the fixes that move your grade most.</p>
+</div>
+<main style="max-width:940px">
+  <div id="settings"></div>
+  <div class="card">
+    <span class="overline">Inputs</span>
+    <h2>Your draft and the rubric</h2>
+    <p class="hint">Paste text, or upload <b>.docx</b>, <b>.pdf</b>, <b>.txt</b>, or <b>.md</b> — files are read entirely in this tab and never uploaded anywhere. PDF reading is best-effort: scanned or unusually encoded PDFs may need a copy-paste instead.</p>
+    <div class="pane-grid">
+      <div class="pane">
+        <h3>1 · Your document</h3>
+        <div class="up-row">
+          <label class="up-btn"><input id="doc-file" type="file" accept=".docx,.pdf,.txt,.md" style="display:none"/><span id="doc-up-label">Upload file…</span></label>
+          <span class="file-badge" id="doc-badge"></span>
+        </div>
+        <textarea id="doc-text" placeholder="…or paste your essay, report, thesis chapter, or proposal here"></textarea>
+      </div>
+      <div class="pane">
+        <h3>2 · The rubric</h3>
+        <div class="up-row">
+          <label class="up-btn"><input id="rub-file" type="file" accept=".docx,.pdf,.txt,.md" style="display:none"/><span id="rub-up-label">Upload file…</span></label>
+          <span class="file-badge" id="rub-badge"></span>
+        </div>
+        <textarea id="rub-text" placeholder="…or paste the rubric: criteria, performance levels, point values — any format your instructor gave you"></textarea>
+      </div>
+    </div>
+    <div class="persona-row" role="radiogroup" aria-label="Grading strictness">
+      <button type="button" class="persona" data-p="coach">Supportive coach</button>
+      <button type="button" class="persona on" data-p="balanced">Balanced grader</button>
+      <button type="button" class="persona" data-p="strict">Strict examiner</button>
+    </div>
+    <div class="field-foot" style="margin-top:12px">
+      <span class="chip-row"><button type="button" class="chip" id="example">Load an example (short essay + rubric)</button>
+      <button type="button" class="chip" id="clear-all">Clear</button></span>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button id="run"></button>
+      <span class="hint" style="margin:0">⌘/Ctrl + Enter</span>
+    </div>
+  </div>
+  <div id="out"></div>
+  <p class="hint" style="max-width:100%">RubricLens estimates how a grader could read your work against the rubric — it is a revision aid, not the grade. Real graders weigh context, originality, and course norms the model can't see, and an AI reading can miss nuance or misjudge borderline bands. Use it to find weak spots before submission, not to predict your mark.</p>
+</main>
+<script src="shared.js"></script>
+<script>
+const { esc, icon, toast, md } = Rewiseed;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('rubric-lens.html');
+Rewiseed.renderSettingsBar('settings');
+$('hero-icon').innerHTML = icon('clipboard', 26);
+$('run').innerHTML = `${icon('search', 15)} Check against rubric`;
+
+// ---------- persistence ----------
+const DKEY = 'rw_rubriclens_doc', RKEY = 'rw_rubriclens_rub';
+$('doc-text').value = localStorage.getItem(DKEY) || '';
+$('rub-text').value = localStorage.getItem(RKEY) || '';
+$('doc-text').addEventListener('input', () => localStorage.setItem(DKEY, $('doc-text').value));
+$('rub-text').addEventListener('input', () => localStorage.setItem(RKEY, $('rub-text').value));
+
+let persona = 'balanced';
+document.querySelectorAll('.persona').forEach(b => b.onclick = () => {
+  persona = b.dataset.p;
+  document.querySelectorAll('.persona').forEach(x => x.classList.toggle('on', x === b));
+});
+
+// ---------- file extraction (all in-browser) ----------
+async function readDocxText(buf) {
+  const u8 = new Uint8Array(buf), dv = new DataView(buf);
+  let eocd = -1;
+  for (let i = u8.length - 22; i >= 0; i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error('Not a valid .docx (zip) file.');
+  const count = dv.getUint16(eocd + 10, true);
+  let p = dv.getUint32(eocd + 16, true);
+  for (let n = 0; n < count; n++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) break;
+    const method = dv.getUint16(p + 10, true);
+    const compSize = dv.getUint32(p + 20, true);
+    const nameLen = dv.getUint16(p + 28, true), extraLen = dv.getUint16(p + 30, true), commentLen = dv.getUint16(p + 32, true);
+    const localOff = dv.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(u8.slice(p + 46, p + 46 + nameLen));
+    if (name === 'word/document.xml') {
+      const lNameLen = dv.getUint16(localOff + 26, true), lExtraLen = dv.getUint16(localOff + 28, true);
+      const start = localOff + 30 + lNameLen + lExtraLen;
+      const comp = u8.slice(start, start + compSize);
+      const xmlBytes = method === 0 ? comp
+        : new Uint8Array(await new Response(new Blob([comp]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+      const doc = new DOMParser().parseFromString(new TextDecoder().decode(xmlBytes), 'application/xml');
+      const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+      const out = [];
+      for (const para of doc.getElementsByTagNameNS(W, 'p')) {
+        let text = '';
+        for (const t of para.getElementsByTagNameNS(W, 't')) text += t.textContent;
+        if (text.trim()) out.push(text.trim());
+      }
+      return out.join('\n\n');
+    }
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  throw new Error('No word/document.xml found inside the file.');
+}
+
+// best-effort PDF text extraction: inflate FlateDecode streams, read Tj/TJ operators
+async function readPdfText(buf) {
+  const u8 = new Uint8Array(buf);
+  const latin = new TextDecoder('latin1').decode(u8);
+  if (!latin.startsWith('%PDF')) throw new Error('Not a PDF file.');
+  const chunks = [];
+  const re = /stream\r?\n/g;
+  let m;
+  while ((m = re.exec(latin))) {
+    const start = m.index + m[0].length;
+    const end = latin.indexOf('endstream', start);
+    if (end < 0) continue;
+    const dictStart = latin.lastIndexOf('<<', m.index);
+    const dict = latin.slice(dictStart, m.index);
+    // slice exactly /Length bytes when stated; else trim the trailing EOL —
+    // DecompressionStream rejects any junk after the zlib stream
+    const lenM = dict.match(/\/Length\s+(\d+)/);
+    let sEnd = lenM ? Math.min(start + +lenM[1], end) : end;
+    while (sEnd > start && (u8[sEnd - 1] === 0x0a || u8[sEnd - 1] === 0x0d || u8[sEnd - 1] === 0x20)) sEnd--;
+    let bytes = u8.slice(start, lenM ? Math.min(start + +lenM[1], end) : sEnd);
+    if (/FlateDecode/.test(dict)) {
+      try { bytes = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer()); }
+      catch {
+        try { bytes = new Uint8Array(await new Response(new Blob([u8.slice(start, sEnd)]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer()); }
+        catch { continue; }
+      }
+    } else if (/DCTDecode|JPXDecode|CCITTFax/.test(dict)) continue; // images
+    chunks.push(new TextDecoder('latin1').decode(bytes));
+  }
+  const unescape = s => s.replace(/\\([nrtbf()\\/]|[0-7]{1,3})/g, (_, c) => {
+    const map = { n: '\n', r: '', t: ' ', b: '', f: '' };
+    if (map[c] !== undefined) return map[c];
+    if (/^[0-7]+$/.test(c)) return String.fromCharCode(parseInt(c, 8));
+    return c;
+  });
+  const parts = [];
+  for (const c of chunks) {
+    if (!/\b(Tj|TJ|BT)\b/.test(c)) continue;
+    const ops = c.match(/\((?:\\.|[^\\()])*\)\s*Tj|\[(?:[^\]\\]|\\.)*\]\s*TJ|T\*|Td|TD/g) || [];
+    for (const op of ops) {
+      if (op === 'T*' || op.endsWith('Td') || op.endsWith('TD')) { parts.push('\n'); continue; }
+      if (op.endsWith('Tj')) { parts.push(unescape(op.slice(1, op.lastIndexOf(')')))); continue; }
+      // TJ array: strings mixed with kerning numbers
+      const strs = op.match(/\((?:\\.|[^\\()])*\)/g) || [];
+      parts.push(strs.map(s => unescape(s.slice(1, -1))).join(''));
+    }
+    parts.push('\n');
+  }
+  const text = parts.join('').replace(/\n{3,}/g, '\n\n').replace(/[ \t]+/g, ' ').trim();
+  const readable = (text.match(/[a-zA-Z0-9]/g) || []).length;
+  if (readable < 60) throw new Error('This PDF stores its text in a form the in-browser reader can’t decode (it may be scanned, or use custom-encoded fonts). Open it and copy-paste the text instead — or upload a .docx.');
+  return text;
+}
+
+async function extract(file) {
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.docx')) return readDocxText(await file.arrayBuffer());
+  if (name.endsWith('.pdf')) return readPdfText(await file.arrayBuffer());
+  if (name.endsWith('.doc')) throw new Error('Legacy .doc isn’t supported — save it as .docx in Word and re-upload.');
+  return (await file.text()).trim();
+}
+
+function wireUpload(inputId, labelId, badgeId, textareaId, storeKey) {
+  $(inputId).onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    $(labelId).textContent = 'Reading…';
+    try {
+      const text = await extract(f);
+      if (!text.trim()) throw new Error('No text found in that file.');
+      $(textareaId).value = text;
+      localStorage.setItem(storeKey, text);
+      $(badgeId).textContent = `${f.name} · ${text.split(/\s+/).length.toLocaleString()} words`;
+      toast(`Loaded ${f.name}`);
+    } catch (err) { toast(err.message, 'error'); $(badgeId).textContent = ''; }
+    $(labelId).textContent = 'Upload file…';
+    e.target.value = '';
+  };
+}
+wireUpload('doc-file', 'doc-up-label', 'doc-badge', 'doc-text', DKEY);
+wireUpload('rub-file', 'rub-up-label', 'rub-badge', 'rub-text', RKEY);
+
+$('clear-all').onclick = () => {
+  $('doc-text').value = ''; $('rub-text').value = '';
+  $('doc-badge').textContent = ''; $('rub-badge').textContent = '';
+  localStorage.removeItem(DKEY); localStorage.removeItem(RKEY);
+  $('out').innerHTML = '';
+};
+
+$('example').onclick = () => {
+  $('doc-text').value = `The Impact of Remote Work on Team Creativity
+
+Remote work has become common since 2020. Many companies now let employees work from home. This essay argues that remote work reduces team creativity because people talk less.
+
+Studies show that chance conversations in offices lead to new ideas. When people work from home they only talk in scheduled meetings. Scheduled meetings are for status updates, not brainstorming. Therefore fewer new ideas happen.
+
+Some people say remote work helps creativity because workers have quiet time to think. This may be true for individual tasks. But creativity in teams needs interaction, and video calls are tiring, so people keep them short.
+
+In conclusion, remote work reduces team creativity. Companies should make people come to the office sometimes so they can talk more.`;
+  $('rub-text').value = `Argumentative Essay Rubric (20 points)
+
+1. Thesis & Argument (6 pts)
+   - Excellent (6): Clear, arguable thesis; claims follow logically; counterarguments addressed and rebutted with reasoning.
+   - Proficient (4): Clear thesis; mostly logical claims; counterargument mentioned but weakly rebutted.
+   - Developing (2): Vague thesis; claims listed rather than argued.
+
+2. Evidence & Sources (6 pts)
+   - Excellent (6): Specific, cited evidence from credible scholarly sources supports every major claim.
+   - Proficient (4): Some evidence, but generic or missing citations for key claims.
+   - Developing (2): Assertions without evidence ("studies show" with no source).
+
+3. Organization (4 pts)
+   - Excellent (4): Compelling introduction, coherent paragraphs each with one controlling idea, conclusion that synthesizes rather than repeats.
+   - Proficient (3): Logical structure with minor lapses; conclusion mostly restates.
+   - Developing (1): Weak paragraphing or abrupt transitions.
+
+4. Style & Mechanics (4 pts)
+   - Excellent (4): Precise academic prose, varied sentences, error-free.
+   - Proficient (3): Generally clear; some simple or repetitive sentences.
+   - Developing (1): Frequent simple sentences, informal tone, or recurring errors.`;
+  localStorage.setItem(DKEY, $('doc-text').value); localStorage.setItem(RKEY, $('rub-text').value);
+  toast('Example loaded — press Check against rubric');
+};
+
+// ---------- run ----------
+const PERSONAS = {
+  coach: 'Grade encouragingly: where a judgement is borderline between two bands, award the higher one, and frame every gap as a concrete next step. Still be truthful — do not inflate clear misses.',
+  balanced: 'Grade the way a fair, experienced instructor would: borderline judgements go to the band whose descriptor matches most of the evidence. Be direct about weaknesses without dwelling on them.',
+  strict: 'Grade as a strict external examiner: award a band only when its descriptor is fully satisfied; where evidence is ambiguous, award the lower band and say exactly what evidence is missing. No generosity, no padding.',
+};
+
+let aborter = null, lastOutput = '';
+$('run').onclick = async () => {
+  const btn = $('run');
+  if (aborter) { aborter.abort(); return; }
+  const doc = $('doc-text').value.trim(), rub = $('rub-text').value.trim();
+  if (!doc) { toast('Add your document first — paste it or upload a file', 'error'); $('doc-text').focus(); return; }
+  if (!rub) { toast('Add the rubric — paste it or upload a file', 'error'); $('rub-text').focus(); return; }
+  if (doc.split(/\s+/).length < 40) { toast('That document is very short — RubricLens needs at least a few paragraphs to assess', 'error'); return; }
+
+  const DOC_CAP = 24000, RUB_CAP = 8000;
+  const docCut = doc.length > DOC_CAP, rubCut = rub.length > RUB_CAP;
+  const system = `You are an experienced university grader. You will receive a RUBRIC and a STUDENT DOCUMENT. ${PERSONAS[persona]}
+
+Work only from the rubric you are given. If the rubric has explicit criteria, levels, or point values, use exactly those — never invent criteria, levels, or points that are not in it. If the rubric is unstructured prose, first infer its criteria faithfully and say you did so.
+
+Respond in Markdown with exactly this structure:
+## Summary
+A table: | Criterion | Band / Points awarded | Of possible | One-line verdict |. If the rubric has no points, use band names only. End the table with a Total row only if points exist.
+
+## Criterion-by-criterion
+For each criterion, a subsection containing:
+- **Band awarded** and why, in 2-3 sentences referencing the band descriptor's own words.
+- **Evidence from the document** — 1-2 short quotes (under 15 words each, in quotation marks) that drove the judgement.
+- **To reach the top band** — the specific, doable change, referencing what the top descriptor demands.
+
+## The three fixes that move your grade most
+A numbered list, highest impact first, each one concrete enough to act on today.
+
+## Caveat
+One sentence: this is an estimated reading to guide revision, not the grader's decision.
+
+Never fabricate quotes — every quote must appear verbatim in the document. If the document does not address a criterion at all, say so plainly and award the lowest band.`;
+
+  const user = `RUBRIC${rubCut ? ' (truncated to first 8,000 characters)' : ''}:\n${rub.slice(0, RUB_CAP)}\n\n---\n\nSTUDENT DOCUMENT${docCut ? ' (truncated to first 24,000 characters — judge what is here)' : ''}:\n${doc.slice(0, DOC_CAP)}`;
+
+  aborter = new AbortController();
+  btn.classList.add('danger'); btn.innerHTML = `${icon('x', 15)} Stop`;
+  $('out').innerHTML = `<div class="card"><div class="result" id="stream" aria-live="polite"><div class="stream-status"><span class="spinner"></span>Reading your work the way a grader would…</div></div></div>`;
+  let pending = '', raf = 0;
+  const paint = () => { $('stream').innerHTML = `<div class="cursor-blink">${md(pending)}</div>`; raf = 0; };
+  try {
+    lastOutput = await Rewiseed.callLLM({
+      system, user, temperature: 0.2, signal: aborter.signal,
+      onStream: (t) => { pending = t; if (!raf) raf = requestAnimationFrame(paint); },
+    });
+    if (raf) cancelAnimationFrame(raf);
+    finish(docCut, rubCut, false);
+    Rewiseed.track('run');
+  } catch (e) {
+    if (raf) cancelAnimationFrame(raf);
+    if (e.name === 'AbortError' && pending) { lastOutput = pending; finish(docCut, rubCut, true); }
+    else if (e.name === 'AbortError') $('out').innerHTML = '';
+    else $('out').innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>${esc(e.message)}</span></div></div>`;
+  } finally {
+    aborter = null;
+    btn.classList.remove('danger'); btn.innerHTML = `${icon('search', 15)} Check against rubric`;
+  }
+};
+
+function finish(docCut, rubCut, stopped) {
+  $('out').innerHTML = `<div class="card">
+    ${stopped ? `<span class="badge warn">${icon('alert', 12)} stopped early — partial result</span>` : ''}
+    ${docCut ? `<span class="badge warn">document truncated at 24k characters</span>` : ''}
+    ${rubCut ? `<span class="badge warn">rubric truncated at 8k characters</span>` : ''}
+    <div class="result">${md(lastOutput)}</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+      <button class="ghost" id="copy-out">${icon('copy', 15)} Copy</button>
+      <button class="ghost" id="dl-out">${icon('download', 15)} Download .md</button>
+      <a class="link" href="writing-polisher.html" style="align-self:center">Fix the prose in the Writing Polisher ${icon('arrow', 13)}</a>
+    </div></div>`;
+  $('copy-out').onclick = () => navigator.clipboard.writeText(lastOutput).then(() => toast('Copied'));
+  $('dl-out').onclick = () => Rewiseed.downloadText('rubric-check.md', lastOutput);
+}
+
+document.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') $('run').click(); });
+</script>
+</body>
+</html>

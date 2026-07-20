@@ -224,6 +224,7 @@
     { href: 'pls-sem.html', icon: 'sigma', name: 'PLS-SEM Analyzer' },
     { href: 'qualitative-coding-assistant.html', icon: 'dna', name: 'Qualitative Coding Assistant' },
     { href: 'peer-review-simulator.html', icon: 'grad', name: 'Peer Review Simulator' },
+    { href: 'rubric-lens.html', icon: 'clipboard', name: 'RubricLens' },
     { href: 'writing-polisher.html', icon: 'pen', name: 'Academic Writing Polisher' },
     { href: 'citation-formatter.html', icon: 'book', name: 'Citation Formatter' },
     { href: 'apa-formatter.html', icon: 'doc', name: 'APA 7 Paper Formatter' },
@@ -315,6 +316,7 @@
   const PRESETS = {
     anthropic: { label: 'Anthropic (Claude)', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-sonnet-5' },
     openai: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+    gemini: { label: 'Google Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash' },
     openrouter: { label: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', model: 'anthropic/claude-3.5-haiku' },
     groq: { label: 'Groq', baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
     together: { label: 'Together AI', baseUrl: 'https://api.together.xyz/v1', model: 'meta-llama/Llama-3.3-70B-Instruct-Turbo' },
@@ -440,6 +442,15 @@
     if (anthropic && cfg.apiKey && !cfg.apiKey.startsWith('sk-ant-')) {
       openSettings();
       throw new Error('The provider is set to Anthropic (Claude), but this key doesn’t look like an Anthropic key — they start with sk-ant-. Get one at console.anthropic.com, or switch the Provider dropdown to match your key.');
+    }
+    const gemini = baseUrl.includes('generativelanguage.googleapis.com');
+    if (cfg.apiKey?.startsWith('AIza') && !gemini) {
+      openSettings();
+      throw new Error(`That looks like a Google Gemini key (AIza…), but requests are going to ${baseUrl}. In API settings, pick “Google Gemini” in the Provider dropdown, then Save.`);
+    }
+    if (gemini && cfg.apiKey && !cfg.apiKey.startsWith('AIza')) {
+      openSettings();
+      throw new Error('The provider is set to Google Gemini, but this key doesn’t look like a Google API key — they start with AIza. Get one at aistudio.google.com/apikey, or switch the Provider dropdown to match your key.');
     }
     let url, headers, body;
     if (anthropic) {
