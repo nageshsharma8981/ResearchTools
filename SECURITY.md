@@ -101,6 +101,28 @@ blocked and the compliant alternative (e.g., file-size messages name the
 limit and suggest pasting text) without exposing internals, stack traces, or
 infrastructure names.
 
+## Closed audit items (iteration 2)
+
+- **Built-in model under CSP** — verified in production: module import,
+  CDN weight fetch, and worker/WASM setup run with zero CSP violations.
+- **Per-user write rate limits** — profile updates (30/15 min) and library
+  saves (120/15 min) now rate-limited per account, alongside the existing
+  per-IP limits on auth, tracking, and proxy routes.
+- **Archives** — the only archive ever opened is .docx, in the browser, with
+  a 25 MB input cap and an 80 MB decompressed guard; password-protected or
+  corrupt archives fail closed with a plain-language error.
+- **Session upload totals** — N/A: no session uploads exist server-side; the
+  single photo endpoint is size-capped, format-sniffed, and rate-limited.
+- **Output filtering** — model output renders through an escape-first
+  markdown pipeline (no HTML execution possible), stack traces never reach
+  clients, and secrets can't echo because the server never possesses user
+  keys or content. A regex "PII detector" over model output was considered
+  and rejected: high false-positive cost on research text, no added control.
+- **DPA disclosure** — the Privacy Policy now states explicitly that BYOK
+  processing happens under the user's own provider agreement, that
+  ItsMyResearch is not a party to it, and that DPA-requiring institutions
+  should contract with their provider or use the local/built-in models.
+
 ## Standing review triggers
 
 Re-review this policy when: any user file starts being stored server-side;

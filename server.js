@@ -473,6 +473,7 @@ app.post('/api/auth/signout', requireAuth, (req, res) => {
 app.get('/api/me', requireAuth, (req, res) => res.json({ user: publicUser(req.user, true) }));
 
 app.put('/api/me', requireAuth, (req, res) => {
+  if (!rateLimit('profile:' + req.user.id, 30, 15 * 60_000)) return res.status(429).json({ error: 'Too many profile updates — wait a few minutes.' });
   const { name, org, linkedin, twitter, about, photo, introSeen } = req.body || {};
   if (introSeen === true) db.prepare('UPDATE users SET seen_intro = 1 WHERE id = ?').run(req.user.id);
   const clean = {
@@ -628,6 +629,7 @@ app.get('/api/library', requireAuth, (req, res) => {
   res.json({ papers: rows });
 });
 app.post('/api/library', requireAuth, (req, res) => {
+  if (!rateLimit('libw:' + req.user.id, 120, 15 * 60_000)) return res.status(429).json({ error: 'Too many saves — wait a few minutes.' });
   const { doi, title, authors, year, venue, url } = req.body || {};
   const t = cap(title, 400);
   if (!t) return res.status(400).json({ error: 'A title is required.' });
