@@ -348,6 +348,8 @@
           ${configured
             ? `<span class="badge ok">${icon('check', 12)} configured</span>`
             : `<span class="badge warn">${icon('alert', 12)} not set</span>`}
+          <span class="badge" id="credit-badge" hidden></span>
+        ${(() => { billingStatus().then(b => { const el = document.getElementById('credit-badge'); if (el && b.enforced && b.signedIn && typeof b.credits === 'number') { el.hidden = false; el.textContent = `${b.credits} credits`; } }); return ''; })()}
         </summary>
         <div class="settings-body">
           <div class="settings-grid">
@@ -424,9 +426,47 @@
     if (d) { d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
   }
 
+  // ---------- billing / run metering ----------
+  let _billing = null;
+  async function billingStatus(force = false) {
+    if (_billing && !force) return _billing;
+    try { _billing = await fetch('/api/billing/status', { credentials: 'same-origin' }).then(r => r.json()); }
+    catch { _billing = { enforced: false }; }
+    return _billing;
+  }
+  // asks the server for a run credit before an AI call; throws with a helpful
+  // message (and points at pricing) when the run isn't covered
+  async function ensureRunCredit(chars) {
+    const b = await billingStatus();
+    if (!b.enforced) return;
+    let r, d = {};
+    try {
+      r = await fetch('/api/run-credit', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chars }),
+      });
+      d = await r.json().catch(() => ({}));
+    } catch { return; } // metering endpoint unreachable → don't strand the user
+    if (r.ok) {
+      if (d.metered && typeof d.remaining === 'number') { _billing.credits = d.remaining; updateCreditBadge(); }
+      if (d.freeRun) toast('That one was on us — your free run. Enjoy!', 'ok', 5000);
+      return;
+    }
+    if (d.reason === 'signin') { setTimeout(() => { location.href = 'signin.html'; }, 1600); }
+    else if (d.reason === 'subscribe' || d.reason === 'topup') { setTimeout(() => { location.href = 'pricing.html'; }, 2200); }
+    throw new Error(d.error || 'This run needs an active plan — see Pricing.');
+  }
+  function updateCreditBadge() {
+    const el = document.getElementById('credit-badge');
+    if (el && _billing && typeof _billing.credits === 'number') { el.hidden = false; el.textContent = `${_billing.credits} credits`; }
+  }
+
   // ---------- LLM client ----------
 
   async function callLLM({ system, user, temperature = 0.2, maxTokens, onStream, signal, cfgOverride }) {
+    // metering happens before any provider is contacted (including the built-in model)
+    if (!cfgOverride) await ensureRunCredit((user || '').length + (system || '').length);
     const cfg = cfgOverride || getCfg();
     const baseUrl = (cfg.baseUrl || PRESETS.openai.baseUrl).replace(/\/+$/, '');
     if (isBuiltin(baseUrl)) {
@@ -876,7 +916,7 @@
   }
 
   window.Rewiseed = {
-    renderNav, renderSettingsBar, openSettings,
+    renderNav, renderSettingsBar, openSettings, billingStatus,
     callLLM, md, esc, icon, toast, track,
     downloadText, copyText, getCfg, isLocalUrl,
     mountStreamingTool, playIntro, saveToLibrary, fetchWithTimeout,

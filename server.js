@@ -49,9 +49,22 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 `);
 // migrations for pre-existing databases
-for (const col of ["terms_version TEXT NOT NULL DEFAULT ''", 'terms_accepted_at INTEGER NOT NULL DEFAULT 0', "tool_access TEXT NOT NULL DEFAULT ''", 'seen_intro INTEGER NOT NULL DEFAULT 0']) {
+for (const col of ["terms_version TEXT NOT NULL DEFAULT ''", 'terms_accepted_at INTEGER NOT NULL DEFAULT 0', "tool_access TEXT NOT NULL DEFAULT ''", 'seen_intro INTEGER NOT NULL DEFAULT 0',
+  // billing
+  "plan TEXT NOT NULL DEFAULT 'free'", "plan_status TEXT NOT NULL DEFAULT ''", 'credits INTEGER NOT NULL DEFAULT 0', 'credits_reset_at INTEGER NOT NULL DEFAULT 0',
+  'free_run_used INTEGER NOT NULL DEFAULT 0', "rzp_customer_id TEXT NOT NULL DEFAULT ''", "rzp_subscription_id TEXT NOT NULL DEFAULT ''"]) {
   try { db.exec(`ALTER TABLE users ADD COLUMN ${col}`); } catch { /* already present */ }
 }
+db.exec(`CREATE TABLE IF NOT EXISTS payments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  rzp_payment_id TEXT UNIQUE NOT NULL,
+  rzp_ref TEXT NOT NULL DEFAULT '',
+  kind TEXT NOT NULL,
+  amount INTEGER NOT NULL DEFAULT 0,
+  credits INTEGER NOT NULL DEFAULT 0,
+  ts INTEGER NOT NULL
+);`);
 db.exec(`CREATE TABLE IF NOT EXISTS library (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
@@ -191,8 +204,96 @@ function rateLimit(key, max, windowMs) {
 setInterval(() => { const t = now(); for (const [k, v] of buckets) if (t > v.reset) buckets.delete(k); }, 300_000).unref();
 
 // ---------- app ----------
+// ---------- billing (Razorpay) ----------
+// Ships dark: with no keys configured everything stays free. Set
+// RAZORPAY_KEY_ID + RAZORPAY_KEY_SECRET + RAZORPAY_WEBHOOK_SECRET, then
+// BILLING_ENFORCED=on to start metering. Plan auto-creates on first use.
+const RZP_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
+const RZP_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
+const RZP_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
+const BILLING_CONFIGURED = !!(RZP_KEY_ID && RZP_KEY_SECRET);
+const BILLING_ENFORCED = BILLING_CONFIGURED && process.env.BILLING_ENFORCED === 'on';
+const MONTHLY_CREDITS = 60;          // ₹499/month
+const TOPUP_CREDITS = 25;            // ₹199 one-time
+const CREDIT_CAP = 300;              // rollover ceiling — stops infinite hoarding
+const PLAN_AMOUNT_PAISE = 49900;
+const TOPUP_AMOUNT_PAISE = 19900;
+// run weight by input size: the heavy-document guardrail
+const runWeight = (chars) => chars <= 20_000 ? 1 : chars <= 80_000 ? 2 : chars <= 200_000 ? 4 : 0;
+
+async function rzp(pathname, method = 'GET', body = null) {
+  const r = await fetch(`https://api.razorpay.com/v1${pathname}`, {
+    method,
+    headers: {
+      Authorization: 'Basic ' + Buffer.from(`${RZP_KEY_ID}:${RZP_KEY_SECRET}`).toString('base64'),
+      'Content-Type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`razorpay ${r.status}: ${(j.error && j.error.description) || 'request failed'}`);
+  return j;
+}
+const hmacHex = (secret, data) => crypto.createHmac('sha256', secret).update(data).digest('hex');
+const safeEqual = (a, b) => {
+  const ba = Buffer.from(String(a)), bb = Buffer.from(String(b));
+  return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
+};
+
+// plan id persists in the data dir so we create it exactly once
+const BILLING_STATE_FILE = path.join(DATA_DIR, 'billing.json');
+async function getPlanId() {
+  if (process.env.RAZORPAY_PLAN_ID) return process.env.RAZORPAY_PLAN_ID;
+  try { const s = JSON.parse(fs.readFileSync(BILLING_STATE_FILE, 'utf8')); if (s.plan_id) return s.plan_id; } catch { /* first run */ }
+  const plan = await rzp('/plans', 'POST', {
+    period: 'monthly', interval: 1,
+    item: { name: 'ItsMyResearch Pro', amount: PLAN_AMOUNT_PAISE, currency: 'INR', description: `${MONTHLY_CREDITS} AI run credits per month` },
+  });
+  fs.writeFileSync(BILLING_STATE_FILE, JSON.stringify({ plan_id: plan.id }));
+  return plan.id;
+}
+
+function grantCredits(userId, kind, paymentId, ref, amount, credits, replace = false) {
+  // idempotent by payment id — a replayed webhook grants nothing twice
+  const tx = db.transaction(() => {
+    try {
+      db.prepare('INSERT INTO payments (user_id, rzp_payment_id, rzp_ref, kind, amount, credits, ts) VALUES (?,?,?,?,?,?,?)')
+        .run(userId, paymentId, ref, kind, amount, credits, now());
+    } catch { return false; } // duplicate payment id
+    if (replace) {
+      db.prepare("UPDATE users SET credits = MIN(credits + ?, ?), credits_reset_at = ?, plan = 'pro', plan_status = 'active' WHERE id = ?")
+        .run(credits, CREDIT_CAP, now(), userId);
+    } else {
+      db.prepare('UPDATE users SET credits = MIN(credits + ?, ?) WHERE id = ?').run(credits, CREDIT_CAP, userId);
+    }
+    return true;
+  });
+  return tx();
+}
+
 const app = express();
 app.set('trust proxy', 1);
+// webhook needs the RAW body for signature verification — registered before the JSON parser
+app.post('/api/billing/webhook', express.raw({ type: 'application/json', limit: '200kb' }), (req, res) => {
+  if (!RZP_WEBHOOK_SECRET) return res.status(503).json({ error: 'Webhooks not configured.' });
+  const sig = req.headers['x-razorpay-signature'] || '';
+  const expected = hmacHex(RZP_WEBHOOK_SECRET, req.body);
+  if (!safeEqual(sig, expected)) return res.status(400).json({ error: 'Bad signature.' });
+  let ev;
+  try { ev = JSON.parse(req.body.toString('utf8')); } catch { return res.status(400).json({ error: 'Bad payload.' }); }
+  try {
+    if (ev.event === 'subscription.charged') {
+      const sub = ev.payload?.subscription?.entity, pay = ev.payload?.payment?.entity;
+      const u = sub && db.prepare('SELECT id FROM users WHERE rzp_subscription_id = ?').get(sub.id);
+      if (u && pay) grantCredits(u.id, 'charge', pay.id, sub.id, pay.amount || PLAN_AMOUNT_PAISE, MONTHLY_CREDITS, true);
+    } else if (ev.event === 'subscription.cancelled' || ev.event === 'subscription.halted' || ev.event === 'subscription.expired') {
+      const sub = ev.payload?.subscription?.entity;
+      if (sub) db.prepare("UPDATE users SET plan_status = 'cancelled' WHERE rzp_subscription_id = ?").run(sub.id);
+    }
+  } catch (e) { console.error('webhook handling error:', e.message); }
+  res.json({ ok: true }); // always 200 on verified events — Razorpay retries otherwise
+});
+
 app.use(express.json({ limit: '500kb' }));
 
 // Content-Security-Policy notes: inline scripts/styles are how this suite ships
@@ -202,12 +303,13 @@ app.use(express.json({ limit: '500kb' }));
 // The teeth are in object-src/base-uri/form-action/frame-ancestors.
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://checkout.razorpay.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
   "connect-src 'self' https: http://localhost:* http://127.0.0.1:*",
   "worker-src 'self' blob:",
+  "frame-src https://api.razorpay.com https://checkout.razorpay.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -659,6 +761,107 @@ app.delete('/api/library/:id', requireAuth, (req, res) => {
 });
 
 // ---------- usage metrics (privacy-respecting: tool id + output size only) ----------
+// ---------- billing routes ----------
+app.get('/api/billing/status', (req, res) => {
+  const u = currentUser(req);
+  const base = {
+    configured: BILLING_CONFIGURED, enforced: BILLING_ENFORCED, signedIn: !!u,
+    priceInr: PLAN_AMOUNT_PAISE / 100, monthlyCredits: MONTHLY_CREDITS,
+    topupInr: TOPUP_AMOUNT_PAISE / 100, topupCredits: TOPUP_CREDITS,
+    weights: { standard: '≤20k chars = 1 credit', large: '≤80k = 2', heavy: '≤200k = 4' },
+  };
+  if (!u) return res.json(base);
+  res.json({ ...base, plan: u.plan, planStatus: u.plan_status, credits: u.credits, freeRunUsed: !!u.free_run_used });
+});
+
+app.post('/api/billing/subscribe', requireAuth, async (req, res) => {
+  if (!BILLING_CONFIGURED) return res.status(503).json({ error: 'Payments are not configured yet.' });
+  if (!rateLimit('sub:' + req.user.id, 10, 15 * 60_000)) return res.status(429).json({ error: 'Too many attempts — wait a few minutes.' });
+  try {
+    const planId = await getPlanId();
+    const sub = await rzp('/subscriptions', 'POST', {
+      plan_id: planId, total_count: 120, quantity: 1, customer_notify: 1,
+      notes: { user_id: String(req.user.id), email: req.user.email },
+    });
+    db.prepare('UPDATE users SET rzp_subscription_id = ? WHERE id = ?').run(sub.id, req.user.id);
+    res.json({ subscriptionId: sub.id, keyId: RZP_KEY_ID, name: 'ItsMyResearch Pro', email: req.user.email });
+  } catch (e) {
+    console.error('subscribe failed:', e.message);
+    res.status(502).json({ error: 'Could not start the subscription — try again shortly.' });
+  }
+});
+
+app.post('/api/billing/verify-sub', requireAuth, (req, res) => {
+  const { paymentId, subscriptionId, signature } = req.body || {};
+  if (!paymentId || !subscriptionId || !signature) return res.status(400).json({ error: 'Missing payment details.' });
+  if (db.prepare('SELECT rzp_subscription_id FROM users WHERE id = ?').get(req.user.id).rzp_subscription_id !== subscriptionId) {
+    return res.status(403).json({ error: 'Subscription does not belong to this account.' });
+  }
+  const expected = hmacHex(RZP_KEY_SECRET, `${cap(paymentId, 100)}|${cap(subscriptionId, 100)}`);
+  if (!safeEqual(signature, expected)) return res.status(400).json({ error: 'Payment could not be verified.' });
+  grantCredits(req.user.id, 'sub', cap(paymentId, 100), subscriptionId, PLAN_AMOUNT_PAISE, MONTHLY_CREDITS, true);
+  const u = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  res.json({ ok: true, credits: u.credits, plan: u.plan });
+});
+
+app.post('/api/billing/topup', requireAuth, async (req, res) => {
+  if (!BILLING_CONFIGURED) return res.status(503).json({ error: 'Payments are not configured yet.' });
+  if (!rateLimit('topup:' + req.user.id, 10, 15 * 60_000)) return res.status(429).json({ error: 'Too many attempts — wait a few minutes.' });
+  try {
+    const order = await rzp('/orders', 'POST', {
+      amount: TOPUP_AMOUNT_PAISE, currency: 'INR', receipt: `topup_${req.user.id}_${now()}`,
+      notes: { user_id: String(req.user.id), kind: 'topup' },
+    });
+    res.json({ orderId: order.id, amount: order.amount, keyId: RZP_KEY_ID, email: req.user.email });
+  } catch (e) {
+    console.error('topup order failed:', e.message);
+    res.status(502).json({ error: 'Could not start the payment — try again shortly.' });
+  }
+});
+
+app.post('/api/billing/verify-topup', requireAuth, (req, res) => {
+  const { paymentId, orderId, signature } = req.body || {};
+  if (!paymentId || !orderId || !signature) return res.status(400).json({ error: 'Missing payment details.' });
+  const expected = hmacHex(RZP_KEY_SECRET, `${cap(orderId, 100)}|${cap(paymentId, 100)}`);
+  if (!safeEqual(signature, expected)) return res.status(400).json({ error: 'Payment could not be verified.' });
+  grantCredits(req.user.id, 'topup', cap(paymentId, 100), cap(orderId, 100), TOPUP_AMOUNT_PAISE, TOPUP_CREDITS, false);
+  const u = db.prepare('SELECT credits FROM users WHERE id = ?').get(req.user.id);
+  res.json({ ok: true, credits: u.credits });
+});
+
+// the metering gate: called by the client before every AI run
+app.post('/api/run-credit', (req, res) => {
+  if (!BILLING_ENFORCED) return res.json({ ok: true, metered: false });
+  const u = currentUser(req);
+  if (!u) return res.status(401).json({ error: 'Sign in to run AI tools — your first run is free.', reason: 'signin' });
+  if (!rateLimit('runc:' + u.id, 60, 15 * 60_000)) return res.status(429).json({ error: 'Too many runs — wait a few minutes.' });
+  const chars = Math.max(0, Math.min(10_000_000, Number((req.body || {}).chars) || 0));
+  const w = runWeight(chars);
+  if (w === 0) return res.status(400).json({ error: 'This document is too large for one run (200k character limit) — split it into parts.', reason: 'toolarge' });
+  const result = db.transaction(() => {
+    const cur = db.prepare('SELECT credits, free_run_used, plan_status FROM users WHERE id = ?').get(u.id);
+    if (!cur.free_run_used && w <= 2) {
+      db.prepare('UPDATE users SET free_run_used = 1 WHERE id = ?').run(u.id);
+      return { ok: true, freeRun: true, remaining: cur.credits, weight: w };
+    }
+    if (cur.credits >= w) {
+      db.prepare('UPDATE users SET credits = credits - ? WHERE id = ?').run(w, u.id);
+      return { ok: true, remaining: cur.credits - w, weight: w };
+    }
+    return { ok: false, active: cur.plan_status === 'active', freeUsed: !!cur.free_run_used, weight: w };
+  })();
+  if (result.ok) return res.json({ ...result, metered: true });
+  const heavyFirst = !result.freeUsed && result.weight > 2;
+  res.status(402).json({
+    error: heavyFirst
+      ? 'Heavy documents (over 80k characters) need a Pro plan — your free run covers standard and large documents.'
+      : result.active
+        ? `Not enough credits for this run (needs ${result.weight}). Top up ₹${TOPUP_AMOUNT_PAISE / 100} for ${TOPUP_CREDITS} more, or wait for your monthly renewal.`
+        : 'Your free run is used. ItsMyResearch Pro is ₹499/month for 60 run credits.',
+    reason: result.active ? 'topup' : 'subscribe',
+  });
+});
+
 app.post('/api/track', (req, res) => {
   if (!rateLimit('track:' + req.ip, 120, 15 * 60_000)) return res.status(429).json({});
   const { tool, kind, outChars } = req.body || {};
