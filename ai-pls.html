@@ -163,7 +163,24 @@ button.mode-tab.active { background:var(--accent-soft); color:var(--accent-stron
   <div id="out"></div>
 
   <p class="hint" style="max-width:100%">Method notes: PLS-SEM uses reflective (Mode A) measurement with the Lohmöller algorithm; bootstrap uses percentile confidence intervals with construct-level sign alignment; p-values use the normal approximation to the t statistic. Results can differ slightly from SmartPLS 4 (initialization, sign-correction, and stopping details vary between implementations). Mediation and moderation run PROCESS-style Models 4 and 1 (Hayes) on observed scale scores — for other model numbers use dedicated software. Not included, honestly: covariance-based SEM (CB-SEM needs maximum-likelihood covariance fitting — use lavaan or AMOS and cite them), GSCA, and formative (Mode B) measurement within PLS. Independent tool, not affiliated with SmartPLS GmbH; all methods implemented from the published literature.</p>
-  <p class="hint" style="max-width:100%">Methods &amp; attribution: PLS algorithm — Wold (1982), Lohmöller (1989) · bootstrap resampling — Efron (1979) · Cronbach's α (1951) · composite reliability &amp; AVE — Fornell &amp; Larcker (1981) · ρA — Dijkstra &amp; Henseler (2015) · HTMT — Henseler, Ringle &amp; Sarstedt (2015) · mediation/moderation frameworks — Hayes (2013/2022) · reporting guidance — Hair et al., <em>A Primer on PLS-SEM</em>. Please cite the original methodologists in your write-up.</p>
+  <div class="card">
+    <span class="overline">Scholarship</span>
+    <h2>Methods &amp; attribution</h2>
+    <p class="hint">AI PLS is an independent implementation of methods from the published literature. Cite the original methodologists in your write-up — these are the canonical sources for what each part of your results rests on.</p>
+    <div class="tbl-wrap"><table class="data-table"><thead><tr><th style="text-align:left">Method in this tool</th><th style="text-align:left">Canonical source</th></tr></thead><tbody>
+      <tr><td style="text-align:left">PLS path modeling algorithm</td><td style="text-align:left">Wold (1982); Lohmöller (1989)</td></tr>
+      <tr><td style="text-align:left">Bootstrap resampling &amp; CIs</td><td style="text-align:left">Efron (1979)</td></tr>
+      <tr><td style="text-align:left">Cronbach's α</td><td style="text-align:left">Cronbach (1951)</td></tr>
+      <tr><td style="text-align:left">Composite reliability, AVE, Fornell–Larcker criterion</td><td style="text-align:left">Fornell &amp; Larcker (1981)</td></tr>
+      <tr><td style="text-align:left">ρA (consistent reliability)</td><td style="text-align:left">Dijkstra &amp; Henseler (2015)</td></tr>
+      <tr><td style="text-align:left">HTMT discriminant validity</td><td style="text-align:left">Henseler, Ringle &amp; Sarstedt (2015)</td></tr>
+      <tr><td style="text-align:left">f² effect-size thresholds</td><td style="text-align:left">Cohen (1988)</td></tr>
+      <tr><td style="text-align:left">Mediation &amp; moderation (Models 4 / 1), simple slopes</td><td style="text-align:left">Hayes (2022); Aiken &amp; West (1991)</td></tr>
+      <tr><td style="text-align:left">TAM model template</td><td style="text-align:left">Davis (1989)</td></tr>
+      <tr><td style="text-align:left">PLS-SEM reporting practice (loadings ≥ .708, 5,000 resamples…)</td><td style="text-align:left">Hair, Hult, Ringle &amp; Sarstedt (2022)</td></tr>
+    </tbody></table></div>
+    <button class="ghost" id="copy-cites" style="margin-top:12px"></button>
+  </div>
 </main>
 <script src="shared.js"></script>
 <script>
@@ -1088,6 +1105,22 @@ function wireDiagram(pos) {
   });
   svg.addEventListener('pointerup', () => { drag = null; svg.querySelectorAll('.dg-node').forEach(g => g.style.cursor = 'grab'); });
 }
+
+// full APA references for the methods this tool implements — one click into a methods chapter
+const METHOD_CITATIONS = `Aiken, L. S., & West, S. G. (1991). Multiple regression: Testing and interpreting interactions. Sage.
+Cohen, J. (1988). Statistical power analysis for the behavioral sciences (2nd ed.). Lawrence Erlbaum.
+Cronbach, L. J. (1951). Coefficient alpha and the internal structure of tests. Psychometrika, 16(3), 297–334. https://doi.org/10.1007/BF02310555
+Davis, F. D. (1989). Perceived usefulness, perceived ease of use, and user acceptance of information technology. MIS Quarterly, 13(3), 319–340. https://doi.org/10.2307/249008
+Dijkstra, T. K., & Henseler, J. (2015). Consistent partial least squares path modeling. MIS Quarterly, 39(2), 297–316. https://doi.org/10.25300/MISQ/2015/39.2.02
+Efron, B. (1979). Bootstrap methods: Another look at the jackknife. The Annals of Statistics, 7(1), 1–26. https://doi.org/10.1214/aos/1176344552
+Fornell, C., & Larcker, D. F. (1981). Evaluating structural equation models with unobservable variables and measurement error. Journal of Marketing Research, 18(1), 39–50. https://doi.org/10.1177/002224378101800104
+Hair, J. F., Hult, G. T. M., Ringle, C. M., & Sarstedt, M. (2022). A primer on partial least squares structural equation modeling (PLS-SEM) (3rd ed.). Sage.
+Hayes, A. F. (2022). Introduction to mediation, moderation, and conditional process analysis: A regression-based approach (3rd ed.). Guilford Press.
+Henseler, J., Ringle, C. M., & Sarstedt, M. (2015). A new criterion for assessing discriminant validity in variance-based structural equation modeling. Journal of the Academy of Marketing Science, 43(1), 115–135. https://doi.org/10.1007/s11747-014-0403-8
+Lohmöller, J.-B. (1989). Latent variable path modeling with partial least squares. Physica-Verlag. https://doi.org/10.1007/978-3-642-52512-4
+Wold, H. (1982). Soft modeling: The basic design and some extensions. In K. G. Jöreskog & H. Wold (Eds.), Systems under indirect observation: Causality, structure, prediction (Vol. 2, pp. 1–54). North-Holland.`;
+$('copy-cites').innerHTML = `${icon('copy', 15)} Copy citations (APA)`;
+$('copy-cites').onclick = () => navigator.clipboard.writeText(METHOD_CITATIONS).then(() => toast('12 references copied — paste into your methods chapter'));
 </script>
 </body>
 </html>
