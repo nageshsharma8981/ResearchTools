@@ -69,6 +69,11 @@ function render() {
       </div>
     </form>
   </div>
+  <div class="card" id="plan-card" hidden>
+    <span class="overline">Plan &amp; credits</span>
+    <h2 id="plan-title">Your plan</h2>
+    <div id="plan-body"></div>
+  </div>
   <div class="card">
     <span class="overline">Security</span>
     <h2>Change password</h2>
@@ -155,7 +160,33 @@ function render() {
   });
 }
 
-api('/api/me').then(r => { me = r.user; render(); }).catch(() => {
+// plan & credits transparency — populated whenever billing is live
+async function renderPlan() {
+  const b = await Rewiseed.billingStatus(true);
+  const card = document.getElementById('plan-card');
+  if (!card || !b.configured || !b.signedIn) return;
+  card.hidden = false;
+  const pro = b.planStatus === 'active';
+  document.getElementById('plan-title').textContent = pro ? 'ItsMyResearch Pro' : 'Free plan';
+  const pct = pro ? Math.min(100, Math.round(((b.credits ?? 0) / b.monthlyCredits) * 100)) : 0;
+  document.getElementById('plan-body').innerHTML = `
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <span class="badge ${pro ? 'gold' : ''}">${pro ? 'active' : b.planStatus === 'cancelled' ? 'cancelled — runs until period ends' : 'no subscription'}</span>
+      <span class="badge">${b.credits ?? 0} credit${(b.credits ?? 0) === 1 ? '' : 's'} remaining</span>
+      ${b.freeRunUsed ? '' : '<span class="badge ok">free run available</span>'}
+    </div>
+    ${pro ? `
+    <div style="height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin:2px 0 6px;max-width:340px">
+      <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:99px"></div>
+    </div>
+    <p class="hint" style="margin:0 0 10px">${b.credits ?? 0} of your monthly ${b.monthlyCredits} (top-ups and rollover can take you above ${b.monthlyCredits} — up to 300).</p>` : `
+    <p class="hint" style="margin:0 0 10px">${b.freeRunUsed ? 'Your free run is used.' : 'Your first AI run is free (standard or large documents).'} Pro is ₹${b.priceInr}/month for ${b.monthlyCredits} run credits.</p>`}
+    <p class="hint" style="margin:0 0 12px">How runs are counted: up to 20k characters = 1 credit · up to 80k = 2 · up to 200k = 4. Keyless tools never use credits.</p>
+    <div class="chip-row">
+      <a href="pricing.html"><button type="button" class="${pro ? 'ghost' : ''}">${pro ? 'Top up credits' : 'See plans & pricing'}</button></a>
+    </div>`;
+}
+api('/api/me').then(r => { me = r.user; render(); renderPlan(); }).catch(() => {
   document.getElementById('out').innerHTML = `
     <div class="card" style="text-align:center">
       <p class="hint">You're not signed in.</p>

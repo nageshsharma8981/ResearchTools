@@ -253,8 +253,19 @@
           <a href="#" id="menu-intro">${icon('play', 17)}Platform intro</a>
         </div>
       </details>
+      <a id="nav-credits" class="nav-credits" href="pricing.html" hidden title="Your AI run credits — click for plans and how runs are counted"></a>
       <button id="theme-toggle" class="icon-btn" aria-label="Toggle theme"></button>`;
     document.body.prepend(nav);
+    // credit transparency: signed-in users always see their balance
+    billingStatus().then(b => {
+      const el = document.getElementById('nav-credits');
+      if (!el || !b.enforced || !b.signedIn) return;
+      el.hidden = false;
+      el.innerHTML = !b.freeRunUsed
+        ? `${icon('sparkle', 13)} free run ready`
+        : `${icon('sparkle', 13)} ${b.credits ?? 0} credit${b.credits === 1 ? '' : 's'}`;
+      if (b.freeRunUsed && (b.credits ?? 0) === 0) el.classList.add('empty');
+    });
     applyTheme(document.documentElement.getAttribute('data-theme'));
     $('theme-toggle').onclick = () => {
       applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
@@ -449,7 +460,7 @@
       d = await r.json().catch(() => ({}));
     } catch { return; } // metering endpoint unreachable → don't strand the user
     if (r.ok) {
-      if (d.metered && typeof d.remaining === 'number') { _billing.credits = d.remaining; updateCreditBadge(); }
+      if (d.metered && typeof d.remaining === 'number') { _billing.credits = d.remaining; _billing.freeRunUsed = true; updateCreditBadge(); }
       if (d.freeRun) toast('That one was on us — your free run. Enjoy!', 'ok', 5000);
       return;
     }
@@ -458,8 +469,15 @@
     throw new Error(d.error || 'This run needs an active plan — see Pricing.');
   }
   function updateCreditBadge() {
+    if (!_billing || typeof _billing.credits !== 'number') return;
     const el = document.getElementById('credit-badge');
-    if (el && _billing && typeof _billing.credits === 'number') { el.hidden = false; el.textContent = `${_billing.credits} credits`; }
+    if (el) { el.hidden = false; el.textContent = `${_billing.credits} credits`; }
+    const nav = document.getElementById('nav-credits');
+    if (nav) {
+      nav.hidden = false;
+      nav.innerHTML = `${icon('sparkle', 13)} ${_billing.credits} credit${_billing.credits === 1 ? '' : 's'}`;
+      nav.classList.toggle('empty', _billing.credits === 0);
+    }
   }
 
   // ---------- LLM client ----------
