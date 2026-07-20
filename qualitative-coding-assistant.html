@@ -35,6 +35,10 @@
       <span class="chip-row"><button type="button" class="chip" id="example">Load example</button></span>
       <span id="count"></span>
     </div>
+    <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--ink-2);font-weight:600;margin-top:10px">
+      <input type="checkbox" id="anon" checked style="width:auto;margin-top:2px"/>
+      <span>Anonymize before sending — mask emails, phone numbers, links, ID numbers, and titled names (Dr./Mrs. X), and replace participant speaker labels with P1, P2… <span style="font-weight:500;color:var(--muted)">Protects participant identity when the transcript goes to your AI provider. Automatic masking is best-effort — still remove names spoken mid-sentence yourself.</span></span>
+    </label>
     <div class="row">
       <button id="run"></button>
       <span class="hint" style="margin:0"><kbd>⌘</kbd>+<kbd>Enter</kbd> to run</span>
@@ -55,7 +59,37 @@ Steps to produce, in order, as Markdown:
 3. **Candidate themes** — cluster codes into 3-6 themes, each with a 2-3 sentence description and its constituent codes.
 4. **Thematic map narrative** — how themes relate; tensions or contradictions.
 5. **Analyst reflexivity note** — one paragraph on interpretive choices.
-Use only what is in the transcript. If information is missing, say so.`;
+Use only what is in the transcript. If information is missing, say so.
+Participant protection: refer to speakers only by neutral labels (P1, P2, Interviewer). If any personal identifier survives in the transcript (a name, workplace, place), do NOT repeat it — substitute [name], [organisation], or [place] in quotes and notes.`;
+
+// best-effort PII masking before the transcript leaves the browser
+function anonymizeTranscript(text) {
+  const counts = { emails: 0, phones: 0, links: 0, ids: 0, names: 0, speakers: 0 };
+  let t = text;
+  t = t.replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, () => { counts.emails++; return '[email]'; });
+  t = t.replace(/https?:\/\/\S+|www\.\S+/g, () => { counts.links++; return '[link]'; });
+  t = t.replace(/(?<!\d)(?:\+?\d[\s().-]?){6,15}\d(?!\d)/g, (m) => {
+    const digits = m.replace(/\D/g, '');
+    if (digits.length >= 7 && digits.length <= 16) { counts.phones++; return '[phone]'; }
+    return m;
+  });
+  t = t.replace(/\b\d{6,}\b/g, () => { counts.ids++; return '[id]'; });
+  t = t.replace(/\b(Dr|Mr|Mrs|Ms|Miss|Prof|Professor|Nurse|Sister)\.?\s+[A-Z][a-zà-ÿ'-]+(?:\s+[A-Z][a-zà-ÿ'-]+)?/g, (m, title) => { counts.names++; return `${title}. [name]`; });
+  // speaker labels: keep Interviewer/Moderator/P-numbers; pseudonymize other name labels consistently
+  const keep = /^(interviewer|moderator|facilitator|researcher|i|q|p\d+|r\d+|participant\s*\d*)$/i;
+  const map = new Map();
+  t = t.replace(/^([A-Z][\w .'-]{0,30}?)(\s*[:—-]\s+)/gm, (m, label, sep) => {
+    const clean = label.trim();
+    if (keep.test(clean) || /^===/.test(clean)) return m;
+    if (!map.has(clean)) { map.set(clean, `P${map.size + 1}`); counts.speakers++; }
+    return map.get(clean) + sep;
+  });
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const note = total
+    ? `🔒 Anonymized before sending: ${[counts.speakers && `${counts.speakers} speaker name${counts.speakers > 1 ? 's' : ''} → P1, P2…`, counts.names && `${counts.names} titled name${counts.names > 1 ? 's' : ''}`, counts.emails && `${counts.emails} email${counts.emails > 1 ? 's' : ''}`, counts.phones && `${counts.phones} phone number${counts.phones > 1 ? 's' : ''}`, counts.ids && `${counts.ids} ID-like number${counts.ids > 1 ? 's' : ''}`, counts.links && `${counts.links} link${counts.links > 1 ? 's' : ''}`].filter(Boolean).join(' · ')}. The original stays untouched in your browser.`
+    : `🔒 Anonymization ran — no emails, phones, IDs, titled names, or named speaker labels detected. Double-check for names spoken mid-sentence.`;
+  return { text: t, note };
+}
 
 const EXAMPLE = `=== Interview 1 ===
 Interviewer: How did you find the switch to the new electronic patient record system?
@@ -81,6 +115,7 @@ Rewiseed.mountStreamingTool({
   runningLabel: 'Familiarising with the data…',
   example: EXAMPLE, exampleBtnId: 'example',
   countId: 'count',
+  transformInput: (text) => document.getElementById('anon').checked ? anonymizeTranscript(text) : { text, note: '⚠️ Anonymization is OFF — the transcript goes to your AI provider exactly as pasted, including any participant names.' },
 });
 </script>
 </body>

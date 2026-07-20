@@ -77,7 +77,7 @@ Rewiseed.mountStreamingTool({
     const len = document.getElementById('len').value;
     const parts = [];
     if (kind !== 'interview') parts.push(`## Survey questionnaire
-- **Screening & consent note** — one short paragraph including eligibility items.
+- **Screening & consent note** — one short paragraph including eligibility items, and an explicit anonymity/confidentiality assurance: state that responses are anonymous (or confidential, if identifiers are unavoidable — say which and why), that no personally identifying information will be reported, and how data will be stored and for how long.
 - **Sections** grouped by construct. For each construct: name it, then list items.
 - Every closed item states its response scale explicitly (e.g., 5-point Likert: Strongly disagree … Strongly agree; frequency scales; numeric entry with units).
 - **Prefer validated instruments** where they exist (e.g., PSQI, GAD-7, UCLA Loneliness, FoMO Scale) — name the instrument, its item count, and licensing note, rather than inventing items for well-measured constructs. Write original items only for constructs without standard scales.
@@ -85,7 +85,7 @@ Rewiseed.mountStreamingTool({
 - **Design notes** table: construct | measure | # items | scale | source.
 - **Pilot & validity notes** — order effects, social desirability risks, estimated completion time${len === 'short' ? ' (keep total under ~15 items)' : len === 'deep' ? '' : ' (keep total under ~30 items)'}.`);
     if (kind !== 'survey') parts.push(`## Semi-structured interview guide
-- **Opening script** — consent reminder, recording notice, rapport question.
+- **Opening script** — consent reminder, recording notice, an explicit anonymity assurance (pseudonyms in all outputs, identifying details removed at transcription, recordings stored securely and deleted after transcription), and a rapport question.
 - **Core questions** (${len === 'short' ? '4-5' : len === 'deep' ? '10-12' : '6-8'}) ordered from broad to specific; each with 2-3 follow-up probes and a note on what the question is designed to surface.
 - **Sensitive-topic handling** and closing questions.
 - **Interviewer notes** — pacing, neutrality reminders, saturation guidance.`);
@@ -95,7 +95,8 @@ Rules:
 - Ground everything in the user's research questions and constraints; respect stated limits (time, anonymity, IRB, population) strictly.
 - Items must be single-barreled, neutral, and jargon-free at the stated population's level. No leading or double-negative items.
 - Never invent citations for validated instruments — name only real, widely used scales, and add [verify licensing] where a scale may require permission.
-- End with "### Next steps" — 3 bullets: pilot testing, reliability checks (e.g., Cronbach's alpha), and ethics/IRB reminders.`;
+- **### References** (required whenever any validated instrument, scale, or framework is named): the canonical source for each in APA 7 (e.g., Buysse, D. J., et al. (1989). The Pittsburgh Sleep Quality Index. *Psychiatry Research, 28*(2), 193–213). Give only citations you are confident are real and correct; where any detail is uncertain, write [verify — check via DOI Finder] after the entry rather than guessing pages, volumes, or years. Never fabricate a DOI.
+- End with "### Next steps" — 4 bullets: pilot testing, reliability checks (e.g., Cronbach's alpha), verifying the reference list via the DOI Finder, and ethics/IRB reminders (including participant anonymity and data-protection steps).`;
   },
   runLabel: 'Design instrument',
   runningLabel: 'Drafting your instrument…',

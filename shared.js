@@ -719,6 +719,7 @@
       exampleBtnId,
       countId,           // optional word-count element
       next,              // optional hand-off: { href, draftKey, label, carry: 'output'|'input' }
+      transformInput,    // optional (text) => ({ text, note }) applied before the LLM call (e.g. PII anonymization)
     } = opts;
 
     const input = $(inputId), runBtn = $(runId), out = $(outId);
@@ -819,12 +820,18 @@
           </div>
         </div>`;
       const streamEl = $(`${toolId}-stream`);
+      let sendText = text;
+      if (transformInput) {
+        const tr = transformInput(text);
+        sendText = tr.text;
+        if (tr.note) out.querySelector('.card').insertAdjacentHTML('afterbegin', `<p class="hint" style="margin:0 0 10px">${tr.note}</p>`);
+      }
       let raf = 0, pending = '';
       const paint = () => { streamEl.innerHTML = `<div class="cursor-blink">${md(pending)}</div>`; raf = 0; };
       try {
         lastOutput = await callLLM({
           system: buildSystem(),
-          user: text,
+          user: sendText,
           temperature: 0.2,
           signal: abort.signal,
           onStream: (t) => {
