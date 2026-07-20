@@ -113,15 +113,35 @@ function publicUser(u, includePrivate = false) {
 }
 
 // ---------- email ----------
+// Reliability: 3 attempts with backoff on network errors / 429 / 5xx, a
+// per-attempt timeout, and no retry on other 4xx (those never self-heal).
 async function sendEmail(to, subject, html) {
   if (!RESEND_API_KEY) return { dev: true };
-  const r = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, html }),
-  });
-  if (!r.ok) throw new Error(`email provider ${r.status}: ${(await r.text()).slice(0, 200)}`);
-  return { dev: false };
+  let lastErr;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 15_000);
+      const r = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, html }),
+        signal: ctrl.signal,
+      }).finally(() => clearTimeout(t));
+      if (r.ok) {
+        if (attempt > 1) console.log(`email to ${to} succeeded on attempt ${attempt}`);
+        return { dev: false };
+      }
+      const body = (await r.text().catch(() => '')).slice(0, 200);
+      lastErr = new Error(`email provider ${r.status}: ${body}`);
+      if (r.status < 500 && r.status !== 429) break; // hard client error — retrying won't help
+    } catch (e) {
+      lastErr = e;
+    }
+    if (attempt < 3) await new Promise(res => setTimeout(res, attempt * 1500));
+  }
+  console.error(`email to ${to} FAILED after retries: ${lastErr?.message}`);
+  throw lastErr;
 }
 const resetEmailHtml = (link) => `
 <div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;padding:24px">
@@ -272,7 +292,22 @@ app.post('/api/auth/signup', async (req, res) => {
   // Anti-enumeration: same response whether or not the account exists,
   // with the same scrypt cost either way (no timing oracle).
   const genericOk = { ok: true, message: 'Check your inbox — if this address is new, a confirmation email is on its way.' };
-  if (existing) { hashPassword(password, rand(16)); return res.json(genericOk); }
+  if (existing) {
+    hashPassword(password, rand(16)); // keep timing identical
+    // Unconfirmed re-signup means the first email never arrived — resend a
+    // fresh confirmation instead of silently doing nothing. The response is
+    // identical either way, so nothing is enumerable.
+    if (!existing.confirmed) {
+      const confirmToken = rand(32);
+      db.prepare('INSERT INTO tokens (token, user_id, kind, expires) VALUES (?,?,?,?)')
+        .run(sha(confirmToken), existing.id, 'confirm', now() + 24 * 3600_000);
+      const link = `${BASE_URL}/api/auth/confirm?token=${confirmToken}`;
+      sendEmail(em, 'Confirm your ReWiseEd Research account', confirmEmailHtml(displayName, link))
+        .then(s => { if (s.dev) console.log(`[dev-email] re-confirmation for ${em}: ${link}`); })
+        .catch(() => {});
+    }
+    return res.json(genericOk);
+  }
   const salt = rand(16);
   const role = SUPERADMINS.includes(em) ? 'superadmin' : 'student';
   const info = db.prepare('INSERT INTO users (email, name, pass_hash, salt, role, created_at, terms_version, terms_accepted_at) VALUES (?,?,?,?,?,?,?,?)')
@@ -303,6 +338,28 @@ app.get('/api/auth/confirm', (req, res) => {
   res.redirect('/signin.html?confirmed=1');
 });
 
+// Resend a confirmation email on demand — the escape hatch when the first
+// one lands in spam or the 24h token expires. Generic response always.
+app.post('/api/auth/resend-confirm', async (req, res) => {
+  if (!rateLimit('reconfirm:' + req.ip, 5, 15 * 60_000)) return res.status(429).json({ error: 'Too many attempts — wait a few minutes.' });
+  const em = cap((req.body || {}).email, 254).toLowerCase();
+  if (!EMAIL_RE.test(em)) return res.status(400).json({ error: 'Enter a valid email address.' });
+  if (!rateLimit('reconfirmE:' + em, 3, 15 * 60_000)) return res.status(429).json({ error: 'Too many attempts for this address — wait a few minutes.' });
+  const generic = { ok: true, message: 'If an unconfirmed account exists for that address, a fresh confirmation email is on its way.' };
+  const u = db.prepare('SELECT id, name, confirmed FROM users WHERE email = ?').get(em);
+  if (u && !u.confirmed) {
+    const confirmToken = rand(32);
+    db.prepare('INSERT INTO tokens (token, user_id, kind, expires) VALUES (?,?,?,?)')
+      .run(sha(confirmToken), u.id, 'confirm', now() + 24 * 3600_000);
+    const link = `${BASE_URL}/api/auth/confirm?token=${confirmToken}`;
+    try {
+      const sent = await sendEmail(em, 'Confirm your ReWiseEd Research account', confirmEmailHtml(u.name, link));
+      if (sent.dev) console.log(`[dev-email] resend confirmation for ${em}: ${link}`);
+    } catch { /* generic response regardless; failure already logged */ }
+  }
+  res.json(generic);
+});
+
 app.post('/api/auth/signin', (req, res) => {
   if (!rateLimit('signin:' + req.ip, 15, 15 * 60_000)) return res.status(429).json({ error: 'Too many attempts — wait a few minutes.' });
   const { email, password, captchaToken } = req.body || {};
@@ -313,7 +370,7 @@ app.post('/api/auth/signin', (req, res) => {
   if (!u || !verifyPassword(String(password || ''), u.salt, u.pass_hash)) {
     return res.status(401).json({ error: 'Invalid email or password.' });
   }
-  if (!u.confirmed) return res.status(403).json({ error: 'Please confirm your email first — check your inbox.' });
+  if (!u.confirmed) return res.status(403).json({ error: 'Please confirm your email first — check your inbox (and spam).', unconfirmed: true });
   if (u.disabled) return res.status(403).json({ error: 'This account has been disabled. Contact your administrator.' });
   const token = rand(32);
   db.prepare('INSERT INTO sessions (token, user_id, expires) VALUES (?,?,?)').run(sha(token), u.id, now() + 30 * 24 * 3600_000);

@@ -75,6 +75,22 @@ document.getElementById('form').addEventListener('submit', async (e) => {
     location.href = 'index.html';
   } catch (err) {
     toast(err.message, 'error', 5000);
+    // unconfirmed account → offer a one-click fresh confirmation email
+    if (/confirm your email/i.test(err.message) && !document.getElementById('resend-row')) {
+      document.getElementById('form').insertAdjacentHTML('afterend',
+        `<p id="resend-row" style="text-align:center;margin-top:12px;font-size:13.5px">Didn't get the email? <a href="#" class="link" id="resend-link">Send a fresh confirmation email</a></p>`);
+      document.getElementById('resend-link').onclick = async (ev) => {
+        ev.preventDefault();
+        const em = document.getElementById('email').value.trim();
+        if (!em) return toast('Enter your email above first', 'error');
+        ev.target.textContent = 'Sending…';
+        try {
+          const r = await api('/api/auth/resend-confirm', { method: 'POST', body: { email: em } });
+          toast(r.message, 'ok', 6000);
+          ev.target.textContent = 'Sent — check your inbox and spam';
+        } catch (e2) { toast(e2.message, 'error'); ev.target.textContent = 'Send a fresh confirmation email'; }
+      };
+    }
     captcha.reset();
     btn.disabled = false;
   }

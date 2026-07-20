@@ -70,10 +70,10 @@ function setMode(m) {
   $('search-hint').textContent = m === 'author'
     ? "Search by name. Names aren't unique — pick the right profile from the matches."
     : 'Search by institution name — universities, labs, agencies.';
-  $('q').placeholder = m === 'author' ? 'e.g. Yann LeCun' : 'e.g. Golden Gate University';
+  $('q').placeholder = m === 'author' ? 'e.g. Yann LeCun' : 'e.g. Stanford University';
   $('examples').innerHTML = (m === 'author'
     ? ['Elinor Ostrom', 'Daniel Kahneman', 'Geoffrey Hinton']
-    : ['Golden Gate University', 'Stanford University', 'World Bank'])
+    : ['Stanford University', 'University of Oxford', 'World Bank'])
     .map(x => `<button type="button" class="chip" data-ex="${esc(x)}">${esc(x)}</button>`).join('');
   $('examples').querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { $('q').value = b.dataset.ex; $('go').click(); });
   $('out').innerHTML = '';

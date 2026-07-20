@@ -65,11 +65,12 @@
       <label>Instructor <input id="m-instr" placeholder="Dr. A. Professor"/></label>
       <label>Due date <input id="m-date" placeholder="July 18, 2026"/></label>
       <label>Paper type (APA only)
-        <select id="m-type"><option value="student">Student paper</option><option value="professional">Professional (running head)</option><option value="ggu">GGU thesis / dissertation</option></select>
+        <select id="m-type"><option value="student">Student paper</option><option value="professional">Professional (running head)</option><option value="ggu">Thesis / dissertation</option></select>
       </label>
-      <label class="full" id="ggu-degree-wrap" hidden>Degree &amp; program (GGU) <input id="m-degree" placeholder="Doctor of Business Administration (DBA) in Emerging Technologies (Concentration in Generative AI)"/></label>
-      <label id="ggu-chair-wrap" hidden>Committee Chair (GGU) <input id="m-chair" placeholder="Dr. Chair Name"/></label>
-      <label id="ggu-cochair-wrap" hidden>Committee Co-Chair (GGU) <input id="m-cochair" placeholder="Dr. Co-Chair Name"/></label>
+      <label class="full" id="ggu-inst-wrap" hidden>Institution <input id="m-inst" placeholder="[University Name]"/></label>
+      <label class="full" id="ggu-degree-wrap" hidden>Degree &amp; program <input id="m-degree" placeholder="[Degree and Program, e.g. Doctor of Philosophy (PhD) in …]"/></label>
+      <label id="ggu-chair-wrap" hidden>Committee Chair <input id="m-chair" placeholder="Dr. Chair Name"/></label>
+      <label id="ggu-cochair-wrap" hidden>Committee Co-Chair <input id="m-cochair" placeholder="Dr. Co-Chair Name"/></label>
     </div>
     <div class="row">
       <label style="display:inline-flex;align-items:center;gap:7px;font-size:13.5px;color:var(--ink-2);font-weight:600">
@@ -99,8 +100,8 @@ $('out').innerHTML = EMPTY;
 const styleSel = () => $('m-style').value;
 const setRunLabel = () => {
   const ggu = styleSel() === 'apa7' && $('m-type').value === 'ggu';
-  $('run').innerHTML = `${icon('play', 15)} Format as ${ggu ? 'GGU dissertation (APA 7)' : STYLES[styleSel()].label}`;
-  ['ggu-degree-wrap', 'ggu-chair-wrap', 'ggu-cochair-wrap'].forEach(id => { $(id).hidden = !ggu; });
+  $('run').innerHTML = `${icon('play', 15)} Format as ${ggu ? 'thesis / dissertation (APA 7)' : STYLES[styleSel()].label}`;
+  ['ggu-inst-wrap', 'ggu-degree-wrap', 'ggu-chair-wrap', 'ggu-cochair-wrap'].forEach(id => { $(id).hidden = !ggu; });
 };
 document.addEventListener('DOMContentLoaded', () => {
   setRunLabel();
@@ -137,7 +138,7 @@ $('example').onclick = () => {
   $('in').value = EXAMPLE; $('in').dispatchEvent(new Event('input'));
   $('m-title').value = 'Social Media Use and Sleep Quality Among Undergraduates';
   $('m-author').value = 'Alex Student';
-  $('m-affil').value = 'Department of Psychology, Golden Gate University';
+  $('m-affil').value = 'Department of Psychology, [University Name]';
   $('m-course').value = 'PSY 300: Research Methods';
   $('m-instr').value = 'Dr. R. Advisor';
   $('m-date').value = 'July 18, 2026';
@@ -274,7 +275,7 @@ function para(text, { bold = false, italic = false, center = false, indent = nul
   }
   return `<w:p>${pPr}${runs}</w:p>`;
 }
-// reference entry with live hyperlinks (GGU rule: URLs underlined, blue, clickable)
+// reference entry with live hyperlinks (URLs underlined, blue, clickable — accessibility)
 function refParaLinked(text, urls) {
   const pPr = `<w:pPr><w:spacing w:line="480" w:lineRule="auto" w:before="0" w:after="0"/><w:ind w:left="720" w:hanging="720"/></w:pPr>`;
   let runs = '';
@@ -297,11 +298,11 @@ function buildDocx(text, meta, styleKey) {
   const st = STYLES[styleKey] || STYLES.apa7;
   const ggu = styleKey === 'apa7' && meta.type === 'ggu';
   const paras = [];
-  const urls = []; // external hyperlink targets (GGU references)
+  const urls = []; // external hyperlink targets (thesis references)
   let refN = 0;
   // --- front matter ---
   if (ggu) {
-    // GGU dissertation title page (per the GGU thesis/dissertation APA template)
+    // dissertation title page (modeled on standard university thesis templates)
     for (let i = 0; i < 3; i++) paras.push(para('', { center: true }));
     paras.push(para(meta.title || 'Untitled Dissertation', { bold: true, center: true }));
     paras.push(para('', { center: true }));
@@ -309,10 +310,9 @@ function buildDocx(text, meta, styleKey) {
     if (meta.author) paras.push(para(meta.author, { center: true }));
     paras.push(para('', { center: true }));
     paras.push(para('Submitted in partial satisfaction of the requirements for the degree of', { center: true }));
-    (meta.degree || 'Doctor of Business Administration (DBA) in Emerging Technologies (Concentration in Generative AI)').split('\n').forEach(l => paras.push(para(l, { center: true })));
+    (meta.degree || '[Degree and Program]').split('\n').forEach(l => paras.push(para(l, { center: true })));
     paras.push(para('', { center: true }));
-    paras.push(para('GGU WORLDWIDE', { center: true }));
-    paras.push(para('GOLDEN GATE UNIVERSITY', { center: true }));
+    (meta.inst || '[UNIVERSITY NAME]').split('\n').forEach(l => paras.push(para(l.toUpperCase(), { center: true })));
     if (meta.date) { paras.push(para('', { center: true })); paras.push(para(meta.date, { center: true })); }
     // committee approval page
     paras.push(para(meta.chair || 'Name of Committee Chair', { center: true, pageBreak: true }));
@@ -344,7 +344,7 @@ function buildDocx(text, meta, styleKey) {
     [meta.author, meta.affil, meta.course, meta.instr, meta.date].filter(Boolean).forEach(l => paras.push(para(l, { center: true })));
   }
   // --- body: line-based parse so single newlines after headings work ---
-  // GGU dissertations don't repeat the title before Chapter 1 — chapters open their own pages
+  // dissertations don't repeat the title before Chapter 1 — chapters open their own pages
   let inRefs = false, first = styleKey !== 'mla9' && !ggu, buf = [];
   const flushBuf = () => {
     if (!buf.length) return;
@@ -362,7 +362,7 @@ function buildDocx(text, meta, styleKey) {
       let title = h[2].trim();
       inRefs = REF_HEADING.test(title);
       if (inRefs) { title = st.ref; refN = 0; } // keep the section title style-true
-      // GGU: every Level-1 section (chapters, appendices, front matter) starts a new page;
+      // thesis mode: every Level-1 section (chapters, appendices, front matter) starts a new page;
       // ### renders as APA Level 3 (flush left, bold italic)
       paras.push(para(title, { bold: true, italic: h[1].length === 3, center: h[1].length === 1, pageBreak: first || inRefs || (ggu && h[1].length === 1) }));
       first = false;
@@ -389,7 +389,7 @@ function buildDocx(text, meta, styleKey) {
     const lastName = (meta.author || '').trim().split(/\s+/).pop() || '';
     headerRuns = `<w:r>${RPR}<w:tab/></w:r><w:r>${RPR}<w:t xml:space="preserve">${X(lastName)} </w:t></w:r>${PAGEFLD}`;
   } else if (styleKey === 'apa7' && (meta.type === 'professional' || meta.type === 'ggu') && meta.title) {
-    // GGU: left-aligned ALL-CAPS running head (≤50 chars) + right page number, every page
+    // thesis: left-aligned ALL-CAPS running head (≤50 chars) + right page number, every page
     headerRuns = `<w:r>${RPR}<w:t xml:space="preserve">${X(meta.title.toUpperCase().slice(0, 50))}</w:t></w:r><w:r>${RPR}<w:tab/></w:r>${PAGEFLD}`;
   } else {
     headerRuns = `<w:r>${RPR}<w:tab/></w:r>${PAGEFLD}`;
@@ -476,7 +476,7 @@ $('run').onclick = async () => {
   const text = $('in').value.trim();
   if (!text) { toast('Paste or load your paper first', 'error'); $('in').focus(); return; }
   const styleKey = styleSel(), st = STYLES[styleKey];
-  const meta = { title: $('m-title').value.trim(), author: $('m-author').value.trim(), affil: $('m-affil').value.trim(), course: $('m-course').value.trim(), instr: $('m-instr').value.trim(), date: $('m-date').value.trim(), type: $('m-type').value, degree: $('m-degree').value.trim(), chair: $('m-chair').value.trim(), cochair: $('m-cochair').value.trim() };
+  const meta = { title: $('m-title').value.trim(), author: $('m-author').value.trim(), affil: $('m-affil').value.trim(), course: $('m-course').value.trim(), instr: $('m-instr').value.trim(), date: $('m-date').value.trim(), type: $('m-type').value, inst: $('m-inst').value.trim(), degree: $('m-degree').value.trim(), chair: $('m-chair').value.trim(), cochair: $('m-cochair').value.trim() };
   const isGgu = styleKey === 'apa7' && meta.type === 'ggu';
   if (!meta.title) { toast('A paper title is needed', 'error'); $('m-title').focus(); return; }
   if (styleKey === 'mla9' && !meta.author) { toast('MLA needs your name for the first-page heading and the “Lastname 1” header', 'error'); $('m-author').focus(); return; }
@@ -500,7 +500,7 @@ $('run').onclick = async () => {
       const cleaned = await Rewiseed.callLLM({
         system: aiSys(styleKey) + (isGgu ? `
 
-This paper is a GGU (Golden Gate University) DBA thesis/dissertation. Additionally:
+This paper is a university thesis/dissertation. Additionally:
 - Keep chapter structure in Level 1 headings labeled "# Chapter N. Title" (e.g. "# Chapter 1. Introduction", "# Chapter 2. Review of the Literature"). Do not invent chapters that aren't there, but normalize existing chapter headings to that form.
 - If there is an Abstract section, keep it as "# Abstract" and ensure a "Keywords:" line sits directly under the abstract paragraph (indented, no period at the end).
 - Appendices are Level 1 headings in the form "# Appendix A: Title".
@@ -529,10 +529,10 @@ This paper is a GGU (Golden Gate University) DBA thesis/dissertation. Additional
       .replace(/[^\p{L}\p{N}\s-]+/gu, '')
       .trim().replace(/\s+/g, '-').toLowerCase()
       .slice(0, 60).replace(/^-+|-+$/g, '');
-    const fname = (slug.length >= 3 ? slug : 'paper') + '-' + (isGgu ? 'ggu-apa7' : st.slug) + '.docx';
+    const fname = (slug.length >= 3 ? slug : 'paper') + '-' + (isGgu ? 'thesis-apa7' : st.slug) + '.docx';
     out.insertAdjacentHTML('beforeend', `
-      <div class="card"><span class="overline">Result</span><h2>Your ${isGgu ? 'GGU dissertation (APA 7)' : esc(st.label)} document</h2>
-        <p class="hint">${isGgu ? 'GGU thesis format: dissertation title page (By / degree / GGU WORLDWIDE / GOLDEN GATE UNIVERSITY), committee approval page with signature lines, Table of Contents field (right-click → Update Field in Word), ALL-CAPS running head left + page number right on every page, each chapter and appendix on a new page, APA headings (Level 3 bold italic), hanging-indent References with URLs as live blue underlined links.' : esc(st.mech)}</p>
+      <div class="card"><span class="overline">Result</span><h2>Your ${isGgu ? 'thesis / dissertation (APA 7)' : esc(st.label)} document</h2>
+        <p class="hint">${isGgu ? 'Thesis format: dissertation title page (By / degree / institution — placeholders like [University Name] fill any field you leave blank), committee approval page with signature lines, Table of Contents field (right-click → Update Field in Word), ALL-CAPS running head left + page number right on every page, each chapter and appendix on a new page, APA headings (Level 3 bold italic), hanging-indent References with URLs as live blue underlined links.' : esc(st.mech)}</p>
         <div class="dl-hero"><span class="big">${icon('doc', 28)}</span>
           <div style="min-width:0">
             <b style="font-size:14px;overflow-wrap:anywhere">${esc(fname)}</b>
