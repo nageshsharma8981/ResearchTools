@@ -138,7 +138,7 @@ button.mode-tab.active { background:var(--accent-soft); color:var(--accent-stron
     <h2>Run the model</h2>
     <div class="settings-grid" style="display:flex;gap:14px;flex-wrap:wrap">
       <label>Weighting scheme
-        <select id="scheme"><option value="path" selected>Path (SmartPLS default)</option><option value="factor">Factor</option><option value="centroid">Centroid</option></select>
+        <select id="scheme"><option value="path" selected>AI PLS</option><option value="factor">Factor</option><option value="centroid">Centroid</option></select>
       </label>
       <label>Bootstrap samples
         <select id="nboot">
@@ -171,7 +171,7 @@ const $ = (id) => document.getElementById(id);
 Rewiseed.renderNav('ai-pls.html');
 Rewiseed.renderSettingsBar('settings');
 $('hero-icon').innerHTML = icon('sigma', 26);
-$('run').innerHTML = `${icon('sigma', 15)} Run PLS-SEM`;
+$('run').innerHTML = `${icon('sigma', 15)} Run AI PLS`;
 
 // ---------- state ----------
 let data = null;            // { cols: {name: Float64Array-ish number[]}, names: [], n }
@@ -775,7 +775,7 @@ $('run').onclick = async () => {
         if (b % 20 === 19) { $('prog-fill').style.width = `${Math.round(100 * b / B)}%`; $('run-status').textContent = `Bootstrapping ${b + 1}/${B}…`; await yieldNow(); }
       }
       $('prog').hidden = true; $('run-status').textContent = '';
-      btn.dataset.running = ''; btn.classList.remove('danger'); btn.innerHTML = `${icon('sigma', 15)} Run PLS-SEM`;
+      btn.dataset.running = ''; btn.classList.remove('danger'); btn.innerHTML = `${icon('sigma', 15)} Run AI PLS`;
       const done = samples[pathKeys[0]].length;
       if (done >= 50) boot = { samples, B: done, failed, cancelled: cancelBoot };
       else if (cancelBoot) toast('Bootstrap cancelled — showing estimates without significance tests');
@@ -783,7 +783,7 @@ $('run').onclick = async () => {
     render(est, boot, { n: keep.length, dropped, scheme, B });
   } catch (e) {
     $('prog').hidden = true; $('run-status').textContent = '';
-    btn.dataset.running = ''; btn.classList.remove('danger'); btn.innerHTML = `${icon('sigma', 15)} Run PLS-SEM`;
+    btn.dataset.running = ''; btn.classList.remove('danger'); btn.innerHTML = `${icon('sigma', 15)} Run AI PLS`;
     $('out').innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>${esc(e.message)}</span></div></div>`;
   }
 };
