@@ -70,7 +70,11 @@ button.ind-chip.on { background:var(--accent-soft); border-color:var(--accent); 
   <div class="card">
     <span class="overline">Step 2 · Model</span>
     <h2>Define constructs and paths</h2>
-    <p class="hint">Each latent construct gets a name and its reflective indicators (Mode A). Then draw the structural paths. The model must be recursive — no loops.</p>
+    <p class="hint">Each latent construct gets a name and its reflective indicators (Mode A). Click a column chip to assign it — or <b>drag any chip onto another construct's card</b> to move it there. An indicator may sit in more than one construct (that's how repeated-indicators higher-order models work). The structural model must be recursive — no loops.</p>
+    <div class="chip-row" style="margin-bottom:12px">
+      <button type="button" class="chip" id="auto-prefix">✨ Auto-build from column prefixes</button>
+      <button type="button" class="chip" id="tam-template">TAM model template</button>
+    </div>
     <div id="constructs"></div>
     <button type="button" class="ghost" id="add-construct">+ Add construct</button>
     <div style="margin-top:16px">
@@ -93,7 +97,15 @@ button.ind-chip.on { background:var(--accent-soft); border-color:var(--accent); 
         <select id="scheme"><option value="path" selected>Path (SmartPLS default)</option><option value="factor">Factor</option><option value="centroid">Centroid</option></select>
       </label>
       <label>Bootstrap samples
-        <select id="nboot"><option>200</option><option selected>500</option><option>1000</option><option value="0">Skip bootstrapping</option></select>
+        <select id="nboot">
+          <option>500</option><option>1000</option><option>2000</option>
+          <option selected>5000</option>
+          <option value="custom">Custom…</option>
+          <option value="0">Skip bootstrapping</option>
+        </select>
+      </label>
+      <label id="nboot-custom-wrap" hidden>Custom samples
+        <input id="nboot-custom" type="number" min="100" max="10000" step="100" value="5000" style="width:110px"/>
       </label>
     </div>
     <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -164,29 +176,41 @@ $('parse-paste').onclick = () => {
 
 // deterministic example: classic TAM (perceived ease of use → usefulness → intention)
 $('load-example').onclick = () => {
+  // full classic TAM with 4 attitude items — PEOU → PU; PEOU & PU → ATT; PU & ATT → BI
   let s = 42; const rnd = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
   const normal = () => Math.sqrt(-2 * Math.log(rnd() || 1e-9)) * Math.cos(2 * Math.PI * rnd());
-  const rows = [['peou1,peou2,peou3,pu1,pu2,pu3,int1,int2,int3']];
+  const rows = [['peou1,peou2,peou3,pu1,pu2,pu3,att1,att2,att3,att4,bi1,bi2,bi3']];
   for (let i = 0; i < 250; i++) {
     const peou = normal();
     const pu = 0.55 * peou + Math.sqrt(1 - 0.55 ** 2) * normal();
-    const int = 0.5 * pu + 0.25 * peou + Math.sqrt(0.45) * normal();
+    const att = 0.45 * pu + 0.3 * peou + Math.sqrt(0.52) * normal();
+    const bi = 0.45 * att + 0.3 * pu + Math.sqrt(0.48) * normal();
     const item = (lat, lam) => (lam * lat + Math.sqrt(1 - lam * lam) * normal()).toFixed(3);
-    rows.push([peou, peou, peou].map((l, k) => item(l, [0.85, 0.8, 0.75][k]))
-      .concat([pu, pu, pu].map((l, k) => item(l, [0.85, 0.8, 0.75][k])))
-      .concat([int, int, int].map((l, k) => item(l, [0.85, 0.8, 0.75][k]))).join(','));
+    rows.push([
+      ...[0.85, 0.8, 0.75].map(l => item(peou, l)),
+      ...[0.85, 0.8, 0.75].map(l => item(pu, l)),
+      ...[0.85, 0.82, 0.78, 0.74].map(l => item(att, l)),
+      ...[0.85, 0.8, 0.75].map(l => item(bi, l)),
+    ].join(','));
   }
-  setData(parseCSV(rows.join('\n')), 'TAM example');
+  setData(parseCSV(rows.join('\n')), 'TAM example (n = 250)');
   spec = {
     constructs: [
-      { name: 'Ease of Use', inds: ['peou1', 'peou2', 'peou3'] },
-      { name: 'Usefulness', inds: ['pu1', 'pu2', 'pu3'] },
-      { name: 'Intention', inds: ['int1', 'int2', 'int3'] },
+      { name: 'Perceived Ease of Use', inds: ['peou1', 'peou2', 'peou3'] },
+      { name: 'Perceived Usefulness', inds: ['pu1', 'pu2', 'pu3'] },
+      { name: 'Attitude', inds: ['att1', 'att2', 'att3', 'att4'] },
+      { name: 'Behavioral Intention', inds: ['bi1', 'bi2', 'bi3'] },
     ],
-    paths: [['Ease of Use', 'Usefulness'], ['Ease of Use', 'Intention'], ['Usefulness', 'Intention']],
+    paths: [
+      ['Perceived Ease of Use', 'Perceived Usefulness'],
+      ['Perceived Ease of Use', 'Attitude'],
+      ['Perceived Usefulness', 'Attitude'],
+      ['Perceived Usefulness', 'Behavioral Intention'],
+      ['Attitude', 'Behavioral Intention'],
+    ],
   };
   saveSpec(); renderModel();
-  toast('Example loaded — scroll down and press Run');
+  toast('Full TAM example loaded (4 attitude items) — scroll down and press Run');
 };
 
 // ---------- model builder ----------
@@ -214,12 +238,35 @@ function renderModel() {
     spec.paths = spec.paths.filter(([f, t]) => f !== nm && t !== nm);
     saveSpec(); renderModel();
   });
-  $('constructs').querySelectorAll('.ind-chip').forEach(b => b.onclick = () => {
-    const c = spec.constructs[+b.dataset.ci], ind = b.dataset.ind;
-    const owner = spec.constructs.find(x => x !== c && x.inds.includes(ind));
-    if (owner) { toast(`“${ind}” already belongs to ${owner.name}`, 'error'); return; }
-    c.inds.includes(ind) ? c.inds.splice(c.inds.indexOf(ind), 1) : c.inds.push(ind);
-    saveSpec(); renderModel();
+  $('constructs').querySelectorAll('.ind-chip').forEach(b => {
+    b.onclick = () => {
+      const c = spec.constructs[+b.dataset.ci], ind = b.dataset.ind;
+      if (!c.inds.includes(ind)) {
+        const owner = spec.constructs.find(x => x !== c && x.inds.includes(ind));
+        if (owner) toast(`“${ind}” is also in ${owner.name} — kept in both (repeated-indicators higher-order modeling). Remove it there if that wasn't intended.`, 'ok', 5000);
+        c.inds.push(ind);
+      } else c.inds.splice(c.inds.indexOf(ind), 1);
+      saveSpec(); renderModel();
+    };
+    // drag a chip onto another construct's card to move it there
+    b.draggable = true;
+    b.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', JSON.stringify({ ind: b.dataset.ind, from: +b.dataset.ci })));
+  });
+  $('constructs').querySelectorAll('.construct-row').forEach((row, ri) => {
+    row.addEventListener('dragover', (e) => { e.preventDefault(); row.style.outline = '2px dashed var(--accent)'; });
+    row.addEventListener('dragleave', () => { row.style.outline = ''; });
+    row.addEventListener('drop', (e) => {
+      e.preventDefault(); row.style.outline = '';
+      try {
+        const { ind, from } = JSON.parse(e.dataTransfer.getData('text/plain'));
+        if (from === ri) return;
+        const src = spec.constructs[from], dst = spec.constructs[ri];
+        if (src?.inds.includes(ind)) src.inds.splice(src.inds.indexOf(ind), 1);
+        if (dst && !dst.inds.includes(ind)) dst.inds.push(ind);
+        saveSpec(); renderModel();
+        toast(`Moved “${ind}” to ${dst.name}`);
+      } catch { /* not our payload */ }
+    });
   });
   const opts = spec.constructs.map(c => `<option>${esc(c.name)}</option>`).join('');
   $('path-from').innerHTML = opts; $('path-to').innerHTML = opts;
@@ -229,6 +276,45 @@ function renderModel() {
   $('path-list').querySelectorAll('[data-dp]').forEach(b => b.onclick = () => { spec.paths.splice(+b.dataset.dp, 1); saveSpec(); renderModel(); });
 }
 $('add-construct').onclick = () => { spec.constructs.push({ name: `Construct ${spec.constructs.length + 1}`, inds: [] }); saveSpec(); renderModel(); };
+
+// group columns by their alphabetic prefix (att1, att2 → 'att') and build one construct per group
+$('auto-prefix').onclick = () => {
+  if (!data) { toast('Load data first', 'error'); return; }
+  const groups = {};
+  for (const nm of data.names) {
+    const m = nm.toLowerCase().match(/^([a-z_]+?)[\s_.-]*\d+$/);
+    if (m) (groups[m[1].replace(/[_\s.-]+$/, '')] ||= []).push(nm);
+  }
+  const usable = Object.entries(groups).filter(([, cols]) => cols.length >= 2);
+  if (!usable.length) { toast('No prefix groups found — columns need shared name stems like att1, att2, att3', 'error'); return; }
+  spec.constructs = usable.map(([pfx, cols]) => ({ name: pfx.toUpperCase(), inds: cols }));
+  spec.paths = [];
+  saveSpec(); renderModel();
+  toast(`Built ${usable.length} constructs from column prefixes — rename them and draw your paths`);
+};
+
+// classic TAM: PEOU → PU; PEOU & PU → ATT; PU & ATT → BI. Items matched by common prefixes.
+$('tam-template').onclick = () => {
+  const match = (pats) => data ? data.names.filter(nm => pats.some(p => nm.toLowerCase().startsWith(p))) : [];
+  spec.constructs = [
+    { name: 'Perceived Ease of Use', inds: match(['peou', 'eou', 'ease']) },
+    { name: 'Perceived Usefulness', inds: match(['pu', 'useful', 'perceivedu']) },
+    { name: 'Attitude', inds: match(['att']) },
+    { name: 'Behavioral Intention', inds: match(['bi', 'int', 'behav']) },
+  ];
+  spec.paths = [
+    ['Perceived Ease of Use', 'Perceived Usefulness'],
+    ['Perceived Ease of Use', 'Attitude'],
+    ['Perceived Usefulness', 'Attitude'],
+    ['Perceived Usefulness', 'Behavioral Intention'],
+    ['Attitude', 'Behavioral Intention'],
+  ];
+  saveSpec(); renderModel();
+  const unmatched = spec.constructs.filter(c => !c.inds.length).map(c => c.name);
+  toast(unmatched.length
+    ? `TAM template loaded — assign columns to: ${unmatched.join(', ')} (no matching prefixes found)`
+    : 'TAM template loaded with items matched by prefix — check the assignments, then Run', 'ok', 6000);
+};
 $('add-path').onclick = () => {
   const f = $('path-from').value, t = $('path-to').value;
   if (!f || !t) return;
@@ -318,6 +404,27 @@ function pls(cols, constructs, paths, scheme) {
   // sign convention: majority of loadings positive
   const loadings = constructs.map((c, k) => X[k].map(col => corr(col, Y[k])));
   constructs.forEach((c, k) => { if (loadings[k].reduce((s, l) => s + l, 0) < 0) { Y[k] = Y[k].map(v => -v); W[k] = W[k].map(v => -v); loadings[k] = loadings[k].map(v => -v); } });
+  // raw-data Cronbach's alpha + Dijkstra–Henseler rho_A + effective outer weights, per block
+  const blockStats = constructs.map((c, k) => {
+    const B = X[k], m = B.length, w = W[k];
+    const S = B.map(a => B.map(b => corr(a, b)));
+    let rSum = 0, rCnt = 0;
+    for (let i = 0; i < m; i++) for (let j = 0; j < m; j++) if (i !== j) { rSum += S[i][j]; rCnt++; }
+    const rbar = rCnt ? rSum / rCnt : 0;
+    const alpha = m > 1 ? (m * rbar) / (1 + (m - 1) * rbar) : NaN;
+    // effective standardized weights: score = Σ wEff · x with Var(score)=1
+    const raw = Array.from({ length: n }, (_, r) => B.reduce((s, col, i) => s + w[i] * col[r], 0));
+    const mR = mean(raw), sdR = Math.sqrt(raw.reduce((s, v) => s + (v - mR) ** 2, 0) / n) || 1;
+    const wE = w.map(v => v / sdR);
+    // Dijkstra–Henseler rho_A on the standardized weights:
+    // (w'w)² · [w'(S − diag S)w] / [w'(ww' − diag ww')w]
+    let num = 0, den = 0, wtw = 0;
+    for (let i = 0; i < m; i++) { wtw += wE[i] * wE[i]; for (let j = 0; j < m; j++) if (i !== j) { num += wE[i] * S[i][j] * wE[j]; den += wE[i] * wE[i] * wE[j] * wE[j]; } }
+    const rhoA = m === 1 ? 1 : (den > 1e-12 && num > 0 ? Math.min(1, (wtw * wtw) * num / den) : NaN);
+    return { alpha, rhoA, wEff: wE, S };
+  });
+  // cross-loadings: every indicator × every construct score
+  const crossLoadings = constructs.map((c, k) => c.inds.map((ind, i) => constructs.map((_, j) => corr(X[k][i], Y[j]))));
   // structural model
   const structural = {};
   constructs.forEach((c, k) => {
@@ -338,8 +445,20 @@ function pls(cols, constructs, paths, scheme) {
     structural[c.name] = { preds: pd, b, r2, adjR2: 1 - (1 - r2) * (n - 1) / (n - pd.length - 1), f2, vif };
   });
   const lvCorr = constructs.map((_, a) => constructs.map((_, b) => corr(Y[a], Y[b])));
-  return { Y, W, loadings, structural, lvCorr, iter: iter + 1, n };
+  // total effects: T = D + D² + … (D = direct-effect matrix; acyclic → converges in ≤K steps)
+  const D = constructs.map(() => constructs.map(() => 0));
+  constructs.forEach((c, k) => { const s = structural[c.name]; if (s) s.preds.forEach((f, i) => { D[idx[f]][k] = s.b[i]; }); });
+  let T = D.map(r => [...r]), P = D.map(r => [...r]);
+  for (let step = 1; step < K; step++) {
+    const Pn = constructs.map(() => constructs.map(() => 0));
+    for (let a = 0; a < K; a++) for (let b = 0; b < K; b++) { let s = 0; for (let c = 0; c < K; c++) s += P[a][c] * D[c][b]; Pn[a][b] = s; }
+    P = Pn;
+    for (let a = 0; a < K; a++) for (let b = 0; b < K; b++) T[a][b] += P[a][b];
+  }
+  return { Y, W, loadings, structural, lvCorr, blockStats, crossLoadings, totalEffects: T, direct: D, iter: iter + 1, n };
 }
+
+$('nboot').addEventListener('change', () => { $('nboot-custom-wrap').hidden = $('nboot').value !== 'custom'; });
 
 // ---------- run ----------
 // setTimeout is heavily throttled in background tabs (can stall the bootstrap
@@ -362,7 +481,8 @@ $('run').onclick = async () => {
     if (iso) throw new Error(`“${iso.name}” is not connected to any path — connect it or remove it.`);
 
     // listwise deletion on used columns, then standardize
-    const used = spec.constructs.flatMap(c => c.inds);
+    // (Set: an indicator may sit in several constructs — repeated-indicators HOC)
+    const used = [...new Set(spec.constructs.flatMap(c => c.inds))];
     const keep = [];
     for (let r = 0; r < data.cols[used[0]].length; r++) if (used.every(u => !Number.isNaN(data.cols[u][r]))) keep.push(r);
     const dropped = data.cols[used[0]].length - keep.length;
@@ -377,8 +497,10 @@ $('run').onclick = async () => {
     const est = pls(cols, spec.constructs, spec.paths, scheme);
     Rewiseed.track('run');
 
-    // bootstrap
-    const B = +$('nboot').value;
+    // bootstrap (SmartPLS reporting standard: 5,000 resamples)
+    const B = $('nboot').value === 'custom'
+      ? Math.max(100, Math.min(10000, Math.round(+$('nboot-custom').value || 5000)))
+      : +$('nboot').value;
     let boot = null;
     if (B > 0) {
       btn.dataset.running = '1'; btn.classList.add('danger'); btn.innerHTML = `${icon('x', 15)} Cancel`;
@@ -432,15 +554,8 @@ function render(est, boot, meta) {
     const sumE = lam.reduce((s, l) => s + (1 - l * l), 0);
     const cr = (sumL ** 2) / ((sumL ** 2) + sumE);
     const ave = lam.reduce((s, l) => s + l * l, 0) / m;
-    let alpha = NaN;
-    if (m > 1) {
-      // standardized alpha from implied average inter-item correlation r̄ = mean λiλj (i≠j)
-      let sum = 0, cnt = 0;
-      for (let i = 0; i < m; i++) for (let j = 0; j < m; j++) if (i !== j) { sum += lam[i] * lam[j]; cnt++; }
-      const rbar = sum / cnt;
-      alpha = (m * rbar) / (1 + (m - 1) * rbar);
-    }
-    return { name: c.name, m, alpha, cr, ave };
+    // Cronbach's alpha from the actual item correlations (not model-implied), plus Dijkstra–Henseler rho_A
+    return { name: c.name, m, alpha: est.blockStats[k].alpha, rhoA: est.blockStats[k].rhoA, cr, ave };
   });
   // HTMT needs raw item correlations — derive from loadings + lv correlations (implied): r(xi,yj) ≈ λi λj r(LVx,LVy); mono ≈ λiλj
   const htmt = C.map((a, i) => C.map((b, j) => {
@@ -488,16 +603,32 @@ function render(est, boot, meta) {
   <div class="card">
     <span class="overline">Results · n = ${meta.n}${meta.dropped ? ` (${meta.dropped} incomplete rows dropped)` : ''} · ${est.iter} iterations · ${meta.scheme} weighting${boot ? ` · ${boot.B} bootstrap samples${boot.failed ? ` (${boot.failed} failed)` : ''}${boot.cancelled ? ' (cancelled early)' : ''}` : ' · no bootstrap'}</span>
     <h2>Model results</h2>
-    <div class="diag-wrap">${diagram}</div>
+    <div class="diag-wrap">${diagram.svg}</div>
+    <p class="hint" style="margin:6px 0 0">${icon('grid', 12)} Drag any construct to rearrange the diagram — arrows and β labels follow.</p>
 
     <div class="result-section"><h3>Outer loadings</h3><p class="hint">Reflective indicators should load ≥ 0.708 on their construct (≥ 0.5 acceptable in exploratory work).</p>
     <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Construct</th><th>Indicator</th><th>Loading</th></tr></thead><tbody>
       ${C.map((c, k) => c.inds.map((ind, i) => `<tr><td>${i === 0 ? `<b>${esc(c.name)}</b>` : ''}</td><td>${esc(ind)}</td><td class="${est.loadings[k][i] < 0.5 ? 'fail' : est.loadings[k][i] < 0.708 ? '' : 'pass'}">${f3(est.loadings[k][i])}</td></tr>`).join('')).join('')}
     </tbody></table></div></div>
 
-    <div class="result-section"><h3>Construct reliability and validity</h3><p class="hint">Targets: α and CR ≥ 0.70, AVE ≥ 0.50. Single-indicator constructs show CR = AVE = 1 by definition.</p>
-    <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Construct</th><th>Items</th><th>Cronbach's α</th><th>CR (ρc)</th><th>AVE</th></tr></thead><tbody>
-      ${relRows.map(r => `<tr><td><b>${esc(r.name)}</b></td><td>${r.m}</td><td class="${r.m === 1 ? '' : r.alpha >= 0.7 ? 'pass' : 'fail'}">${r.m === 1 ? '—' : f3(r.alpha)}</td><td class="${r.cr >= 0.7 ? 'pass' : 'fail'}">${f3(r.cr)}</td><td class="${r.ave >= 0.5 ? 'pass' : 'fail'}">${f3(r.ave)}</td></tr>`).join('')}
+    <div class="result-section"><h3>Construct reliability and validity</h3><p class="hint">Targets: α, ρA, and CR ≥ 0.70; AVE ≥ 0.50. ρA (Dijkstra–Henseler) usually sits between α and CR. Single-indicator constructs show 1 by definition.</p>
+    <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Construct</th><th>Items</th><th>Cronbach's α</th><th>ρA</th><th>CR (ρc)</th><th>AVE</th></tr></thead><tbody>
+      ${relRows.map(r => `<tr><td><b>${esc(r.name)}</b></td><td>${r.m}</td><td class="${r.m === 1 ? '' : r.alpha >= 0.7 ? 'pass' : 'fail'}">${r.m === 1 ? '—' : f3(r.alpha)}</td><td class="${Number.isNaN(r.rhoA) ? '' : r.rhoA >= 0.7 ? 'pass' : 'fail'}">${Number.isNaN(r.rhoA) ? '—' : f3(r.rhoA)}</td><td class="${r.cr >= 0.7 ? 'pass' : 'fail'}">${f3(r.cr)}</td><td class="${r.ave >= 0.5 ? 'pass' : 'fail'}">${f3(r.ave)}</td></tr>`).join('')}
+    </tbody></table></div></div>
+
+    <div class="result-section"><h3>Outer weights</h3><p class="hint">The standardized weight each indicator contributes to its construct score.</p>
+    <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Construct</th><th>Indicator</th><th>Weight</th><th>Loading</th></tr></thead><tbody>
+      ${C.map((c, k) => c.inds.map((ind, i) => `<tr><td>${i === 0 ? `<b>${esc(c.name)}</b>` : ''}</td><td>${esc(ind)}</td><td>${f3(est.blockStats[k].wEff[i])}</td><td>${f3(est.loadings[k][i])}</td></tr>`).join('')).join('')}
+    </tbody></table></div></div>
+
+    <div class="result-section"><h3>Cross-loadings</h3><p class="hint">Each indicator should load highest on its own construct (bold column). A higher loading elsewhere (flagged ⚠) signals a discriminant-validity problem at the item level.</p>
+    <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Indicator</th>${C.map(c => `<th>${esc(c.name)}</th>`).join('')}</tr></thead><tbody>
+      ${C.map((c, k) => c.inds.map((ind, i) => {
+        const row = est.crossLoadings[k][i];
+        const own = row[k];
+        const maxOther = Math.max(...row.filter((_, j) => j !== k).map(Math.abs), 0);
+        return `<tr><td>${esc(ind)}${Math.abs(own) < maxOther ? ' <span class="fail">⚠</span>' : ''}</td>${row.map((v, j) => `<td>${j === k ? `<b>${f3(v)}</b>` : f3(v)}</td>`).join('')}</tr>`;
+      }).join('')).join('')}
     </tbody></table></div></div>
 
     <div class="result-section"><h3>Discriminant validity — Fornell–Larcker</h3><p class="hint">Diagonal (bold) is √AVE; it should exceed every correlation in its row and column.</p>${flTable}</div>
@@ -511,6 +642,16 @@ function render(est, boot, meta) {
         <td>${f3(r.f2)}</td><td class="${r.vif > 5 ? 'fail' : r.vif > 3 ? '' : 'pass'}">${r.vif.toFixed(2)}</td></tr>`).join('')}
     </tbody></table></div>
     <p class="hint">${boot ? '* p &lt; .05 · ** p &lt; .01 · *** p &lt; .001 (two-tailed). ' : ''}f²: 0.02 small, 0.15 medium, 0.35 large. VIF above 5 signals collinearity trouble; above 3 warrants a look.</p></div>
+
+    <div class="result-section"><h3>Total effects</h3><p class="hint">Direct + all indirect (mediated) effects — e.g. Ease of Use reaches Intention both directly and through Usefulness.</p>
+    <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Effect</th><th>Direct</th><th>Indirect</th><th>Total</th></tr></thead><tbody>
+      ${C.flatMap((a, ai) => C.map((b, bi) => {
+        const tot = est.totalEffects[ai][bi], dir = est.direct[ai][bi];
+        if (Math.abs(tot) < 1e-6) return '';
+        const ind = tot - dir;
+        return `<tr><td><b>${esc(a.name)} → ${esc(b.name)}</b></td><td>${Math.abs(dir) < 1e-6 ? '—' : f3(dir)}</td><td>${Math.abs(ind) < 1e-6 ? '—' : f3(ind)}</td><td><b>${f3(tot)}</b></td></tr>`;
+      })).join('')}
+    </tbody></table></div></div>
 
     <div class="result-section"><h3>Explained variance</h3>
     <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Endogenous construct</th><th>R²</th><th>Adjusted R²</th></tr></thead><tbody>
@@ -526,6 +667,7 @@ function render(est, boot, meta) {
     </div>
   </div>`;
 
+  wireDiagram(diagram.pos);
   $('dl-report').onclick = () => Rewiseed.downloadText('pls-sem-report.md', buildReport(est, pathRows, relRows, htmt, meta, boot, apa));
   $('dl-scores').onclick = () => {
     const head = 'row,' + C.map(c => `"${c.name}"`).join(',');
@@ -552,14 +694,21 @@ function buildReport(est, pathRows, relRows, htmt, meta, boot, apaHtml) {
   const L = [`# PLS-SEM report`, ``, `n = ${meta.n} · scheme = ${meta.scheme} · ${boot ? boot.B + ' bootstrap samples' : 'no bootstrap'} · generated by ReWiseEd Research Tools (itsmyresearch.com)`, ``];
   L.push(`## Outer loadings`, ``, `| Construct | Indicator | Loading |`, `|---|---|---|`);
   C.forEach((c, k) => c.inds.forEach((ind, i) => L.push(`| ${c.name} | ${ind} | ${f3(est.loadings[k][i])} |`)));
-  L.push(``, `## Reliability & convergent validity`, ``, `| Construct | Items | alpha | CR | AVE |`, `|---|---|---|---|---|`);
-  relRows.forEach(r => L.push(`| ${r.name} | ${r.m} | ${r.m === 1 ? '—' : f3(r.alpha)} | ${f3(r.cr)} | ${f3(r.ave)} |`));
+  L.push(``, `## Reliability & convergent validity`, ``, `| Construct | Items | alpha | rho_A | CR | AVE |`, `|---|---|---|---|---|---|`);
+  relRows.forEach(r => L.push(`| ${r.name} | ${r.m} | ${r.m === 1 ? '—' : f3(r.alpha)} | ${Number.isNaN(r.rhoA) ? '—' : f3(r.rhoA)} | ${f3(r.cr)} | ${f3(r.ave)} |`));
+  L.push(``, `## Outer weights`, ``, `| Construct | Indicator | Weight | Loading |`, `|---|---|---|---|`);
+  C.forEach((c, k) => c.inds.forEach((ind, i) => L.push(`| ${c.name} | ${ind} | ${f3(est.blockStats[k].wEff[i])} | ${f3(est.loadings[k][i])} |`)));
   L.push(``, `## Fornell–Larcker (diagonal = √AVE)`, ``, `| | ${C.map(c => c.name).join(' | ')} |`, `|---|${C.map(() => '---').join('|')}|`);
   C.forEach((a, i) => L.push(`| **${a.name}** | ${C.map((b, j) => j > i ? '' : j === i ? `**${f3(Math.sqrt(relRows[i].ave))}**` : f3(est.lvCorr[i][j])).join(' | ')} |`));
   L.push(``, `## HTMT`, ``);
   C.forEach((a, i) => C.forEach((b, j) => { if (j > i) L.push(`- ${a.name} ↔ ${b.name}: ${f3(htmt[i][j])}${htmt[i][j] > 0.9 ? ' ⚠ above 0.90' : ''}`); }));
   L.push(``, `## Structural paths`, ``, `| Path | β |${boot ? ' Boot M | SE | t | p | 95% CI |' : ''} f² | VIF |`, `|---|---|${boot ? '---|---|---|---|---|' : ''}---|---|`);
   pathRows.forEach(r => L.push(`| ${r.f} → ${r.t} | ${f3(r.b)}${r.bs ? stars(r.bs.p) : ''} |${r.bs ? ` ${f3(r.bs.mean)} | ${f3(r.bs.sd)} | ${r.bs.t.toFixed(2)} | ${r.bs.p < 0.001 ? '<.001' : r.bs.p.toFixed(3)} | [${f3(r.bs.lo)}, ${f3(r.bs.hi)}] |` : ''} ${f3(r.f2)} | ${r.vif.toFixed(2)} |`));
+  L.push(``, `## Total effects`, ``);
+  C.forEach((a, ai) => C.forEach((b, bi) => {
+    const tot = est.totalEffects[ai][bi];
+    if (Math.abs(tot) >= 1e-6) L.push(`- ${a.name} → ${b.name}: total ${f3(tot)} (direct ${Math.abs(est.direct[ai][bi]) < 1e-6 ? '—' : f3(est.direct[ai][bi])}, indirect ${Math.abs(tot - est.direct[ai][bi]) < 1e-6 ? '—' : f3(tot - est.direct[ai][bi])})`);
+  }));
   L.push(``, `## R²`, ``);
   Object.entries(est.structural).forEach(([nm, s]) => L.push(`- ${nm}: R² = ${f3(s.r2)} (adj. ${f3(s.adjR2)})`));
   const tmp = document.createElement('div'); tmp.innerHTML = apaHtml;
@@ -574,28 +723,59 @@ function drawDiagram(est) {
   const maxL = Math.max(...Object.values(layer));
   const byLayer = Array.from({ length: maxL + 1 }, () => []);
   order.forEach(nm => byLayer[layer[nm]].push(nm));
-  const H = Math.max(...byLayer.map(l => l.length)) * 92 + 50;
+  const H = Math.max(...byLayer.map(l => l.length)) * 100 + 60;
   const W = (maxL + 1) * 210 + 60;
   const pos = {};
   byLayer.forEach((names, l) => names.forEach((nm, i) => { pos[nm] = { x: 130 + l * 210, y: (H / (names.length + 1)) * (i + 1) }; }));
-  const idx = Object.fromEntries(C.map((c, k) => [c.name, k]));
   const edges = spec.paths.map(([f, t]) => {
-    const a = pos[f], b = pos[t];
-    const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
-    const sx = a.x + dx / d * 62, sy = a.y + dy / d * 30, ex = b.x - dx / d * 68, ey = b.y - dy / d * 32;
     const s = est.structural[t], beta = s.b[s.preds.indexOf(f)];
-    return `<line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="var(--ink-2)" stroke-width="${Math.max(1, Math.abs(beta) * 4)}" marker-end="url(#arr)" opacity="0.75"/>
-      <text x="${(sx + ex) / 2}" y="${(sy + ey) / 2 - 7}" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--accent-strong)">${f3(beta)}</text>`;
+    return `<line class="dg-edge" data-from="${esc(f)}" data-to="${esc(t)}" stroke="var(--ink-2)" stroke-width="${Math.max(1, Math.abs(beta) * 4)}" marker-end="url(#arr)" opacity="0.75"/>
+      <text class="dg-lbl" data-from="${esc(f)}" data-to="${esc(t)}" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--accent-strong)">${f3(beta)}</text>`;
   }).join('');
   const nodes = C.map(c => {
-    const p = pos[c.name], s = est.structural[c.name];
-    return `<ellipse cx="${p.x}" cy="${p.y}" rx="60" ry="30" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.6"/>
-      <text x="${p.x}" y="${p.y + (s ? -2 : 4)}" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--ink)">${esc(c.name.length > 14 ? c.name.slice(0, 13) + '…' : c.name)}</text>
-      ${s ? `<text x="${p.x}" y="${p.y + 14}" text-anchor="middle" font-size="10.5" fill="var(--muted)">R² = ${f3(s.r2)}</text>` : ''}`;
+    const s = est.structural[c.name];
+    return `<g class="dg-node" data-c="${esc(c.name)}" style="cursor:grab">
+      <ellipse cx="0" cy="0" rx="62" ry="30" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.6"/>
+      <text x="0" y="${s ? -2 : 4}" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--ink)" style="pointer-events:none">${esc(c.name.length > 16 ? c.name.slice(0, 15) + '…' : c.name)}</text>
+      ${s ? `<text x="0" y="14" text-anchor="middle" font-size="10.5" fill="var(--muted)" style="pointer-events:none">R² = ${f3(s.r2)}</text>` : ''}</g>`;
   }).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Structural model diagram" style="display:block;margin:0 auto;max-width:none">
+  return { svg: `<svg id="pls-diagram" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Structural model diagram — drag constructs to rearrange" style="display:block;margin:0 auto;max-width:none">
     <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ink-2)"/></marker></defs>
-    ${edges}${nodes}</svg>`;
+    ${edges}${nodes}</svg>`, pos };
+}
+
+// SmartPLS-style canvas: constructs are draggable; edges and β labels follow live
+function wireDiagram(pos) {
+  const svg = document.getElementById('pls-diagram');
+  if (!svg) return;
+  const place = () => {
+    svg.querySelectorAll('.dg-node').forEach(g => { const p = pos[g.dataset.c]; g.setAttribute('transform', `translate(${p.x},${p.y})`); });
+    svg.querySelectorAll('.dg-edge').forEach(l => {
+      const a = pos[l.dataset.from], b = pos[l.dataset.to];
+      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1;
+      l.setAttribute('x1', a.x + dx / d * 64); l.setAttribute('y1', a.y + dy / d * 31);
+      l.setAttribute('x2', b.x - dx / d * 70); l.setAttribute('y2', b.y - dy / d * 33);
+    });
+    svg.querySelectorAll('.dg-lbl').forEach(t => {
+      const a = pos[t.dataset.from], b = pos[t.dataset.to];
+      t.setAttribute('x', (a.x + b.x) / 2); t.setAttribute('y', (a.y + b.y) / 2 - 8);
+    });
+  };
+  place();
+  let drag = null;
+  const toSvg = (e) => { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()); };
+  svg.querySelectorAll('.dg-node').forEach(g => g.addEventListener('pointerdown', (e) => {
+    const p = toSvg(e);
+    drag = { name: g.dataset.c, ox: p.x - pos[g.dataset.c].x, oy: p.y - pos[g.dataset.c].y };
+    g.setPointerCapture(e.pointerId); g.style.cursor = 'grabbing';
+  }));
+  svg.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const p = toSvg(e);
+    pos[drag.name] = { x: p.x - drag.ox, y: p.y - drag.oy };
+    place();
+  });
+  svg.addEventListener('pointerup', () => { drag = null; svg.querySelectorAll('.dg-node').forEach(g => g.style.cursor = 'grab'); });
 }
 </script>
 </body>
