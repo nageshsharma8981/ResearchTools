@@ -23,6 +23,8 @@ async function readDocxText(buf) {
       const comp = u8.slice(start, start + compSize);
       const xmlBytes = method === 0 ? comp
         : new Uint8Array(await new Response(new Blob([comp]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+      // zip-bomb guard: refuse absurd expansion instead of freezing the tab
+      if (xmlBytes.length > 80 * 1024 * 1024) throw new Error('This .docx expands to an unusually large document — paste the text instead.');
       const doc = new DOMParser().parseFromString(new TextDecoder().decode(xmlBytes), 'application/xml');
       const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
       const out = [];
@@ -93,6 +95,7 @@ async function readPdfText(buf) {
 }
 
 async function extract(file) {
+  if (file.size > 25 * 1024 * 1024) throw new Error('File too large (25 MB max) — export a smaller version or paste the text instead.');
   const name = file.name.toLowerCase();
   if (name.endsWith('.docx')) return readDocxText(await file.arrayBuffer());
   if (name.endsWith('.pdf')) return readPdfText(await file.arrayBuffer());

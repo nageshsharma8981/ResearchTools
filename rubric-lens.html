@@ -191,6 +191,7 @@ async function readPdfText(buf) {
 }
 
 async function extract(file) {
+  if (file.size > 25 * 1024 * 1024) throw new Error('File too large (25 MB max) — export a smaller version or paste the text instead.');
   const name = file.name.toLowerCase();
   if (name.endsWith('.docx')) return readDocxText(await file.arrayBuffer());
   if (name.endsWith('.pdf')) return readPdfText(await file.arrayBuffer());

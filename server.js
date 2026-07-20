@@ -104,7 +104,11 @@ function verifyPassword(password, salt, expected) {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const cap = (s, n) => String(s ?? '').slice(0, n).trim();
+// cap: length-limit AND strip characters used in unicode spoofing attacks —
+// C0 controls (keep \n \t), zero-width chars, and bidi override marks.
+const cap = (s, n) => String(s ?? '')
+  .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F​-‏‪-‮⁦-⁩﻿]/g, '')
+  .slice(0, n).trim();
 
 function publicUser(u, includePrivate = false) {
   const base = { id: u.id, email: u.email, name: u.name, role: u.role, org: u.org, photo: u.photo, linkedin: u.linkedin, twitter: u.twitter, about: u.about, tool_access: parseToolAccess(u.tool_access), seen_intro: !!u.seen_intro };
@@ -191,10 +195,32 @@ const app = express();
 app.set('trust proxy', 1);
 app.use(express.json({ limit: '500kb' }));
 
+// Content-Security-Policy notes: inline scripts/styles are how this suite ships
+// (no build step), so 'unsafe-inline' stays; 'wasm-unsafe-eval' + worker-src
+// blob: are required by the built-in WebLLM model; connect-src must stay open
+// to https + localhost because BYOK users point at any provider they choose.
+// The teeth are in object-src/base-uri/form-action/frame-ancestors.
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self'",
+  "connect-src 'self' https: http://localhost:* http://127.0.0.1:*",
+  "worker-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'same-origin');
+  res.setHeader('Content-Security-Policy', CSP);
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  if (IS_PROD) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   // CSRF: state-changing API requests must come from our own origin
   if (req.path.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     const origin = req.headers.origin || '';
@@ -462,11 +488,25 @@ app.put('/api/me', requireAuth, (req, res) => {
       return res.status(400).json({ error: `${k === 'linkedin' ? 'LinkedIn' : 'Twitter/X'} must be a full https:// profile URL on the official domain.` });
     }
   }
+  // profile links: https only (they may be rendered as anchors) — no other schemes
+  for (const f of ['linkedin', 'twitter']) {
+    if (clean[f] && !/^https:\/\/[^\s]+$/i.test(clean[f])) {
+      return res.status(400).json({ error: `The ${f === 'twitter' ? 'Twitter/X' : 'LinkedIn'} link must start with https://` });
+    }
+  }
   if (photo !== undefined) {
     if (photo === '') clean.photo = '';
     else {
       if (typeof photo !== 'string' || photo.length > 400_000) return res.status(400).json({ error: 'Photo too large (300 KB max after compression).' });
-      if (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(photo)) return res.status(400).json({ error: 'Photo must be a PNG, JPEG, or WebP image.' });
+      const m = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/.exec(photo);
+      if (!m) return res.status(400).json({ error: 'Photo must be a PNG, JPEG, or WebP image.' });
+      // magic-byte sniff: the bytes must actually be the declared format
+      const head = Buffer.from(m[2].slice(0, 24), 'base64');
+      const isPng = head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4E && head[3] === 0x47;
+      const isJpg = head[0] === 0xFF && head[1] === 0xD8 && head[2] === 0xFF;
+      const isWebp = head.slice(0, 4).toString('latin1') === 'RIFF' && head.slice(8, 12).toString('latin1') === 'WEBP';
+      const ok = (m[1] === 'png' && isPng) || (m[1] === 'jpeg' && isJpg) || (m[1] === 'webp' && isWebp);
+      if (!ok) return res.status(400).json({ error: 'That file does not look like a valid image — re-export it as PNG or JPEG and try again.' });
       clean.photo = photo;
     }
   }
@@ -696,5 +736,18 @@ app.use((req, res, next) => {
 app.get(['/reference-style-generator', '/reference-style-generator.html'], (_req, res) => res.redirect(301, '/apa-formatter'));
 app.get(['/pls-sem', '/pls-sem.html'], (_req, res) => res.redirect(301, '/ai-pls'));
 app.use(express.static(__dirname, { extensions: ['html'], index: 'index.html' }));
+
+// unknown API route → clean JSON 404 (no HTML fallthrough)
+app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found.' }));
+// fail closed and quiet: log the real error server-side, never leak internals
+// (message, stack, paths) to the client
+// eslint-disable-next-line no-unused-vars
+app.use((err, _req, res, _next) => {
+  console.error('unhandled error:', err?.message);
+  if (res.headersSent) return;
+  if (err?.type === 'entity.too.large') return res.status(413).json({ error: 'Request too large.' });
+  if (err?.type === 'entity.parse.failed' || err instanceof SyntaxError) return res.status(400).json({ error: 'Malformed request.' });
+  res.status(500).json({ error: 'Something went wrong on our side — try again.' });
+});
 
 app.listen(PORT, '0.0.0.0', () => console.log(`ItsMyResearch serving on :${PORT} (email: ${RESEND_API_KEY ? 'live' : 'dev mode'})`));

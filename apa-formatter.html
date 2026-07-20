@@ -426,6 +426,7 @@ $('file').addEventListener('change', async (e) => {
   const f = e.target.files[0];
   e.target.value = ''; // allow re-selecting the same file later
   if (!f) return;
+  if (f.size > 25 * 1024 * 1024) { toast('File too large (25 MB max) — paste the text instead.', 'error', 5000); return; }
   try {
     const text = f.name.endsWith('.docx') ? await readDocxText(await f.arrayBuffer()) : await f.text();
     if (!text.trim()) {
