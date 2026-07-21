@@ -270,6 +270,7 @@
     { href: 'apa-formatter.html', icon: 'doc', name: 'Reference Style Generator' },
     { href: 'citation-graph.html', icon: 'graph', name: 'Citation Graph Explorer' },
     { href: 'scholar-profiles.html', icon: 'user', name: 'Author & Institution Profiles' },
+    { href: 'author-impact.html', icon: 'user', name: 'Author Impact Dashboard' },
     { href: 'bibliometrics.html', icon: 'chart', name: 'Bibliometric Analysis' },
     { href: 'journal-metrics.html', icon: 'book', name: 'Journal Metrics & Finder' },
     { href: 'journal-rankings.html', icon: 'grad', name: 'Journal Rankings & Comparison' },

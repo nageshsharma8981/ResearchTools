@@ -165,13 +165,14 @@ $('tracks').innerHTML = TRACKS.map(t => `<span>${esc(t)}</span>`).join('');
 $('track-filter').innerHTML += TRACKS.map(t => `<option>${esc(t)}</option>`).join('');
 const BOARD = [
   ['Editor-in-Chief', 'To be appointed'],
-  ['Deputy Editor', 'To be appointed'],
-  ['Associate Editor — Strategy & Entrepreneurship', 'To be appointed'],
-  ['Associate Editor — Sustainability & CSR', 'To be appointed'],
-  ['Associate Editor — Marketing & Consumer Research', 'To be appointed'],
-  ['Associate Editor — Finance & Economics', 'To be appointed'],
-  ['Managing Editor', 'To be appointed'],
-  ['Ethics & Integrity Editor', 'To be appointed'],
+  ['Associate Editor', 'To be appointed'],
+  ['Associate Editor', 'To be appointed'],
+  ['Associate Editor', 'To be appointed'],
+  ['Associate Editor', 'To be appointed'],
+  ['Associate Editor', 'To be appointed'],
+  ['Associate Editor', 'To be appointed'],
+  ['Associate Editor', 'To be appointed'],
+  ['Associate Editor', 'To be appointed'],
 ];
 $('board').innerHTML = BOARD.map(([role, who]) => `<div class="board-card"><b>${esc(role)}</b><span>${esc(who)}</span></div>`).join('');
 

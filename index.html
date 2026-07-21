@@ -32,7 +32,7 @@
   <h1>Research, done <span class="accent-word">systematically.</span></h1>
   <div class="stat-row">
     <div class="stat"><b>240M+</b><span>papers searchable</span></div>
-    <div class="stat"><b>25</b><span>research tools</span></div>
+    <div class="stat"><b>26</b><span>research tools</span></div>
     <div class="stat"><b>100%</b><span>private &amp; local</span></div>
     <div class="stat"><b>$0</b><span>with built-in AI</span></div>
   </div>
@@ -98,6 +98,7 @@
         <li><a href="data-explorer.html">Statistical Data Explorer</a></li>
         <li><a href="data-sources.html">Data Source Directory</a></li>
         <li><a href="scholar-profiles.html">Author &amp; Institution Profiles</a></li>
+        <li><a href="author-impact.html">Author Impact Dashboard</a></li>
         <li><a href="bibliometrics.html">Bibliometric Analysis</a></li>
         <li><a href="journal-metrics.html">Journal Metrics &amp; Finder</a></li>
         <li><a href="journal-rankings.html">Journal Rankings &amp; Comparison</a></li>
@@ -163,6 +164,8 @@ const PHASES = [
       desc: 'Walk any paper’s citation network — the work it builds on and the newer research citing it. Keyless.' },
     { href: 'scholar-profiles.html', icon: 'user', name: 'Author & Institution Profiles',
       desc: 'Look up any researcher or institution — works, citations, h-index, affiliations, and top papers. Keyless.' },
+    { href: 'author-impact.html', icon: 'user', name: 'Author Impact Dashboard',
+      desc: 'A fair, in-depth view of a researcher: co-author-normalised metrics, author-position & topic breakdowns, venues, geography, collaborators, retraction flags. Merge duplicate profiles. Keyless.' },
     { href: 'bibliometrics.html', icon: 'chart', name: 'Bibliometric Analysis',
       desc: 'Map a whole field in seconds — publication trends, top authors, journals, institutions, countries, and anchor papers. Keyless, CSV export, optional AI reading.' },
     { href: 'literature-matrix.html', icon: 'grid', name: 'Literature Synthesis Matrix',
@@ -209,6 +212,8 @@ const PHASES = [
       desc: 'ABS/AJG 2024, ABDC 2025, Scopus-based quartiles, and impact metrics for 3,000+ business & management journals — filter by rating, compare up to five side by side.' },
     { href: 'citation-integrity.html', icon: 'check', name: 'Citation Integrity Checker',
       desc: 'Upload your paper — every in-text citation checked against the reference list and every reference against the text: mismatches, orphans, APA style warnings, PDF report. Keyless.' },
+    { href: 'journal.html', icon: 'book', name: 'JBMS Journal — submit &amp; publish',
+      desc: 'Our peer-reviewed, open-access monthly journal. Submit a manuscript, review for us, or read published articles. Double-anonymous review, COPE ethics, DOIs.' },
   ]},
 ];
 document.getElementById('foot-brand').innerHTML = `<img src="logo.png" alt="ItsMyResearch" class="brand-logo" style="height:22px"/>`;

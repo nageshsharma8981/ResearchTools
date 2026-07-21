@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" type="image/png" href="favicon.png"/>
+<link rel="apple-touch-icon" href="favicon.png"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Author Impact Dashboard — ItsMyResearch</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ItsMyResearch"/>
+<meta property="og:title" content="Author Impact Dashboard — ItsMyResearch"/>
+<meta property="og:description" content="A deep, fair view of any researcher's publication footprint: co-author-normalised metrics, author-position and topic breakdowns, venues, geography, collaborators, retraction signals. Merge duplicate OpenAlex profiles. Free and keyless."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/author-impact"/>
+<meta property="og:image" content="https://www.itsmyresearch.com/og-card.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://www.itsmyresearch.com/og-card.png"/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.uvp-strip { display:flex; flex-wrap:wrap; gap:8px 18px; justify-content:center; margin-top:12px; }
+.uvp-strip span { font-size:12.5px; color:var(--ink-2); }
+.uvp-strip span::before { content:'✓ '; color:#2e6b45; font-weight:700; }
+.cand { display:block; width:100%; text-align:left; background:var(--surface); border:1px solid var(--border-strong); border-radius:var(--radius); padding:12px 14px; margin-bottom:8px; cursor:pointer; }
+button.cand:hover { border-color:var(--accent); background:var(--surface-2); box-shadow:none; transform:none; }
+.cand b { font-size:15px; } .cand .sub { font-size:12.5px; color:var(--muted); display:block; margin-top:2px; }
+.cand .aff { font-size:12px; color:var(--ink-2); margin-top:4px; }
+.merge-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.merge-row input { width:auto; min-height:0; margin:0; }
+.hdr-stats { display:flex; flex-wrap:wrap; gap:22px; margin:10px 0; }
+.hdr-stats .s b { font-family:var(--font-serif); font-size:28px; display:block; line-height:1.1; }
+.hdr-stats .s span { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+.tabs { display:flex; gap:4px; flex-wrap:wrap; border-bottom:1px solid var(--border); margin:14px 0 0; }
+.tab { background:none; border:0; border-bottom:2px solid transparent; padding:9px 14px; min-height:0; font-size:13.5px; font-weight:600; color:var(--muted); cursor:pointer; border-radius:0; }
+button.tab:hover { color:var(--ink); box-shadow:none; transform:none; background:none; }
+button.tab.active { color:var(--accent-strong); border-bottom-color:var(--accent); }
+.snap-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin:14px 0; }
+.snap-grid .s { background:var(--surface-2); border-radius:var(--radius); padding:12px 14px; }
+.snap-grid .s b { font-family:var(--font-serif); font-size:23px; display:block; }
+.snap-grid .s span { font-size:11.5px; color:var(--muted); }
+.snap-grid .s .note { font-size:11px; color:var(--muted); display:block; margin-top:2px; }
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+@media (max-width:720px){ .two-col { grid-template-columns:1fr; } }
+.bar-row { display:grid; grid-template-columns:140px 1fr 42px; gap:8px; align-items:center; font-size:12.5px; margin-bottom:5px; }
+.bar-row .lab { color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bar-row .bar { height:16px; border-radius:4px; background:var(--accent); opacity:.75; }
+.bar-row .val { text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); }
+.ai-table { width:100%; border-collapse:collapse; font-size:13px; }
+.ai-table th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); padding:6px 8px; border-bottom:1px solid var(--border-strong); cursor:pointer; white-space:nowrap; }
+.ai-table th.n, .ai-table td.n { text-align:right; font-variant-numeric:tabular-nums; }
+.ai-table td { padding:6px 8px; border-bottom:1px solid var(--border); color:var(--ink-2); vertical-align:top; }
+.tbl-wrap { overflow-x:auto; max-height:560px; overflow-y:auto; }
+.collab-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px; }
+.collab-card { border:1px solid var(--border); border-radius:var(--radius); padding:10px 12px; font-size:13px; }
+.collab-card b { font-size:13.5px; } .collab-card .m { font-size:11.5px; color:var(--muted); }
+.retr { background:#f6ded8; color:#a33520; border-radius:6px; padding:1px 7px; font-size:11px; font-weight:700; }
+#trend svg, #sparkyear svg { width:100%; height:auto; display:block; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Author Impact Dashboard <span class="badge" style="font-size:11px;vertical-align:middle">BETA</span></h1>
+  <p class="lede">A fair, in-depth view of any researcher's publication footprint — <b>normalised for co-authorship</b>, not just raw counts. Free, keyless, no sign-up.</p>
+  <div class="uvp-strip">
+    <span>Co-author-normalised: fractional works &amp; weighted citations</span>
+    <span>Author-position &amp; corresponding-author breakdown</span>
+    <span>Merge duplicate OpenAlex profiles into one view</span>
+    <span>Venues · topics · geography · collaborators · retraction signals</span>
+  </div>
+</div>
+<main style="max-width:940px">
+  <div class="card">
+    <h2>Find a researcher</h2>
+    <p class="hint">Search by name, then pick the right profile. Names aren't unique — check the ORCID and affiliations. If one person has several OpenAlex records, tick them and merge.</p>
+    <div class="search-row">
+      <input id="q" type="search" autocomplete="off" placeholder="e.g. Yoshua Bengio, or Dr Anuja Shukla" aria-label="Author name"/>
+      <button id="go"></button>
+    </div>
+    <div class="field-foot"><span class="chip-row" id="examples"></span></div>
+    <div id="cands"></div>
+  </div>
+  <div id="out"></div>
+  <div class="card">
+    <span class="overline">Method &amp; honesty</span>
+    <h2 style="font-size:16px">How these numbers are computed — and their limits</h2>
+    <ul class="hint" style="max-width:100%;margin:0;padding-left:20px;line-height:1.7">
+      <li><b>Fractional works</b> = Σ (1 / number of authors) across a researcher's papers — credit shared with co-authors, the fairer denominator for comparing solo vs large-team authors.</li>
+      <li><b>Weighted citations / paper</b> = mean of (citations ÷ number of authors) per paper — citation credit split the same way.</li>
+      <li><b>Author position &amp; corresponding</b> come from OpenAlex authorship order and its corresponding-author flag; both can be imperfect for older or non-English records.</li>
+      <li><b>Retraction signals</b> use OpenAlex's <code>is_retracted</code> flag. A flag is a prompt to look, not a verdict — always read the notice itself. Deeper integrity screens (Problematic Paper Screener, Scopus-discontinued lists) need external sources and aren't computed here.</li>
+      <li><b>Coverage</b> is OpenAlex's (240M+ works): strongest for recent, English, DOI-bearing output. Name disambiguation can split or merge people — that's what the merge tool is for. We fetch up to 300 works per profile.</li>
+      <li>Data: Priem, J., Piwowar, H., &amp; Orr, R. (2022). <i>OpenAlex</i>. arXiv. <a class="link" href="https://doi.org/10.48550/arXiv.2205.01833" target="_blank" rel="noopener noreferrer">2205.01833</a>. An independent dashboard; not affiliated with any other author-metrics site.</li>
+    </ul>
+  </div>
+</main>
+<script src="shared.js"></script>
+<script>
+const { esc, icon, toast } = Rewiseed;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('author-impact.html');
+$('hero-icon').innerHTML = icon('user', 26);
+$('go').innerHTML = `${icon('search', 16)} Search`;
+const OA = 'https://api.openalex.org';
+const T = (u) => Rewiseed.fetchWithTimeout(u, { timeout: 25000 });
+const num = (n) => (n || 0).toLocaleString();
+const f1 = (n) => (Math.round(n * 10) / 10).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const f2 = (n) => (Math.round(n * 100) / 100).toFixed(2);
+const shortId = (id) => String(id || '').replace('https://openalex.org/', '');
+const flag = (cc) => cc ? cc.toUpperCase().replace(/./g, c => String.fromCodePoint(127397 + c.charCodeAt())) : '';
+
+$('examples').innerHTML = ['Yoshua Bengio', 'Amy Edmondson', 'Anuja Shukla'].map(x => `<button type="button" class="chip" data-ex="${esc(x)}">${esc(x)}</button>`).join('');
+$('examples').querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { $('q').value = b.dataset.ex; search(); });
+
+let candidates = [];
+async function search() {
+  const q = $('q').value.trim();
+  if (!q) { toast('Type a name to search', 'error'); return; }
+  const btn = $('go'); btn.disabled = true;
+  $('cands').innerHTML = `<div class="stream-status" style="margin-top:10px"><span class="spinner"></span>Searching researchers…</div>`;
+  $('out').innerHTML = '';
+  try {
+    const r = await T(`${OA}/authors?search=${encodeURIComponent(q)}&per_page=8&select=id,display_name,orcid,works_count,cited_by_count,summary_stats,affiliations,last_known_institutions,topics`);
+    if (!r.ok) throw new Error(`OpenAlex returned ${r.status}`);
+    candidates = (await r.json()).results || [];
+    if (!candidates.length) { $('cands').innerHTML = `<div class="empty-state" style="padding:20px">${icon('user', 26)}<br/>No researcher matched “${esc(q)}”.</div>`; return; }
+    renderCandidates();
+  } catch (e) { $('cands').innerHTML = `<div class="error-box" style="margin-top:10px">${icon('alert', 16)}<span>${esc(e.message)}</span></div>`; }
+  finally { btn.disabled = false; }
+}
+function renderCandidates() {
+  $('cands').innerHTML = `<p class="hint" style="margin:12px 0 6px">${candidates.length} candidate${candidates.length > 1 ? 's' : ''} — pick one, or tick several of the same person and merge.</p>
+    ${candidates.map((a, i) => {
+      const inst = (a.last_known_institutions || [])[0]?.display_name || (a.affiliations || [])[0]?.institution?.display_name || 'no current affiliation';
+      const cc = (a.last_known_institutions || [])[0]?.country_code;
+      return `<div class="merge-row">
+        <input type="checkbox" class="mc" data-i="${i}" title="Tick to merge with others"/>
+        <button type="button" class="cand" data-analyze="${i}" style="flex:1">
+          <b>${esc(a.display_name)}</b>${a.orcid ? ' <span title="Has ORCID">🆔</span>' : ''}
+          <span class="sub">${num(a.works_count)} works · ${num(a.cited_by_count)} citations · h-index ${a.summary_stats?.h_index ?? '—'} · i10 ${a.summary_stats?.i10_index ?? '—'}</span>
+          <span class="aff">${flag(cc)} ${esc(inst)}</span>
+        </button>
+      </div>`;
+    }).join('')}
+    <button type="button" class="ghost" id="merge-btn" style="margin-top:4px" hidden>Analyse merged selection</button>`;
+  $('cands').querySelectorAll('[data-analyze]').forEach(b => b.onclick = () => analyze([candidates[+b.dataset.analyze]]));
+  const upd = () => { const n = $('cands').querySelectorAll('.mc:checked').length; const mb = $('merge-btn'); mb.hidden = n < 2; mb.textContent = `Analyse ${n} merged profiles`; };
+  $('cands').querySelectorAll('.mc').forEach(cb => cb.onchange = upd);
+  $('merge-btn').onclick = () => analyze([...$('cands').querySelectorAll('.mc:checked')].map(cb => candidates[+cb.dataset.i]));
+}
+
+// ---------- fetch all works (cursor paginated, capped) ----------
+async function fetchWorks(authorIds) {
+  const filter = `author.id:${authorIds.map(shortId).join('|')}`;
+  const select = 'id,doi,title,publication_year,cited_by_count,authorships,primary_location,topics,is_retracted,type';
+  let cursor = '*', all = [], pages = 0;
+  while (cursor && pages < 3) {
+    const r = await T(`${OA}/works?filter=${encodeURIComponent(filter)}&per_page=100&cursor=${encodeURIComponent(cursor)}&select=${select}`);
+    if (!r.ok) throw new Error(`OpenAlex returned ${r.status}`);
+    const j = await r.json();
+    all.push(...(j.results || []));
+    cursor = j.meta?.next_cursor; pages++;
+  }
+  // dedupe by id (merged profiles share papers)
+  const seen = new Set(); return all.filter(w => !seen.has(w.id) && seen.add(w.id));
+}
+
+// ---------- compute metrics ----------
+function compute(works, authorIdSet) {
+  let citTotal = 0, fracWorks = 0, weightedCiteSum = 0, corresponding = 0;
+  const pos = { first: 0, second: 0, third: 0, 'fourth+': 0 };
+  const coauthors = new Map(), venues = new Map(), topics = new Map(), fields = new Map(), countries = new Map(), insts = new Map(), byYear = new Map();
+  const retracted = [];
+  for (const w of works) {
+    const A = w.authorships || []; const nA = A.length || 1;
+    citTotal += w.cited_by_count || 0;
+    fracWorks += 1 / nA;
+    weightedCiteSum += (w.cited_by_count || 0) / nA;
+    const meIdx = A.findIndex(a => authorIdSet.has(shortId(a.author?.id)));
+    if (meIdx === 0) pos.first++; else if (meIdx === 1) pos.second++; else if (meIdx === 2) pos.third++; else if (meIdx >= 3) pos['fourth+']++;
+    if (A[meIdx]?.is_corresponding) corresponding++;
+    (A[meIdx]?.institutions || []).forEach(it => { if (it.country_code) countries.set(it.country_code, (countries.get(it.country_code) || 0) + 1); if (it.display_name) insts.set(it.display_name, (insts.get(it.display_name) || 0) + 1); });
+    A.forEach((a, i) => { if (i !== meIdx && a.author?.id) { const id = shortId(a.author.id); const c = coauthors.get(id) || { name: a.author.display_name, n: 0 }; c.n++; coauthors.set(id, c); } });
+    const ven = w.primary_location?.source?.display_name; if (ven) { const v = venues.get(ven) || { n: 0, c: 0 }; v.n++; v.c += w.cited_by_count || 0; venues.set(ven, v); }
+    (w.topics || []).slice(0, 2).forEach(t => { if (t.display_name) topics.set(t.display_name, (topics.get(t.display_name) || 0) + 1); if (t.field?.display_name) fields.set(t.field.display_name, (fields.get(t.field.display_name) || 0) + 1); });
+    if (w.publication_year) { const y = byYear.get(w.publication_year) || { n: 0, c: 0 }; y.n++; y.c += w.cited_by_count || 0; byYear.set(w.publication_year, y); }
+    if (w.is_retracted) retracted.push(w);
+  }
+  const n = works.length || 1;
+  const topN = (m, k = 10) => [...m.entries()].sort((a, b) => (b[1].n ?? b[1]) - (a[1].n ?? a[1])).slice(0, k);
+  return {
+    worksCount: works.length, citTotal, citesPerPaper: citTotal / n, fracWorks, weightedCitesPerPaper: weightedCiteSum / n,
+    corresponding, correspondingPct: 100 * corresponding / n, pos, distinctCoauthors: coauthors.size,
+    coauthorsPerPaper: [...coauthors.values()].reduce((s, c) => s + c.n, 0) / n,
+    topCoauthors: [...coauthors.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 12),
+    venues: topN(venues, 15), topics: topN(topics, 12), fields: topN(fields, 8), countries: topN(countries, 12), insts: topN(insts, 10),
+    byYear: [...byYear.entries()].sort((a, b) => a[0] - b[0]), retracted, works,
+  };
+}
+
+// ---------- charts ----------
+function hbars(entries, valFn, labFn, unit) {
+  const max = Math.max(...entries.map(e => valFn(e)), 1);
+  return entries.map(e => `<div class="bar-row"><span class="lab" title="${esc(labFn(e))}">${esc(labFn(e))}</span><div class="bar" style="width:${Math.max(3, 100 * valFn(e) / max)}%"></div><span class="val">${unit ? valFn(e).toFixed(0) : num(valFn(e))}</span></div>`).join('');
+}
+function yearChart(byYear, key) {
+  const pts = byYear.filter(([y]) => y >= 1950); if (pts.length < 2) return '<p class="hint">Not enough yearly data.</p>';
+  const W = 820, H = 220, pL = 44, pB = 26, pT = 10, pR = 10;
+  const max = Math.max(...pts.map(([, v]) => v[key])) || 1;
+  const x = (i) => pL + i * (W - pL - pR) / (pts.length - 1);
+  const y = (v) => pT + (H - pT - pB) * (1 - v / max);
+  const bw = Math.max(4, (W - pL - pR) / pts.length - 4);
+  const bars = pts.map(([yr, v], i) => `<rect x="${(x(i) - bw / 2).toFixed(1)}" y="${y(v[key]).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H - pB - y(v[key])).toFixed(1)}" fill="var(--accent)" opacity="0.8"><title>${yr}: ${num(v[key])}</title></rect>`).join('');
+  const step = Math.max(1, Math.ceil(pts.length / 12));
+  const ticks = pts.map(([yr], i) => i % step === 0 || i === pts.length - 1 ? `<text x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--muted)">${yr}</text>` : '').join('');
+  return `<svg viewBox="0 0 ${W} ${H}" role="img"><text x="${pL - 8}" y="14" text-anchor="end" font-size="10" fill="var(--muted)">${num(max)}</text><line x1="${pL}" y1="${H - pB}" x2="${W - pR}" y2="${H - pB}" stroke="var(--border)"/>${bars}${ticks}</svg>`;
+}
+
+// ---------- render dashboard ----------
+let M = null, primary = null, ids = [];
+async function analyze(authors) {
+  primary = authors[0]; ids = authors.map(a => shortId(a.id));
+  const idSet = new Set(ids);
+  $('cands').innerHTML = '';
+  $('out').innerHTML = `<div class="card"><div class="stream-status"><span class="spinner"></span>Fetching works &amp; computing normalised metrics…</div></div>`;
+  try {
+    const works = await fetchWorks(authors.map(a => a.id));
+    M = compute(works, idSet);
+    Rewiseed.track('run');
+    renderDash(authors);
+  } catch (e) { $('out').innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>${esc(e.message)}</span></div></div>`; }
+}
+let activeTab = 'snapshot';
+function renderDash(authors) {
+  const a = authors[0];
+  const inst = (a.last_known_institutions || [])[0]?.display_name || '';
+  const cc = (a.last_known_institutions || [])[0]?.country_code;
+  $('out').innerHTML = `
+  <div class="card" id="dash-card">
+    <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap">
+      <div>
+        <h2 style="margin:0">${esc(a.display_name)}${authors.length > 1 ? ` <span class="badge">${authors.length} profiles merged</span>` : ''}</h2>
+        <p class="hint" style="margin:2px 0 0">${a.orcid ? `<a class="link" href="${esc(a.orcid)}" target="_blank" rel="noopener noreferrer">ORCID ${icon('external', 11)}</a> · ` : ''}${flag(cc)} ${esc(inst)}</p>
+      </div>
+      <div class="btn-row">
+        <a class="ghost" href="https://pubpeer.com/search?q=${encodeURIComponent(a.display_name)}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;padding:5px 12px;border:1px solid var(--border-strong);border-radius:999px">${icon('search', 13)} PubPeer</a>
+        <button class="ghost" id="dash-csv">${icon('download', 14)} CSV</button>
+        <button class="ghost" id="dash-pdf">${icon('doc', 14)} PDF</button>
+      </div>
+    </div>
+    <div class="hdr-stats">
+      <div class="s"><b style="color:var(--accent-strong)">${num(M.worksCount)}</b><span>works fetched</span></div>
+      <div class="s"><b>${f1(M.citesPerPaper)}</b><span>cites / paper</span></div>
+      <div class="s"><b>${f2(M.weightedCitesPerPaper)}</b><span>weighted cites / paper</span></div>
+      <div class="s"><b>${a.summary_stats?.h_index ?? '—'}</b><span>h-index</span></div>
+      <div class="s"><b style="color:${M.retracted.length ? '#b3402a' : 'inherit'}">${M.retracted.length}</b><span>retraction flags</span></div>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div id="tab-body"></div>
+    <p class="hint" style="margin:14px 0 0">Normalised metrics computed by ItsMyResearch from OpenAlex. A researcher's footprint is more than any single number — read the breakdowns, and see something wrong? Report it to <a class="link" href="https://openalex.org/" target="_blank" rel="noopener noreferrer">OpenAlex</a>.</p>
+  </div>`;
+  const tabs = [['snapshot', 'Snapshot'], ['articles', 'Articles'], ['venues', 'Venues'], ['topics', 'Topics'], ['geography', 'Geography'], ['collaborators', 'Collaborators'], ['integrity', 'Integrity']];
+  $('tabs').innerHTML = tabs.map(([k, l]) => `<button class="tab ${k === activeTab ? 'active' : ''}" data-tab="${k}">${l}</button>`).join('');
+  $('tabs').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { activeTab = b.dataset.tab; $('tabs').querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === b)); renderTab(); });
+  renderTab();
+  $('dash-csv').onclick = exportCsv;
+  $('dash-pdf').onclick = () => Rewiseed.exportPDF($('dash-card'), `${a.display_name} — Author Impact`);
+}
+
+function renderTab() {
+  const body = $('tab-body'); const P = M.pos; const nPos = (P.first + P.second + P.third + P['fourth+']) || 1;
+  if (activeTab === 'snapshot') {
+    body.innerHTML = `
+      <div class="snap-grid">
+        <div class="s"><b>${f1(M.fracWorks)}</b><span>fractional works</span><span class="note">credit shared with co-authors</span></div>
+        <div class="s"><b>${f2(M.weightedCitesPerPaper)}</b><span>weighted cites / paper</span><span class="note">normalised by authors</span></div>
+        <div class="s"><b>${num(M.distinctCoauthors)}</b><span>distinct co-authors</span><span class="note">${f1(M.coauthorsPerPaper)} per paper</span></div>
+        <div class="s"><b>${M.corresponding}</b><span>corresponding author</span><span class="note">${f1(M.correspondingPct)}% of works</span></div>
+      </div>
+      <div class="two-col">
+        <div><b style="font-size:13px">Author position</b>${hbars(Object.entries(P), e => e[1], e => e[0] + ' author', true)}</div>
+        <div><b style="font-size:13px">Top fields — share of works</b>${hbars(M.fields, e => Math.round(100 * e[1] / M.worksCount), e => e[0], false).replace(/<span class="val">(\d+)<\/span>/g, '<span class="val">$1%</span>')}</div>
+      </div>
+      <b style="font-size:13px;display:block;margin-top:14px">Publications per year</b><div id="trend">${yearChart(M.byYear, 'n')}</div>`;
+  } else if (activeTab === 'articles') {
+    body.innerHTML = `<p class="hint">${M.works.length} works — click a column to sort.</p>
+      <div class="tbl-wrap"><table class="ai-table" id="art-table"><thead><tr>
+        <th data-sort="title">Title</th><th data-sort="year" class="n">Year</th><th data-sort="venue">Venue</th><th data-sort="pos" class="n">Pos.</th><th data-sort="cit" class="n">Citations</th>
+      </tr></thead><tbody id="art-body"></tbody></table></div>`;
+    renderArticles('cit', true);
+  } else if (activeTab === 'venues') {
+    body.innerHTML = `<b style="font-size:13px">Top venues by number of papers</b>
+      <div style="margin-top:8px">${hbars(M.venues, e => e[1].n, e => e[0], true)}</div>
+      <p class="hint" style="margin-top:10px">Citations by venue and full list are in the CSV export.</p>`;
+  } else if (activeTab === 'topics') {
+    body.innerHTML = `<div class="two-col">
+      <div><b style="font-size:13px">Top topics — % of works</b>${hbars(M.topics, e => Math.round(100 * e[1] / M.worksCount), e => e[0], false).replace(/<span class="val">(\d+)<\/span>/g, '<span class="val">$1%</span>')}</div>
+      <div><b style="font-size:13px">Fields</b>${hbars(M.fields, e => e[1], e => e[0], true)}</div>
+    </div>`;
+  } else if (activeTab === 'geography') {
+    body.innerHTML = `<div class="two-col">
+      <div><b style="font-size:13px">Countries (from your affiliations)</b>${hbars(M.countries, e => e[1], e => `${flag(e[0])} ${e[0]}`, true)}</div>
+      <div><b style="font-size:13px">Institutions</b>${hbars(M.insts, e => e[1], e => e[0], true)}</div>
+    </div>`;
+  } else if (activeTab === 'collaborators') {
+    body.innerHTML = `<p class="hint">${num(M.distinctCoauthors)} distinct co-authors. Most frequent:</p>
+      <div class="collab-grid">${M.topCoauthors.map(([id, c]) => `<div class="collab-card"><b>${esc(c.name || 'Unknown')}</b><br/><span class="m">${c.n} joint work${c.n > 1 ? 's' : ''}</span><br/><a class="link" href="author-impact.html?a=${encodeURIComponent(id)}" style="font-size:12px">Analyse →</a></div>`).join('')}</div>`;
+  } else if (activeTab === 'integrity') {
+    body.innerHTML = `
+      <div class="snap-grid">
+        <div class="s"><b style="color:${M.retracted.length ? '#b3402a' : '#2e6b45'}">${M.retracted.length}</b><span>retraction flags</span></div>
+        <div class="s"><b>${f1(100 * M.retracted.length / (M.worksCount || 1))}%</b><span>of fetched works</span></div>
+      </div>
+      ${M.retracted.length ? `<b style="font-size:13px">Flagged as retracted (verify each notice)</b>
+        ${M.retracted.map(w => `<p class="hint" style="margin:6px 0"><span class="retr">RETRACTED</span> ${esc(w.title || 'Untitled')} (${w.publication_year || 'n.d.'})${w.doi ? ` · <a class="link" href="${esc(w.doi)}" target="_blank" rel="noopener noreferrer">DOI</a>` : ''}</p>`).join('')}`
+        : `<p class="hint">No works flagged as retracted in OpenAlex. That is reassuring but not a clearance — flags lag, and deeper screens (Problematic Paper Screener, journal-delisting) need external tools.</p>`}
+      <p class="hint" style="margin-top:10px">For post-publication discussion, check <a class="link" href="https://pubpeer.com/search?q=${encodeURIComponent(primary.display_name)}" target="_blank" rel="noopener noreferrer">PubPeer</a>. A retraction flag can reflect honest error, not misconduct — read the notice.</p>`;
+  }
+}
+function renderArticles(sortKey, desc) {
+  const rows = M.works.map(w => {
+    const A = w.authorships || []; const meIdx = A.findIndex(x => ids.includes(shortId(x.author?.id)));
+    return { title: w.title || 'Untitled', year: w.publication_year || 0, venue: w.primary_location?.source?.display_name || '', pos: meIdx + 1, cit: w.cited_by_count || 0, doi: w.doi, retr: w.is_retracted };
+  });
+  rows.sort((a, b) => { const va = a[sortKey], vb = b[sortKey]; const c = typeof va === 'string' ? va.localeCompare(vb) : va - vb; return desc ? -c : c; });
+  $('art-body').innerHTML = rows.map(r => `<tr>
+    <td>${r.retr ? '<span class="retr">RETRACTED</span> ' : ''}${r.doi ? `<a class="link" href="${esc(r.doi)}" target="_blank" rel="noopener noreferrer">${esc(r.title)}</a>` : esc(r.title)}</td>
+    <td class="n">${r.year || '—'}</td><td>${esc(r.venue)}</td><td class="n">${r.pos || '—'}</td><td class="n">${num(r.cit)}</td>
+  </tr>`).join('');
+  $('art-table').querySelectorAll('[data-sort]').forEach(th => th.onclick = () => { const k = th.dataset.sort; renderArticles(k, !(sortKey === k && desc)); });
+}
+function exportCsv() {
+  const q = (s) => `"${String(s ?? '').replace(/"/g, '""')}"`;
+  const rows = [['section', 'label', 'value'].join(',')];
+  rows.push(['summary', q('works fetched'), M.worksCount].join(','));
+  rows.push(['summary', q('cites per paper'), f2(M.citesPerPaper)].join(','));
+  rows.push(['summary', q('weighted cites per paper'), f2(M.weightedCitesPerPaper)].join(','));
+  rows.push(['summary', q('fractional works'), f2(M.fracWorks)].join(','));
+  rows.push(['summary', q('distinct co-authors'), M.distinctCoauthors].join(','));
+  rows.push(['summary', q('corresponding author works'), M.corresponding].join(','));
+  Object.entries(M.pos).forEach(([k, v]) => rows.push(['author_position', q(k), v].join(',')));
+  M.topics.forEach(([t, n]) => rows.push(['topic', q(t), n].join(',')));
+  M.venues.forEach(([v, o]) => rows.push(['venue', q(v), o.n].join(',')));
+  M.countries.forEach(([c, n]) => rows.push(['country', q(c), n].join(',')));
+  M.topCoauthors.forEach(([, c]) => rows.push(['coauthor', q(c.name), c.n].join(',')));
+  rows.push(['', '', ''].join(','));
+  rows.push(['article_title', 'year', 'citations'].map(q).join(','));
+  M.works.forEach(w => rows.push([q(w.title), w.publication_year || '', w.cited_by_count || 0].join(',')));
+  Rewiseed.downloadText(`author-impact-${(primary.display_name || 'author').replace(/\W+/g, '-')}.csv`, rows.join('\n'));
+}
+
+$('go').onclick = search;
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+// deep link: ?a=<openalex author id>  or  ?q=name
+const params = new URLSearchParams(location.search);
+if (params.get('a')) {
+  T(`${OA}/authors/${encodeURIComponent(params.get('a'))}?select=id,display_name,orcid,works_count,cited_by_count,summary_stats,affiliations,last_known_institutions,topics`).then(r => r.ok ? r.json() : null).then(a => { if (a) analyze([a]); });
+} else if (params.get('q')) { $('q').value = params.get('q'); search(); }
+</script>
+</body>
+</html>
