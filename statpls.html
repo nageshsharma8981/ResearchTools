@@ -936,6 +936,7 @@ function render(est, boot, meta) {
       <button id="ai-interpret">${icon('sparkle', 15)} AI interpretation</button>
       <button class="ghost" id="dl-report">${icon('download', 15)} Download report (.md)</button>
       <button class="ghost" id="dl-pdf" title="Opens your browser's print dialog — choose 'Save as PDF'">${icon('doc', 15)} Export PDF</button>
+      <button class="ghost" id="dl-xlsx" title="One Excel workbook — every table on its own tab, with a linked Contents sheet">${icon('grid', 15)} All tables (.xlsx)</button>
       <button class="ghost" id="dl-scores">${icon('download', 15)} Latent scores (.csv)</button>
       <button class="ghost" id="copy-apa">${icon('copy', 15)} Copy write-up</button>
     </div>
@@ -946,6 +947,13 @@ function render(est, boot, meta) {
   wireResultExports();
   $('dl-report').onclick = () => Rewiseed.downloadText('pls-sem-report.md', buildReport(est, pathRows, relRows, htmt, meta, boot, apa));
   $('dl-pdf').onclick = () => Rewiseed.exportPDF($('out'), 'StatPLS Results');
+  $('dl-xlsx').onclick = () => {
+    const blob = buildXlsx(est, pathRows, relRows, htmt, meta, boot);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'statpls-results.xlsx'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast('Workbook saved — 11 tabs with a linked Contents sheet');
+  };
   $('dl-scores').onclick = () => {
     const head = 'row,' + C.map(c => `"${c.name}"`).join(',');
     const lines = [head];
@@ -1131,6 +1139,129 @@ function drawDiagram(est) {
 }
 
 // SmartPLS-style canvas: constructs are draggable; edges and β labels follow live
+// ---------- xlsx workbook export: every table as a tab, with a linked Contents sheet ----------
+// An .xlsx is a zip of XML parts — same container as .docx, so we reuse the
+// platform's dependency-free zip writer (ported from the Reference Style Generator).
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+  return t;
+})();
+function crc32(buf) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function makeZip(files, mime) {
+  const enc = new TextEncoder();
+  const parts = [], central = [];
+  let offset = 0;
+  for (const f of files) {
+    const name = enc.encode(f.name), data = enc.encode(f.text);
+    const crc = crc32(data);
+    const local = new DataView(new ArrayBuffer(30));
+    local.setUint32(0, 0x04034b50, true); local.setUint16(4, 20, true); local.setUint16(6, 0, true);
+    local.setUint16(8, 0, true); local.setUint16(10, 0, true); local.setUint16(12, 0x21, true);
+    local.setUint32(14, crc, true); local.setUint32(18, data.length, true); local.setUint32(22, data.length, true);
+    local.setUint16(26, name.length, true); local.setUint16(28, 0, true);
+    parts.push(new Uint8Array(local.buffer), name, data);
+    const cd = new DataView(new ArrayBuffer(46));
+    cd.setUint32(0, 0x02014b50, true); cd.setUint16(4, 20, true); cd.setUint16(6, 20, true);
+    cd.setUint16(8, 0, true); cd.setUint16(10, 0, true); cd.setUint16(12, 0, true); cd.setUint16(14, 0x21, true);
+    cd.setUint32(16, crc, true); cd.setUint32(20, data.length, true); cd.setUint32(24, data.length, true);
+    cd.setUint16(28, name.length, true);
+    cd.setUint32(42, offset, true);
+    central.push(new Uint8Array(cd.buffer), name);
+    offset += 30 + name.length + data.length;
+  }
+  const cdSize = central.reduce((a, b) => a + b.length, 0);
+  const eocd = new DataView(new ArrayBuffer(22));
+  eocd.setUint32(0, 0x06054b50, true);
+  eocd.setUint16(8, files.length, true); eocd.setUint16(10, files.length, true);
+  eocd.setUint32(12, cdSize, true); eocd.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, new Uint8Array(eocd.buffer)], { type: mime });
+}
+const escXml = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const colRef = (n) => { let s = ''; n++; while (n) { s = String.fromCharCode(65 + (n - 1) % 26) + s; n = Math.floor((n - 1) / 26); } return s; };
+function sheetXML(rows, links) {
+  const body = rows.map((r, ri) => `<row r="${ri + 1}">${r.map((v, ci) => {
+    if (v === '' || v == null) return '';
+    const ref = colRef(ci) + (ri + 1);
+    if (typeof v === 'number' && Number.isFinite(v)) return `<c r="${ref}"><v>${v}</v></c>`;
+    return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${escXml(v)}</t></is></c>`;
+  }).join('')}</row>`).join('');
+  const hl = links && links.length
+    ? `<hyperlinks>${links.map(l => `<hyperlink ref="${l.ref}" location="${escXml(l.location)}" display="${escXml(l.display)}"/>`).join('')}</hyperlinks>`
+    : '';
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${body}</sheetData>${hl}</worksheet>`;
+}
+function buildXlsx(est, pathRows, relRows, htmt, meta, boot) {
+  const C = spec.constructs;
+  const n4 = (v) => Number.isFinite(v) ? +(+v).toFixed(4) : '';
+  const names = C.map(c => c.name);
+  const back = { ref: 'A1', location: `'Contents'!A1`, display: '← Contents' };
+  const sheets = []; // {name, rows, links}
+  const add = (name, header, rows) => sheets.push({ name, rows: [['← Contents'], [], [name], header, ...rows], links: [back] });
+
+  add('Loadings', ['Construct', 'Indicator', 'Loading'],
+    C.flatMap((c, k) => c.inds.map((ind, i) => [c.name, ind, n4(est.loadings[k][i])])));
+  add('Reliability', ['Construct', 'Items', "Cronbach's alpha", 'rho_A', 'CR (rho_c)', 'AVE'],
+    relRows.map(r => [r.name, r.m, r.m === 1 ? '' : n4(r.alpha), Number.isNaN(r.rhoA) ? '' : n4(r.rhoA), n4(r.cr), n4(r.ave)]));
+  add('Outer weights', ['Construct', 'Indicator', 'Weight', 'Loading'],
+    C.flatMap((c, k) => c.inds.map((ind, i) => [c.name, ind, n4(est.blockStats[k].wEff[i]), n4(est.loadings[k][i])])));
+  add('Cross-loadings', ['Indicator', ...names],
+    C.flatMap((c, k) => c.inds.map((ind, i) => [ind, ...est.crossLoadings[k][i].map(n4)])));
+  add('Fornell-Larcker', ['', ...names],
+    C.map((a, i) => [a.name, ...C.map((b, j) => j > i ? '' : j === i ? n4(Math.sqrt(relRows[i].ave)) : n4(est.lvCorr[i][j]))]));
+  add('HTMT', ['', ...names],
+    C.map((a, i) => [a.name, ...C.map((b, j) => j > i ? n4(htmt[i][j]) : '')]));
+  add('Paths', boot
+    ? ['Path', 'beta', 'Boot mean', 'SE', 't', 'p', 'CI 2.5%', 'CI 97.5%', 'f2', 'VIF']
+    : ['Path', 'beta', 'f2', 'VIF'],
+    pathRows.map(r => boot && r.bs
+      ? [`${r.f} -> ${r.t}`, n4(r.b), n4(r.bs.mean), n4(r.bs.sd), n4(r.bs.t), +r.bs.p.toPrecision(4), n4(r.bs.lo), n4(r.bs.hi), n4(r.f2), n4(r.vif)]
+      : [`${r.f} -> ${r.t}`, n4(r.b), n4(r.f2), n4(r.vif)]));
+  add('Effects', ['Effect', 'Direct', 'Indirect', 'Total'],
+    C.flatMap((a, ai) => C.map((b, bi) => {
+      const tot = est.totalEffects[ai][bi], dir = est.direct[ai][bi];
+      return Math.abs(tot) < 1e-6 ? null : [`${a.name} -> ${b.name}`, n4(dir), n4(tot - dir), n4(tot)];
+    }).filter(Boolean)));
+  add('R2', ['Endogenous construct', 'R2', 'Adjusted R2'],
+    Object.entries(est.structural).map(([nm, s]) => [nm, n4(s.r2), n4(s.adjR2)]));
+  add('Latent scores', ['Row', ...names],
+    Array.from({ length: est.n }, (_, r) => [r + 1, ...C.map((_, k) => +est.Y[k][r].toFixed(5))]));
+
+  // Contents sheet with clickable links to every tab
+  const contents = {
+    name: 'Contents',
+    rows: [
+      ['StatPLS results workbook'],
+      [`n = ${meta.n} · ${meta.scheme} weighting · Mode A${boot ? ` · ${boot.B} bootstrap resamples` : ' · no bootstrap'} · generated by ItsMyResearch (itsmyresearch.com/statpls)`],
+      [],
+      ['Sheet', 'What it contains'],
+      ...sheets.map(s => [s.name, {
+        'Loadings': 'Outer loadings (target ≥ 0.708)', 'Reliability': "Cronbach's alpha, rho_A, CR, AVE",
+        'Outer weights': 'Indicator weights and loadings', 'Cross-loadings': 'Item-level discriminant validity',
+        'Fornell-Larcker': 'sqrt(AVE) diagonal vs construct correlations', 'HTMT': 'Heterotrait-monotrait ratios (< 0.90)',
+        'Paths': 'Structural coefficients with bootstrap inference', 'Effects': 'Direct, indirect, and total effects',
+        'R2': 'Explained variance', 'Latent scores': 'Standardized construct scores per case',
+      }[s.name] || '']),
+      [],
+      ['Each sheet links back here from its A1 cell. Verify every value before publication.'],
+    ],
+    links: sheets.map((s, i) => ({ ref: 'A' + (5 + i), location: `'${s.name}'!A1`, display: s.name })),
+  };
+  const all = [contents, ...sheets];
+  const files = [
+    { name: '[Content_Types].xml', text: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${all.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>` },
+    { name: '_rels/.rels', text: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+    { name: 'xl/workbook.xml', text: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${all.map((s, i) => `<sheet name="${escXml(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>` },
+    { name: 'xl/_rels/workbook.xml.rels', text: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${all.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}</Relationships>` },
+    ...all.map((s, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, text: sheetXML(s.rows, s.links) })),
+  ];
+  return makeZip(files, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+}
+
 // ---------- exports: every table to CSV/Word, the diagram to PNG/SVG (buttons + right-click) ----------
 function tableToRows(tbl) { return [...tbl.querySelectorAll('tr')].map(tr => [...tr.querySelectorAll('th,td')].map(c => c.textContent.trim().replace(/\s+/g, ' '))); }
 function tableCSV(tbl) { const q = (s) => `"${String(s).replace(/"/g, '""')}"`; return tableToRows(tbl).map(r => r.map(q).join(',')).join('\n'); }
