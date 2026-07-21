@@ -78,3 +78,13 @@ test('server wires role defaults into the gate, publicUser, and the update route
   assert.ok(server.includes("['student', 'educator', 'admin']"), 'superadmin can set all three roles');
   assert.ok(server.includes("role IN ('student','educator')"), 'admin query includes educators');
 });
+
+test('bulk-tools endpoint exists with the same guardrails as single-user', () => {
+  const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  const i = server.indexOf("app.post('/api/admin/users/bulk-tools'");
+  assert.ok(i > 0, 'bulk-tools route defined');
+  const body = server.slice(i, i + 1200);
+  assert.ok(body.includes('requireAdmin'), 'bulk requires admin');
+  assert.ok(body.includes("target.role === 'superadmin'"), 'bulk never touches superadmins');
+  assert.ok(body.includes("target.org !== req.user.org"), 'bulk enforces org scope for admins');
+});

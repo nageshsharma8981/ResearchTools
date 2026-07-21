@@ -732,6 +732,31 @@ app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
   res.json({ users: rows.map(u => publicUser(u, true)), scope: req.user.role === 'superadmin' ? 'all' : req.user.org });
 });
 
+// bulk-assign the same tool set to many users at once
+app.post('/api/admin/users/bulk-tools', requireAuth, requireAdmin, (req, res) => {
+  const { ids, toolAccess } = req.body || {};
+  if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'Select at least one user.' });
+  if (!Array.isArray(toolAccess) || !toolAccess.length || toolAccess.some(t => !TOOL_IDS.has(String(t)))) {
+    return res.status(400).json({ error: 'Select at least one tool — to block everything, disable the accounts instead.' });
+  }
+  let updated = 0, skipped = 0;
+  db.transaction(() => {
+    for (const rawId of ids.slice(0, 500)) {
+      const target = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(rawId));
+      // same guardrails as the single-user route: never touch superadmins, yourself,
+      // or (for org admins) anyone outside your institution / above student+educator
+      if (!target || target.role === 'superadmin' || target.id === req.user.id) { skipped++; continue; }
+      if (req.user.role === 'admin' && (target.org !== req.user.org || !['student', 'educator'].includes(target.role))) { skipped++; continue; }
+      const def = roleDefaultTools(target.role);
+      const sel = new Set(toolAccess);
+      const isDefault = def === null ? toolAccess.length === TOOL_IDS.size : (sel.size === def.size && [...def].every(t => sel.has(t)));
+      db.prepare('UPDATE users SET tool_access = ? WHERE id = ?').run(isDefault ? '' : toolAccess.join(','), target.id);
+      updated++;
+    }
+  })();
+  res.json({ ok: true, updated, skipped });
+});
+
 app.put('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
   const target = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(req.params.id));
   if (!target) return res.status(404).json({ error: 'User not found.' });
