@@ -262,7 +262,7 @@
     { href: 'stats-advisor.html', icon: 'sigma', name: 'Statistical Test Advisor' },
     { href: 'statpls.html', icon: 'sigma', name: 'StatPLS' },
     { href: 'qualitative-coding-assistant.html', icon: 'dna', name: 'Qualitative Coding Assistant' },
-    { href: 'peer-review-simulator.html', icon: 'grad', name: 'Peer Review Simulator' },
+    { href: 'ai-peer-review.html', icon: 'grad', name: 'AI Peer Review' },
     { href: 'rubric-lens.html', icon: 'clipboard', name: 'RubricLens' },
     { href: 'abstract-generator.html', icon: 'doc', name: 'Abstract & Summary Studio' },
     { href: 'writing-polisher.html', icon: 'pen', name: 'Academic Writing Polisher' },
@@ -274,6 +274,7 @@
     { href: 'journal-metrics.html', icon: 'book', name: 'Journal Metrics & Finder' },
     { href: 'journal-rankings.html', icon: 'grad', name: 'Journal Rankings & Comparison' },
     { href: 'citation-integrity.html', icon: 'check', name: 'Citation Integrity Checker' },
+    { href: 'journal.html', icon: 'book', name: 'JBMS Journal — submit & review' },
   ];
 
   function renderNav(activeHref) {

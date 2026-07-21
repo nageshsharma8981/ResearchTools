@@ -1,6 +1,6 @@
 # ItsMyResearch
 
-Twenty-five research tools spanning the full research lifecycle — discovery, design, analysis, writing, and review — that run **in your browser**. Nine are fully keyless (literature search, DOI lookup, citation graphs, scholar profiles, bibliometrics, journal metrics, statistics, citation formatting); the AI tools use the free built-in browser model, your own OpenAI-compatible key, or a local model for fully offline use. Optional accounts add a saved-paper library, recommendations, and admin-managed tool access.
+Twenty-five research tools plus a peer-reviewed journal spanning the full research lifecycle — discovery, design, analysis, writing, and review — that run **in your browser**. Nine are fully keyless (literature search, DOI lookup, citation graphs, scholar profiles, bibliometrics, journal metrics, statistics, citation formatting); the AI tools use the free built-in browser model, your own OpenAI-compatible key, or a local model for fully offline use. Optional accounts add a saved-paper library, recommendations, and admin-managed tool access.
 
 ## The tools
 
@@ -30,7 +30,8 @@ New researchers: start at **/research-journey** — the whole workflow as eight 
 | Statistical Test Advisor | `stats-advisor.html` | The right statistical test per research question — assumptions with checks, non-parametric fallbacks, effect sizes, APA results templates, starter R/Python/SPSS code. |
 | Qualitative Coding Assistant | `qualitative-coding-assistant.html` | Braun & Clarke reflexive thematic analysis of interview transcripts — codes, themes, thematic map. |
 | RubricLens | `rubric-lens.html` | Match a draft against the assignment rubric: per-criterion band with evidence quotes from your own text, gap to the top band, and the highest-impact fixes. Accepts pasted text or .docx/.pdf/.txt uploads for both draft and rubric (parsed fully in-browser). Three grader personas. |
-| Peer Review Simulator | `peer-review-simulator.html` | Structured peer review with selectable reviewer temperament (constructive → adversarial) and a recommendation. |
+| AI Peer Review | `ai-peer-review.html` | Journal-grade review scoring six criteria (originality, contribution, methodology, clarity, literature, ethics) with a scorecard, major/minor concerns, ethics section, and recommendation. Selectable temperament; prepares you to submit. |
+| JBMS Journal | `journal.html` + `journal-submit.html` + `journal-desk.html` + `journal-article.html` | A real peer-reviewed, open-access monthly journal: submit → desk-screen → double-anonymous review (6-criterion) → human editor decision → publish. Role-aware editorial desk (author/reviewer/editor), COPE-aligned ethics, ₹10,000 APC on acceptance with waivers. |
 | Citation Formatter | `citation-formatter.html` | Precise keyless mode: DOI-match each reference and render Crossref's official citation (APA 7 / MLA 9 / Chicago / Harvard / IEEE / Vancouver) — exact, never invented. AI mode covers DOI-less references. |
 | Reference Style Generator | `apa-formatter.html` | Upload a `.docx` (parsed fully in-browser — no upload to any server) or paste text; download a formatted Word document in APA 7, MLA 9, Chicago 17 (author–date), Harvard, Vancouver/ICMJE, or IEEE — each with its own title page/first-page header, page-number style, and reference-list conventions (hanging indent or numbered). Optional AI pass rewrites in-text citations and the reference list to match the chosen style exactly. |
 

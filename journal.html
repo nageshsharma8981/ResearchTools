@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" type="image/png" href="favicon.png"/>
+<link rel="apple-touch-icon" href="favicon.png"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Journal of Business, Management &amp; Sustainability — ItsMyResearch</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ItsMyResearch"/>
+<meta property="og:title" content="Journal of Business, Management &amp; Sustainability (JBMS)"/>
+<meta property="og:description" content="A peer-reviewed, open-access monthly journal for rigorous multidisciplinary research across business, management, entrepreneurship, and sustainability. Double-anonymous review, COPE-aligned ethics."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/journal"/>
+<meta property="og:image" content="https://www.itsmyresearch.com/og-card.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://www.itsmyresearch.com/og-card.png"/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.masthead { text-align:center; border-bottom:3px double var(--border-strong); padding-bottom:20px; margin-bottom:8px; }
+.masthead .ovl { font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent-strong); }
+.masthead h1 { font-family:var(--font-serif); font-size:34px; margin:8px 0 4px; line-height:1.15; }
+.masthead .issn { font-size:12.5px; color:var(--muted); }
+.masthead .strip { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:14px; }
+.masthead .strip span { font-size:12px; background:var(--surface-2); border:1px solid var(--border); border-radius:999px; padding:4px 12px; }
+.j-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media (max-width:760px){ .j-grid { grid-template-columns:1fr; } }
+.track-chips { display:flex; flex-wrap:wrap; gap:7px; margin-top:8px; }
+.track-chips span { font-size:12.5px; background:var(--accent-soft); color:var(--accent-strong); border-radius:999px; padding:4px 12px; font-weight:600; }
+.step-flow { display:flex; flex-wrap:wrap; gap:8px; align-items:stretch; margin-top:10px; }
+.step-flow .st { flex:1; min-width:135px; background:var(--surface-2); border-radius:var(--radius); padding:12px 14px; position:relative; }
+.step-flow .st b { display:block; font-size:13.5px; }
+.step-flow .st span { font-size:12px; color:var(--muted); }
+.step-flow .st .no { font-family:var(--font-serif); font-size:15px; color:var(--accent-strong); font-weight:700; }
+.board-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; margin-top:10px; }
+.board-card { border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; }
+.board-card b { font-size:13.5px; } .board-card span { font-size:12px; color:var(--muted); display:block; }
+.j-cta { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:16px; }
+.article-item { border-bottom:1px solid var(--border); padding:12px 0; }
+.article-item h3 { font-size:15.5px; margin:0 0 2px; }
+.article-item .meta { font-size:12.5px; color:var(--muted); }
+.fee-row { display:flex; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:14px; }
+</style>
+</head>
+<body>
+<div class="masthead" style="margin-top:8px">
+  <span class="ovl">Peer-reviewed · Open access · Monthly</span>
+  <h1>Journal of Business, Management &amp; Sustainability</h1>
+  <p class="issn">Published by ItsMyResearch · e-ISSN: <span title="Application in progress">applied for</span> · Vol. 1 (2026) · JBMS</p>
+  <div class="strip">
+    <span>🔍 Double-anonymous peer review</span>
+    <span>⚖️ COPE-aligned ethics</span>
+    <span>🔓 CC-BY open access</span>
+    <span>🗓️ Monthly issues</span>
+  </div>
+</div>
+<main style="max-width:900px">
+  <div class="j-cta">
+    <a href="journal-submit.html"><button type="button">Submit your manuscript</button></a>
+    <a href="journal-desk.html"><button type="button" class="ghost">Editorial desk / My submissions</button></a>
+    <a href="#issues"><button type="button" class="ghost">Read published articles</button></a>
+  </div>
+
+  <div class="card">
+    <span class="overline">Aims &amp; scope</span>
+    <h2>Rigorous, useful, multidisciplinary business scholarship</h2>
+    <p class="hint" style="max-width:100%;font-size:14.5px">JBMS publishes original, methodologically sound research that advances theory and practice across the management disciplines and their intersection with society and the natural environment. We welcome quantitative, qualitative, mixed-methods, and rigorous conceptual work, and we especially value research that speaks across disciplinary boundaries — for example, how entrepreneurship shapes sustainable development, or how digital transformation reshapes organizations. Our editorial standards are inspired by leading outlets such as the <i>Journal of Business Research</i>, <i>Journal of Business Venturing</i>, <i>Business Strategy and the Environment</i>, and <i>Journal of Cleaner Production</i>.</p>
+    <div class="track-chips" id="tracks"></div>
+  </div>
+
+  <div class="card">
+    <span class="overline">How review works</span>
+    <h2>Every submission is read by humans — twice over</h2>
+    <p class="hint" style="max-width:100%">AI tools may assist authors and editors, but <b>no decision is made by a machine</b>. A handling editor screens each paper, at least two independent experts review it double-anonymously, and a human editor weighs their reports to reach a decision.</p>
+    <div class="step-flow">
+      <div class="st"><span class="no">1</span><b>Submission</b><span>Manuscript + declarations. Integrity self-checks required.</span></div>
+      <div class="st"><span class="no">2</span><b>Desk screening</b><span>A handling editor checks scope, quality, and ethics. Out-of-scope papers are returned quickly.</span></div>
+      <div class="st"><span class="no">3</span><b>Double-anonymous review</b><span>≥2 independent reviewers score originality, contribution, methodology, clarity, literature, and ethics.</span></div>
+      <div class="st"><span class="no">4</span><b>Editor decision</b><span>Accept · minor revision · major revision · reject — with the reviewers' reasoning.</span></div>
+      <div class="st"><span class="no">5</span><b>Revision &amp; production</b><span>Authors respond point-by-point; accepted papers are copy-edited and published.</span></div>
+      <div class="st"><span class="no">6</span><b>Publication</b><span>Open access in the monthly issue under a CC-BY licence.</span></div>
+    </div>
+    <p class="hint" style="margin-top:12px">Target first decision: <b>6–8 weeks</b>. Before submitting, authors must run our <a class="link" href="originality-checker.html">Originality &amp; AI Checker</a> and <a class="link" href="citation-integrity.html">Citation Integrity Checker</a> — links are built into the submission form.</p>
+  </div>
+
+  <div class="card">
+    <span class="overline">Publication ethics</span>
+    <h2>Our standards, in the open</h2>
+    <div class="j-grid">
+      <div>
+        <p class="hint" style="max-width:100%;margin:0 0 8px"><b>Integrity &amp; misconduct.</b> We follow the <a class="link" href="https://publicationethics.org/core-practices" target="_blank" rel="noopener noreferrer">COPE Core Practices</a>. Plagiarism, data fabrication or falsification, image manipulation, undisclosed conflicts, redundant or concurrent submission, and authorship abuse are grounds for rejection or retraction at any stage.</p>
+        <p class="hint" style="max-width:100%;margin:0 0 8px"><b>Authorship &amp; contributions.</b> All listed authors must have made a substantive contribution and approved the submission; we use the <a class="link" href="https://credit.niso.org/" target="_blank" rel="noopener noreferrer">CRediT taxonomy</a>. Ghost, gift, and guest authorship are not permitted.</p>
+        <p class="hint" style="max-width:100%;margin:0"><b>AI use.</b> Generative-AI assistance must be disclosed. AI cannot be an author. Authors are fully responsible for every claim, number, and citation — fabricated references are treated as research misconduct.</p>
+      </div>
+      <div>
+        <p class="hint" style="max-width:100%;margin:0 0 8px"><b>Corrections &amp; retractions.</b> We publish corrections, expressions of concern, and retractions following COPE guidance when the record needs it — transparently and promptly.</p>
+        <p class="hint" style="max-width:100%;margin:0 0 8px"><b>Appeals &amp; complaints.</b> Authors may appeal a decision once, in writing, with a reasoned rebuttal; a second editor reviews the case. Complaints about process or conduct go to the Editor-in-Chief.</p>
+        <p class="hint" style="max-width:100%;margin:0 0 8px"><b>Editorial independence &amp; COI.</b> Editors recuse themselves from papers where they have a conflict; reviewers must declare conflicts before reviewing.</p>
+        <p class="hint" style="max-width:100%;margin:0"><b>Data &amp; reproducibility.</b> Authors are asked to state data availability and share materials where ethics permit.</p>
+      </div>
+    </div>
+    <p class="hint" style="margin-top:10px">Standards &amp; inspirations: COPE · <a class="link" href="https://doaj.org/apply/transparency/" target="_blank" rel="noopener noreferrer">DOAJ transparency principles</a> · ICMJE recommendations · CRediT · <a class="link" href="https://thinkchecksubmit.org/" target="_blank" rel="noopener noreferrer">Think. Check. Submit.</a></p>
+  </div>
+
+  <div class="card">
+    <span class="overline">Author guidelines</span>
+    <h2>Preparing your submission</h2>
+    <ul class="hint" style="max-width:100%;margin:0;padding-left:20px;line-height:1.7">
+      <li><b>Original &amp; exclusive.</b> The work must be original, not published elsewhere, and not under review at another journal.</li>
+      <li><b>Structure.</b> Title, abstract (150–300 words), 4–6 keywords, then the full manuscript (introduction, literature/theory, methods, results, discussion, conclusion, references). Conceptual and review papers may vary.</li>
+      <li><b>Anonymity.</b> The manuscript text you submit should be free of author-identifying information — reviews are double-anonymous. Author details go in the separate authors panel.</li>
+      <li><b>References.</b> Use a consistent style (APA 7 preferred); every in-text citation must appear in the reference list and vice versa (our Citation Integrity Checker verifies this).</li>
+      <li><b>Declarations.</b> Ethics approval (where human/animal subjects are involved), conflicts of interest, funding, data availability, and AI use.</li>
+      <li><b>Length.</b> Typically 6,000–10,000 words including references; there is no rigid limit if the length is justified.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <span class="overline">Open access &amp; fees</span>
+    <h2>Transparent, waivable APC</h2>
+    <p class="hint" style="max-width:100%">JBMS is fully open access under a <b>CC-BY 4.0</b> licence — authors retain copyright, readers pay nothing. Publication is supported by a single Article Processing Charge, <b>only on acceptance</b>. There is <b>no submission fee</b>, and paying does not influence the editorial decision.</p>
+    <div style="max-width:520px;margin-top:8px">
+      <div class="fee-row"><span>Article Processing Charge (on acceptance)</span><b>₹10,000</b></div>
+      <div class="fee-row"><span>Submission fee</span><b>None</b></div>
+      <div class="fee-row"><span>Fee waivers</span><b>Available</b></div>
+    </div>
+    <p class="hint" style="margin-top:8px"><b>Waivers &amp; discounts:</b> full or partial waivers are granted on request for students (first-author), authors from lower-income countries, and cases of demonstrated need — decided independently of the review outcome. No author is prevented from publishing accepted work by inability to pay.</p>
+    <p class="hint" style="margin-top:6px;font-size:12px">Why a fee at all? It funds real editing, production, DOI registration, and long-term hosting — the things that separate a genuine journal from a pay-to-publish mill. The fee buys <i>editorial work</i>, never acceptance.</p>
+  </div>
+
+  <div class="card">
+    <span class="overline">Editorial board</span>
+    <h2>Who runs the journal</h2>
+    <p class="hint" style="max-width:100%">JBMS is led by a working editorial board of academics across its disciplines. Board positions are being finalised; these are the roles that govern the journal.</p>
+    <div class="board-grid" id="board"></div>
+    <p class="hint" style="margin-top:10px">Interested in serving as an Associate Editor or reviewer? Editors invite reviewers through the editorial desk — sign in and email the Editor-in-Chief with your area and a short bio.</p>
+  </div>
+
+  <div class="card" id="issues">
+    <span class="overline">Published articles</span>
+    <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><h2 style="margin:0">Current &amp; past issues</h2><select id="track-filter" style="max-width:230px"><option value="">All tracks</option></select></div>
+    <div id="articles" style="margin-top:10px"><div class="stream-status"><span class="spinner"></span>Loading the archive…</div></div>
+  </div>
+
+  <p class="hint" style="text-align:center;max-width:640px;margin:0 auto">JBMS is a new journal building its record issue by issue. Indexing (DOAJ, Scopus) and DOI registration are pursued as the journal establishes a publication history — we will never claim an index or metric we do not hold.</p>
+</main>
+<script src="shared.js"></script>
+<script>
+const { esc, icon } = Rewiseed;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('journal.html');
+
+const TRACKS = ['General Management','Strategy','Entrepreneurship & Innovation','Marketing','Finance & Accounting','Organizational Behaviour & HRM','Operations & Supply Chain','Information Systems & Digital','Economics & Policy','Sustainability & CSR','International Business'];
+$('tracks').innerHTML = TRACKS.map(t => `<span>${esc(t)}</span>`).join('');
+$('track-filter').innerHTML += TRACKS.map(t => `<option>${esc(t)}</option>`).join('');
+const BOARD = [
+  ['Editor-in-Chief', 'To be appointed'],
+  ['Deputy Editor', 'To be appointed'],
+  ['Associate Editor — Strategy & Entrepreneurship', 'To be appointed'],
+  ['Associate Editor — Sustainability & CSR', 'To be appointed'],
+  ['Associate Editor — Marketing & Consumer Research', 'To be appointed'],
+  ['Associate Editor — Finance & Economics', 'To be appointed'],
+  ['Managing Editor', 'To be appointed'],
+  ['Ethics & Integrity Editor', 'To be appointed'],
+];
+$('board').innerHTML = BOARD.map(([role, who]) => `<div class="board-card"><b>${esc(role)}</b><span>${esc(who)}</span></div>`).join('');
+
+let ARTICLES = [];
+function renderArticles() {
+  const tf = $('track-filter').value;
+  const list = ARTICLES.filter(a => !tf || a.track === tf);
+  $('articles').innerHTML = list.length
+    ? list.map(a => `<div class="article-item">
+        <h3><a class="link" href="journal-article.html?id=${encodeURIComponent(a.ms_id)}">${esc(a.title)}</a></h3>
+        <div class="meta">${esc((a.authors || []).join(', ') || 'Anonymous')} · ${esc(a.track)} · Vol. ${a.volume} (2026), Issue ${a.issue} · ${esc(a.ms_id)}</div>
+        <p class="hint" style="margin:4px 0 0">${esc((a.abstract || '').slice(0, 260))}${(a.abstract || '').length > 260 ? '…' : ''}</p>
+      </div>`).join('')
+    : `<div class="empty-state" style="padding:24px">${icon('book', 26)}<br/>No articles published yet${tf ? ' in this track' : ''}. The first issue is in the works — <a class="link" href="journal-submit.html">submit your research</a> to be part of it.</div>`;
+}
+fetch('/api/journal/issues').then(r => r.json()).then(d => { ARTICLES = d.articles || []; renderArticles(); }).catch(() => { $('articles').innerHTML = '<p class="hint">Could not load the archive.</p>'; });
+$('track-filter').onchange = renderArticles;
+</script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" type="image/png" href="favicon.png"/>
+<link rel="apple-touch-icon" href="favicon.png"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Submit a manuscript — JBMS · ItsMyResearch</title>
+<meta property="og:title" content="Submit a manuscript — Journal of Business, Management &amp; Sustainability"/>
+<meta property="og:image" content="https://www.itsmyresearch.com/og-card.png"/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.author-row { display:grid; grid-template-columns:1.3fr 1.5fr 1.5fr 0.9fr auto; gap:8px; margin-bottom:8px; align-items:center; }
+@media (max-width:760px){ .author-row { grid-template-columns:1fr 1fr; } }
+.decl { display:flex; gap:9px; align-items:flex-start; font-size:13.5px; margin-bottom:9px; cursor:pointer; line-height:1.5; }
+.decl input { width:auto; min-height:0; margin:2px 0 0; }
+.field-label { margin-top:14px; }
+.check-badge { font-size:12.5px; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Submit to JBMS</h1>
+  <p class="lede">Journal of Business, Management &amp; Sustainability — peer-reviewed, open access. Your manuscript stays private to you and the editorial team; reviews are double-anonymous.</p>
+</div>
+<main style="max-width:820px">
+  <div id="gate"></div>
+  <form id="form" hidden>
+    <div class="card">
+      <span class="overline">1 · Manuscript</span>
+      <h2>Title &amp; abstract</h2>
+      <label class="field-label" for="title">Title</label>
+      <input id="title" maxlength="400" placeholder="The full title of your paper"/>
+      <label class="field-label" for="track">Subject track</label>
+      <select id="track"><option value="">Choose the best-fitting track…</option></select>
+      <label class="field-label" for="abstract">Abstract <span class="hint">(150–300 words)</span></label>
+      <textarea id="abstract" style="min-height:130px" placeholder="Structured or unstructured abstract…"></textarea>
+      <label class="field-label" for="keywords">Keywords <span class="hint">(comma-separated, 4–6)</span></label>
+      <input id="keywords" maxlength="400" placeholder="e.g. circular economy, SME, dynamic capabilities"/>
+    </div>
+
+    <div class="card">
+      <span class="overline">2 · Authors</span>
+      <h2>Author list &amp; affiliations</h2>
+      <p class="hint">List every author. Mark the corresponding author. This panel is <b>not</b> shown to reviewers — keep the manuscript text itself anonymous.</p>
+      <div id="authors"></div>
+      <button type="button" class="ghost" id="add-author" style="margin-top:6px">${''}+ Add author</button>
+    </div>
+
+    <div class="card">
+      <span class="overline">3 · Full manuscript</span>
+      <h2>The paper itself</h2>
+      <p class="hint">Upload a <code>.docx</code>, <code>.pdf</code>, or <code>.txt</code>, or paste the full text. Parsed in your browser. Remove author names from the body — reviews are double-anonymous.</p>
+      <div class="chip-row" style="margin-bottom:8px">
+        <label class="chip" style="display:inline-flex;align-items:center;cursor:pointer">Upload manuscript<input id="file" type="file" accept=".docx,.pdf,.txt,.md" style="display:none"/></label>
+        <span id="fstatus" class="hint" style="align-self:center"></span>
+      </div>
+      <textarea id="manuscript" style="min-height:180px" placeholder="Paste or upload the complete manuscript, including references…"></textarea>
+      <label class="field-label" for="cover">Cover letter <span class="hint">(optional — to the editor)</span></label>
+      <textarea id="cover" style="min-height:90px" placeholder="Why this paper fits JBMS, its contribution, and any information the editor should know."></textarea>
+    </div>
+
+    <div class="card">
+      <span class="overline">4 · Integrity checks</span>
+      <h2>Run these before you submit</h2>
+      <p class="hint">Two quick self-checks catch the issues that most often sink a submission. They open in a new tab; tick each once you've reviewed the result.</p>
+      <label class="decl"><input type="checkbox" id="chk-orig"/> <span>I have run the <a class="link" href="originality-checker.html" target="_blank" rel="noopener">Originality &amp; AI Checker</a> and addressed any flagged overlap or unattributed AI text.</span></label>
+      <label class="decl"><input type="checkbox" id="chk-cite"/> <span>I have run the <a class="link" href="citation-integrity.html" target="_blank" rel="noopener">Citation Integrity Checker</a> — every in-text citation is in my reference list and vice versa.</span></label>
+    </div>
+
+    <div class="card">
+      <span class="overline">5 · Declarations</span>
+      <h2>Author declarations</h2>
+      <p class="hint">All required to submit (COPE-aligned). False declarations are grounds for rejection or retraction.</p>
+      <label class="decl"><input type="checkbox" data-req id="d-original"/> <span>This work is <b>original</b>, has not been published elsewhere, and is not under consideration by another journal.</span></label>
+      <label class="decl"><input type="checkbox" data-req id="d-notConcurrent"/> <span>The manuscript is <b>not concurrently submitted</b> anywhere else.</span></label>
+      <label class="decl"><input type="checkbox" data-req id="d-ethics"/> <span>The research complies with applicable <b>ethical standards</b> (informed consent, ethics/IRB approval where human or animal subjects are involved).</span></label>
+      <label class="decl"><input type="checkbox" data-req id="d-coiDisclosed"/> <span>All <b>conflicts of interest</b> are disclosed below (or there are none).</span></label>
+      <label class="decl"><input type="checkbox" data-req id="d-aiDisclosed"/> <span>Any use of <b>generative AI</b> is disclosed below; AI is not listed as an author; I take full responsibility for all content and citations.</span></label>
+      <label class="decl"><input type="checkbox" data-req id="d-allAuthorsAgree"/> <span>All listed authors made a substantive contribution and <b>approve this submission</b> (no ghost/gift/guest authorship).</span></label>
+      <label class="field-label" for="d-funding">Funding <span class="hint">(sources, or "none")</span></label>
+      <input id="d-funding" maxlength="500" placeholder="Grant/funder details, or 'No external funding'"/>
+      <label class="field-label" for="d-data">Data availability</label>
+      <input id="d-data" maxlength="500" placeholder="e.g. Data available on request / in an OSF repository / not applicable"/>
+      <label class="field-label" for="d-ai">AI-use statement <span class="hint">(what tools, for what)</span></label>
+      <input id="d-ai" maxlength="1000" placeholder="e.g. Used an AI assistant for language editing; all analysis and writing are the authors' own."/>
+    </div>
+
+    <div class="card">
+      <div id="submit-err"></div>
+      <p class="hint" style="margin:0 0 10px">By submitting you agree to double-anonymous review and to the journal's ethics policy. There is no submission fee; the ₹10,000 APC applies only on acceptance and is waivable.</p>
+      <button type="submit" id="submit">${''}Submit manuscript</button>
+    </div>
+  </form>
+</main>
+<script src="shared.js"></script>
+<script src="doc-extract.js"></script>
+<script>
+const { esc, icon, toast } = Rewiseed;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('journal.html');
+$('hero-icon').innerHTML = icon('doc', 26);
+$('add-author').innerHTML = `+ Add author`;
+$('submit').textContent = 'Submit manuscript';
+
+const TRACKS = ['General Management','Strategy','Entrepreneurship & Innovation','Marketing','Finance & Accounting','Organizational Behaviour & HRM','Operations & Supply Chain','Information Systems & Digital','Economics & Policy','Sustainability & CSR','International Business'];
+$('track').innerHTML += TRACKS.map(t => `<option>${esc(t)}</option>`).join('');
+
+// require sign-in
+fetch('/api/me', { credentials: 'same-origin' }).then(r => {
+  if (r.ok) { $('form').hidden = false; addAuthor(true); }
+  else $('gate').innerHTML = `<div class="card" style="text-align:center"><h2>Sign in to submit</h2><p class="hint">You need an ItsMyResearch account to submit and track your manuscript.</p><a href="signin.html"><button type="button">Sign in</button></a> <a href="signup.html"><button type="button" class="ghost">Create account</button></a></div>`;
+});
+
+function addAuthor(first) {
+  const row = document.createElement('div');
+  row.className = 'author-row';
+  row.innerHTML = `<input class="a-name" placeholder="Full name"/><input class="a-aff" placeholder="Affiliation"/><input class="a-email" placeholder="Email"/><label style="font-size:12px;display:flex;gap:5px;align-items:center;white-space:nowrap"><input type="checkbox" class="a-corr" style="width:auto;min-height:0" ${first ? 'checked' : ''}/>corresp.</label><button type="button" class="ghost a-rm" style="min-height:34px;padding:4px 10px">✕</button>`;
+  row.querySelector('.a-rm').onclick = () => row.remove();
+  $('authors').appendChild(row);
+}
+$('add-author').onclick = () => addAuthor(false);
+
+$('file').addEventListener('change', async () => {
+  const f = $('file').files[0]; if (!f) return;
+  $('fstatus').innerHTML = `<span class="spinner"></span> reading…`;
+  try { const text = await RewiseedDocExtract.extract(f); $('manuscript').value = text; $('fstatus').innerHTML = `<span class="badge ok check-badge">${icon('check', 11)} ${esc(f.name)} — ${text.split(/\s+/).length.toLocaleString()} words</span>`; }
+  catch (e) { $('fstatus').innerHTML = `<span class="badge warn check-badge">${esc(e.message)}</span>`; }
+  $('file').value = '';
+});
+
+$('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errBox = $('submit-err'); errBox.innerHTML = '';
+  const authors = [...document.querySelectorAll('.author-row')].map(r => ({
+    name: r.querySelector('.a-name').value.trim(), affiliation: r.querySelector('.a-aff').value.trim(),
+    email: r.querySelector('.a-email').value.trim(), corresponding: r.querySelector('.a-corr').checked,
+  })).filter(a => a.name);
+  const reqIds = ['d-original','d-notConcurrent','d-ethics','d-coiDisclosed','d-aiDisclosed','d-allAuthorsAgree'];
+  if (!$('chk-orig').checked || !$('chk-cite').checked) return fail('Please run and confirm both integrity checks (section 4).');
+  if (!reqIds.every(id => $(id).checked)) return fail('All author declarations (section 5) must be confirmed.');
+  if (!authors.length) return fail('Add at least one author.');
+  const body = {
+    title: $('title').value.trim(), abstract: $('abstract').value.trim(), keywords: $('keywords').value.trim(),
+    track: $('track').value, manuscript: $('manuscript').value.trim(), cover_letter: $('cover').value.trim(),
+    authors_meta: authors,
+    declarations: {
+      original: true, notConcurrent: true, ethics: true, coiDisclosed: true, aiDisclosed: true, allAuthorsAgree: true,
+      funding: $('d-funding').value.trim(), dataAvailability: $('d-data').value.trim(), aiUse: $('d-ai').value.trim(),
+    },
+  };
+  if (body.title.length < 8) return fail('Enter a fuller title.');
+  if (body.abstract.length < 100) return fail('The abstract needs at least 100 characters.');
+  if (body.manuscript.length < 2000) return fail('Paste or upload the full manuscript.');
+  if (!body.track) return fail('Choose a subject track.');
+  $('submit').disabled = true;
+  try {
+    const r = await fetch('/api/journal/submit', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'Submission failed.');
+    document.querySelector('main').innerHTML = `<div class="card" style="text-align:center"><div style="font-size:40px">✅</div><h2>Submitted — ${esc(j.ms_id)}</h2><p class="hint">Your manuscript is with the editorial desk for screening. You can track its progress any time.</p><a href="journal-desk.html"><button type="button">Track my submissions</button></a></div>`;
+    window.scrollTo(0, 0);
+  } catch (e) { fail(e.message); $('submit').disabled = false; }
+  function fail(msg) { errBox.innerHTML = `<div class="error-box" style="margin-bottom:10px">${icon('alert', 16)}<span>${esc(msg)}</span></div>`; errBox.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+});
+function fail(msg) { $('submit-err').innerHTML = `<div class="error-box" style="margin-bottom:10px">${icon('alert', 16)}<span>${esc(msg)}</span></div>`; }
+</script>
+</body>
+</html>

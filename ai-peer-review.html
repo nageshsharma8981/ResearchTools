@@ -7,27 +7,27 @@
 <link rel="apple-touch-icon" href="favicon.png"/>
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
-<title>Peer Review Simulator — ItsMyResearch</title>
+<title>AI Peer Review — ItsMyResearch</title>
 <meta property="og:type" content="website"/>
 <meta property="og:site_name" content="ItsMyResearch"/>
-<meta property="og:title" content="Peer Review Simulator — ItsMyResearch"/>
-<meta property="og:description" content="A rigorous but constructive peer reviewer for your manuscript, with a publication recommendation."/>
-<meta property="og:url" content="https://www.itsmyresearch.com/peer-review-simulator"/>
+<meta property="og:title" content="AI Peer Review — ItsMyResearch"/>
+<meta property="og:description" content="A journal-grade AI peer review of your manuscript — scored on originality, contribution, methodology, clarity, literature, and ethics, with a recommendation. Prepare before you submit."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/ai-peer-review"/>
 <meta property="og:image" content="https://www.itsmyresearch.com/og-card.png"/>
 <meta property="og:image:width" content="1200"/>
 <meta property="og:image:height" content="630"/>
 <meta name="twitter:card" content="summary_large_image"/>
 <meta name="twitter:image" content="https://www.itsmyresearch.com/og-card.png"/>
-<meta name="twitter:title" content="Peer Review Simulator — ItsMyResearch"/>
-<meta name="twitter:description" content="A rigorous but constructive peer reviewer for your manuscript, with a publication recommendation."/>
+<meta name="twitter:title" content="AI Peer Review — ItsMyResearch"/>
+<meta name="twitter:description" content="A journal-grade AI peer review of your manuscript, scored on six criteria with a recommendation. Prepare before you submit."/>
 <link rel="stylesheet" href="shared.css"/>
 <script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
 </head>
 <body>
 <div class="hero">
   <span class="tool-icon" id="hero-icon"></span>
-  <h1>Peer Review Simulator</h1>
-  <p class="lede">A rigorous but constructive reviewer for your draft — strengths, major and minor concerns with concrete fixes, and a publication recommendation.</p>
+  <h1>AI Peer Review</h1>
+  <p class="lede">A journal-grade review of your manuscript before a human ever sees it — scored on the six criteria real reviewers use, with major and minor concerns, concrete fixes, and a recommendation. The best way to prepare for submission.</p>
 </div>
 <main class="split">
   <div id="settings"></div>
@@ -55,7 +55,7 @@
 </main>
 <script src="shared.js"></script>
 <script>
-Rewiseed.renderNav('peer-review-simulator.html');
+Rewiseed.renderNav('ai-peer-review.html');
 document.getElementById('hero-icon').innerHTML = Rewiseed.icon('grad', 26);
 Rewiseed.renderSettingsBar('settings');
 
@@ -65,15 +65,16 @@ const TEMPERAMENT = {
   harsh: 'Be maximally adversarial, as the harshest plausible Reviewer 2: hunt for every weakness, alternative explanation, and overclaim — while remaining factual and never inventing content that is not in the manuscript.',
 };
 
-const SYS_BASE = `You are simulating an academic peer reviewer for a top journal in the manuscript's field.
-Output a Markdown review with these sections:
+const SYS_BASE = `You are an academic peer reviewer for a rigorous, ethics-focused journal in the manuscript's field. Produce the kind of structured report a good journal reviewer files.
+Output Markdown with these sections:
 1. **Summary of contribution** (3-5 sentences the authors would recognise as fair).
-2. **Strengths** (bullet list).
-3. **Major concerns** — numbered, each with (a) the issue, (b) why it matters, (c) concrete revision to address it. Cover novelty, framing, theory, methods, analysis, threats to validity, ethics, and evidence for claims.
-4. **Minor concerns** — clarity, structure, references, missing citations, figures/tables.
-5. **Reproducibility & data availability** notes.
-6. **Recommendation** — one of: Accept · Minor revisions · Major revisions · Reject-and-resubmit · Reject. Justify in 2-3 sentences.
-Ground every point in the text; do not invent methods or results not in the manuscript. If key sections are missing, list them under "Cannot fully assess".`;
+2. **Scorecard** — a Markdown table scoring each criterion 1–5 (1 poor, 5 excellent) with a one-line justification each: Originality & novelty · Theoretical/practical contribution · Methodological rigour · Clarity & structure · Literature grounding · Ethics & integrity. These are the six criteria a real reviewer scores.
+3. **Strengths** (bullet list).
+4. **Major concerns** — numbered, each with (a) the issue, (b) why it matters, (c) a concrete revision. Cover novelty, framing, theory, methods, analysis, threats to validity, and evidence for every claim.
+5. **Minor concerns** — clarity, structure, references, missing citations, figures/tables.
+6. **Ethics, integrity & reproducibility** — data availability, potential conflicts, consent/ethics where relevant, over-claiming, and whether the citations appear to support the claims.
+7. **Recommendation** — one of: Accept · Minor revisions · Major revisions · Reject-and-resubmit · Reject. Justify in 2-3 sentences.
+Ground every point in the text; never invent methods, results, or citations not in the manuscript. If key sections are missing, list them under "Cannot fully assess". This is decision-support for the author, not a substitute for human peer review.`;
 
 const EXAMPLE = `Title: Gamified flashcards improve vocabulary retention in secondary school students
 
@@ -94,11 +95,13 @@ Rewiseed.mountStreamingTool({
   downloadName: 'peer-review.md',
   buildSystem: () => `${SYS_BASE}\n\nTemperament: ${TEMPERAMENT[document.getElementById('severity').value]}`,
   runLabel: 'Get peer review',
-  runningLabel: 'Reviewer 2 is reading your manuscript…',
+  runningLabel: 'Reviewing your manuscript against the six criteria…',
   example: EXAMPLE, exampleBtnId: 'example',
   countId: 'count',
-  next: { href: 'apa-formatter.html', draftKey: 'rewiseed_draft_apa', label: 'Format this paper as APA 7', carry: 'input' },
+  next: { href: 'journal-submit.html', draftKey: 'rewiseed_draft_journal_ms', label: 'Ready? Submit to JBMS', carry: 'input' },
 });
+// nudge toward the journal once a review is in hand
+document.getElementById('out').insertAdjacentHTML('afterbegin', `<div class="card" style="border-color:var(--accent);background:var(--accent-soft)"><p class="hint" style="margin:0">Polishing for publication? Address this review, then submit to the <a class="link" href="journal.html">Journal of Business, Management &amp; Sustainability</a> — our peer-reviewed, open-access monthly. This AI review is preparation, not a decision; every real submission is read by human reviewers.</p></div>`);
 </script>
 </body>
 </html>

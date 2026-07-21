@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" type="image/png" href="favicon.png"/>
+<link rel="apple-touch-icon" href="favicon.png"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Editorial desk — JBMS · ItsMyResearch</title>
+<meta property="og:image" content="https://www.itsmyresearch.com/og-card.png"/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.mode-tabs { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+.mode-tab { background:var(--surface); color:var(--ink-2); border:1px solid var(--border-strong); border-radius:999px; padding:8px 18px; min-height:42px; font-size:13.5px; font-weight:600; cursor:pointer; }
+button.mode-tab.active { background:var(--accent-soft); color:var(--accent-strong); border-color:var(--accent); }
+.sub-card { border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; margin-bottom:12px; }
+.sub-card h3 { font-size:15.5px; margin:0 0 2px; }
+.sub-card .meta { font-size:12.5px; color:var(--muted); margin-bottom:6px; }
+.status-pill { display:inline-block; font-size:11.5px; font-weight:700; padding:2px 10px; border-radius:999px; text-transform:capitalize; }
+.s-submitted,.s-screening { background:var(--surface-2); color:var(--ink-2); }
+.s-under_review { background:#e8eef7; color:#31507d; }
+.s-minor_revision,.s-major_revision,.s-revised { background:#fbf1d8; color:#8a5a12; }
+.s-accepted,.s-published { background:#dcefe0; color:#2e6b45; }
+.s-rejected,.s-withdrawn { background:#f6ded8; color:#a33520; }
+.timeline { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; font-size:11px; }
+.timeline .t { padding:2px 8px; border-radius:6px; background:var(--surface-2); color:var(--muted); }
+.timeline .t.on { background:var(--accent-soft); color:var(--accent-strong); font-weight:700; }
+.timeline .t.done { background:#dcefe0; color:#2e6b45; }
+.score-grid { display:grid; grid-template-columns:1fr auto; gap:6px 12px; align-items:center; max-width:420px; margin:8px 0; }
+.score-grid .stars { display:flex; gap:3px; }
+.star { cursor:pointer; font-size:19px; color:var(--border-strong); }
+.star.on { color:#c9992e; }
+.ed-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.rev-line { font-size:13px; border-left:3px solid var(--border-strong); padding:4px 0 4px 10px; margin:6px 0; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Editorial desk</h1>
+  <p class="lede">Track your submissions, complete reviews you've been invited to, and — for editors — run the review pipeline. <a class="link" href="journal.html">About the journal</a></p>
+</div>
+<main style="max-width:900px">
+  <div id="gate"></div>
+  <div class="mode-tabs" id="tabs" hidden></div>
+  <div id="panel"></div>
+</main>
+<script src="shared.js"></script>
+<script>
+const { esc, icon, toast, md } = Rewiseed;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('journal.html');
+$('hero-icon').innerHTML = icon('grad', 26);
+
+let me = null;
+const api = async (url, opts) => { const r = await fetch(url, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, ...opts, ...(opts && opts.body ? { body: JSON.stringify(opts.body) } : {}) }); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Request failed'); return j; };
+const STATUS_LABEL = (s) => s.replace(/_/g, ' ');
+const pill = (s) => `<span class="status-pill s-${s}">${STATUS_LABEL(s)}</span>`;
+const STAGES = ['submitted', 'under_review', 'revision', 'accepted', 'published'];
+function timeline(status) {
+  const stageOf = { submitted: 0, screening: 0, under_review: 1, minor_revision: 2, major_revision: 2, revised: 2, accepted: 3, rejected: -1, withdrawn: -1, published: 4 };
+  const cur = stageOf[status];
+  return `<div class="timeline">${STAGES.map((s, i) => `<span class="t ${cur === i ? 'on' : cur > i && cur >= 0 ? 'done' : ''}">${esc(s)}</span>`).join('')}${cur < 0 ? `<span class="t on" style="background:#f6ded8;color:#a33520">${esc(STATUS_LABEL(status))}</span>` : ''}</div>`;
+}
+
+fetch('/api/me', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).then(d => {
+  if (!d) { $('gate').innerHTML = `<div class="card" style="text-align:center"><h2>Sign in</h2><p class="hint">Sign in to access the editorial desk.</p><a href="signin.html"><button type="button">Sign in</button></a></div>`; return; }
+  me = d.user;
+  const isEditor = ['admin', 'superadmin'].includes(me.role);
+  const tabs = [['mine', 'My submissions'], ['reviews', 'My reviews']];
+  if (isEditor) tabs.push(['editor', 'Editor queue']);
+  $('tabs').hidden = false;
+  $('tabs').innerHTML = tabs.map(([k, l], i) => `<button class="mode-tab ${i === 0 ? 'active' : ''}" data-tab="${k}">${l}</button>`).join('');
+  $('tabs').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { $('tabs').querySelectorAll('.mode-tab').forEach(x => x.classList.remove('active')); b.classList.add('active'); show(b.dataset.tab); });
+  show('mine');
+});
+
+function show(tab) { ({ mine: showMine, reviews: showReviews, editor: showEditor })[tab](); }
+
+// ---------- author: my submissions ----------
+async function showMine() {
+  $('panel').innerHTML = `<div class="card"><div class="stream-status"><span class="spinner"></span>Loading…</div></div>`;
+  const { submissions } = await api('/api/journal/mine');
+  $('panel').innerHTML = `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <h2 style="margin:0">My submissions</h2><a href="journal-submit.html"><button type="button">${icon('doc', 15)} New submission</button></a>
+    </div>
+    ${submissions.length ? submissions.map(s => `<div class="sub-card">
+      <h3>${esc(s.title)}</h3>
+      <div class="meta">${esc(s.ms_id)} · ${esc(s.track)} · submitted ${new Date(s.created_at).toLocaleDateString()}</div>
+      ${pill(s.status)} ${timeline(s.status)}
+      ${s.decision_note ? `<p class="hint" style="margin:8px 0 0"><b>Editor's note:</b> ${esc(s.decision_note)}</p>` : ''}
+      <div class="ed-actions">
+        <button type="button" class="ghost" data-view="${s.id}">View reviews &amp; details</button>
+        ${['published','withdrawn','rejected'].includes(s.status) ? '' : `<button type="button" class="ghost" data-withdraw="${s.id}">Withdraw</button>`}
+      </div>
+      <div id="detail-${s.id}"></div>
+    </div>`).join('') : `<div class="empty-state" style="padding:24px">${icon('doc', 26)}<br/>No submissions yet. <a class="link" href="journal-submit.html">Submit your first manuscript.</a></div>`}
+  </div>`;
+  $('panel').querySelectorAll('[data-view]').forEach(b => b.onclick = () => authorDetail(b.dataset.view));
+  $('panel').querySelectorAll('[data-withdraw]').forEach(b => b.onclick = async () => {
+    if (!confirm('Withdraw this submission? This cannot be undone.')) return;
+    try { await api('/api/journal/withdraw/' + b.dataset.withdraw, { method: 'POST' }); toast('Withdrawn'); showMine(); } catch (e) { toast(e.message, 'error'); }
+  });
+}
+async function authorDetail(id) {
+  const box = $('detail-' + id);
+  if (box.innerHTML) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="stream-status" style="margin-top:8px"><span class="spinner"></span>Loading reviews…</div>`;
+  const { submission } = await api('/api/journal/submission/' + id);
+  const revs = submission.reviews || [];
+  box.innerHTML = `<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+    <p class="hint" style="margin:0 0 6px"><b>Abstract.</b> ${esc(submission.abstract)}</p>
+    <b style="font-size:13px">Reviews (${revs.filter(r => r.status === 'submitted').length} in)</b>
+    ${revs.length ? revs.map((r, i) => r.status === 'submitted' ? `<div class="rev-line"><b>Reviewer ${i + 1}</b> — recommendation: <b>${esc(r.recommendation)}</b><br/>${esc(r.comments_author || '').slice(0, 1200)}</div>` : `<div class="rev-line hint">Reviewer ${i + 1}: ${esc(r.status)}</div>`).join('') : '<p class="hint" style="margin:4px 0 0">No reviews returned yet.</p>'}
+  </div>`;
+}
+
+// ---------- reviewer: my invitations ----------
+async function showReviews() {
+  $('panel').innerHTML = `<div class="card"><div class="stream-status"><span class="spinner"></span>Loading…</div></div>`;
+  const { reviews } = await api('/api/journal/reviews');
+  $('panel').innerHTML = `<div class="card"><h2>Review invitations</h2>
+    ${reviews.length ? reviews.map(r => `<div class="sub-card">
+      <h3>${esc(r.title)}</h3>
+      <div class="meta">${esc(r.ms_id)} · ${esc(r.track)} · invited ${new Date(r.invited_at).toLocaleDateString()}</div>
+      ${pill(r.status === 'invited' ? 'under_review' : r.status)} ${r.status === 'submitted' ? '<span class="hint">— review submitted, thank you</span>' : r.status === 'declined' ? '<span class="hint">— declined</span>' : ''}
+      <p class="hint" style="margin:6px 0 0">${esc((r.abstract || '').slice(0, 300))}</p>
+      ${r.status === 'invited' || r.status === 'accepted_invite' ? `<div class="ed-actions"><button type="button" data-review="${r.id}">Open review form</button><button type="button" class="ghost" data-decline="${r.id}">Decline</button></div>` : ''}
+      <div id="revform-${r.id}"></div>
+    </div>`).join('') : `<div class="empty-state" style="padding:24px">${icon('grad', 26)}<br/>No review invitations. Editors invite reviewers by email — if you'd like to review for JBMS, contact the Editor-in-Chief.</div>`}
+  </div>`;
+  $('panel').querySelectorAll('[data-review]').forEach(b => b.onclick = () => reviewForm(b.dataset.review));
+  $('panel').querySelectorAll('[data-decline]').forEach(b => b.onclick = async () => {
+    if (!confirm('Decline this review invitation?')) return;
+    try { await api('/api/journal/review/' + b.dataset.decline, { method: 'POST', body: { action: 'decline' } }); toast('Declined'); showReviews(); } catch (e) { toast(e.message, 'error'); }
+  });
+}
+async function reviewForm(revId) {
+  const box = $('revform-' + revId);
+  if (box.dataset.open) { box.innerHTML = ''; box.dataset.open = ''; return; }
+  box.dataset.open = '1';
+  box.innerHTML = `<div class="stream-status" style="margin-top:8px"><span class="spinner"></span>Loading manuscript…</div>`;
+  // find the submission id via the reviews list
+  const { reviews } = await api('/api/journal/reviews');
+  const rev = reviews.find(r => String(r.id) === String(revId));
+  const { submission } = await api('/api/journal/submission/' + rev.submission_id);
+  const crit = [['originality', 'Originality &amp; novelty'], ['contribution', 'Theoretical / practical contribution'], ['methodology', 'Methodological rigour'], ['clarity', 'Clarity &amp; structure'], ['literature', 'Literature grounding'], ['ethics', 'Ethics &amp; integrity']];
+  const scores = {};
+  box.innerHTML = `<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:12px">
+    <details style="margin-bottom:10px"><summary style="cursor:pointer;font-weight:600">Read the manuscript (${(submission.manuscript || '').split(/\s+/).length.toLocaleString()} words)</summary>
+      <div class="result" style="max-height:340px;overflow:auto;margin-top:8px;font-size:13px;white-space:pre-wrap">${esc(submission.manuscript || '')}</div></details>
+    <b style="font-size:13.5px">Score each criterion (1 = poor · 5 = excellent)</b>
+    ${crit.map(([k, label]) => `<div class="score-grid"><span>${label}</span><div class="stars" data-crit="${k}">${[1, 2, 3, 4, 5].map(n => `<span class="star" data-n="${n}">★</span>`).join('')}</div></div>`).join('')}
+    <label class="field-label">Recommendation</label>
+    <select id="rec-${revId}"><option value="">Choose…</option><option value="accept">Accept</option><option value="minor">Minor revision</option><option value="major">Major revision</option><option value="reject">Reject</option></select>
+    <label class="field-label">Comments to the author <span class="hint">(constructive, specific — shared anonymously)</span></label>
+    <textarea id="ca-${revId}" style="min-height:130px" placeholder="Strengths, then major and minor concerns, with actionable suggestions…"></textarea>
+    <label class="field-label">Confidential comments to the editor <span class="hint">(optional)</span></label>
+    <textarea id="ce-${revId}" style="min-height:70px" placeholder="Anything for the editor's eyes only."></textarea>
+    <label class="field-label">Conflict of interest</label>
+    <input id="coi-${revId}" placeholder="Declare any COI, or 'None'"/>
+    <div class="ed-actions"><button type="button" data-submitrev="${revId}">Submit review</button></div>
+  </div>`;
+  box.querySelectorAll('.stars').forEach(row => {
+    const crit = row.dataset.crit;
+    row.querySelectorAll('.star').forEach(star => star.onclick = () => {
+      const n = +star.dataset.n; scores[crit] = n;
+      row.querySelectorAll('.star').forEach(s => s.classList.toggle('on', +s.dataset.n <= n));
+    });
+  });
+  box.querySelector('[data-submitrev]').onclick = async (e) => {
+    const rec = $('rec-' + revId).value;
+    const ca = $('ca-' + revId).value.trim();
+    if (Object.keys(scores).length < 6) return toast('Score all six criteria', 'error');
+    if (!rec) return toast('Choose a recommendation', 'error');
+    if (ca.length < 150) return toast('Comments to the author must be substantive (150+ chars)', 'error');
+    e.target.disabled = true;
+    try {
+      await api('/api/journal/review/' + revId, { method: 'POST', body: { recommendation: rec, scores, comments_author: ca, comments_editor: $('ce-' + revId).value.trim(), coi: $('coi-' + revId).value.trim() } });
+      toast('Review submitted — thank you'); showReviews();
+    } catch (err) { toast(err.message, 'error'); e.target.disabled = false; }
+  };
+}
+
+// ---------- editor: queue ----------
+async function showEditor() {
+  $('panel').innerHTML = `<div class="card"><div class="stream-status"><span class="spinner"></span>Loading queue…</div></div>`;
+  const { queue } = await api('/api/journal/editor/queue');
+  const groups = { active: [], decided: [] };
+  queue.forEach(s => (['accepted', 'rejected', 'published', 'withdrawn'].includes(s.status) ? groups.decided : groups.active).push(s));
+  const card = (s) => `<div class="sub-card">
+    <h3>${esc(s.title)}</h3>
+    <div class="meta">${esc(s.ms_id)} · ${esc(s.track)} · ${esc(s.author_name || '')} &lt;${esc(s.author_email || '')}&gt; · ${new Date(s.created_at).toLocaleDateString()}</div>
+    ${pill(s.status)} <span class="hint">· ${s.reviews_in}/${s.invited} reviews in</span>
+    <div class="ed-actions">
+      <button type="button" class="ghost" data-edview="${s.id}">Open</button>
+      ${s.status === 'submitted' ? `<button type="button" data-screen="${s.id}" data-act="advance">Send to review</button><button type="button" class="ghost" data-screen="${s.id}" data-act="desk_reject">Desk reject</button>` : ''}
+    </div>
+    <div id="ed-${s.id}"></div>
+  </div>`;
+  $('panel').innerHTML = `<div class="card"><h2>Editor queue <span class="hint">(${queue.length})</span></h2>
+    <b style="font-size:13px">In progress (${groups.active.length})</b>
+    ${groups.active.map(card).join('') || '<p class="hint">Nothing in progress.</p>'}
+    <b style="font-size:13px;display:block;margin-top:14px">Decided (${groups.decided.length})</b>
+    ${groups.decided.map(card).join('') || '<p class="hint">No decisions yet.</p>'}
+  </div>`;
+  $('panel').querySelectorAll('[data-screen]').forEach(b => b.onclick = async () => {
+    const note = b.dataset.act === 'desk_reject' ? prompt('Reason for desk rejection (shown to author):') : '';
+    if (b.dataset.act === 'desk_reject' && note === null) return;
+    try { await api('/api/journal/editor/screen/' + b.dataset.screen, { method: 'POST', body: { action: b.dataset.act, note: note || '' } }); toast('Done'); showEditor(); } catch (e) { toast(e.message, 'error'); }
+  });
+  $('panel').querySelectorAll('[data-edview]').forEach(b => b.onclick = () => editorDetail(b.dataset.edview));
+}
+async function editorDetail(id) {
+  const box = $('ed-' + id);
+  if (box.dataset.open) { box.innerHTML = ''; box.dataset.open = ''; return; }
+  box.dataset.open = '1';
+  box.innerHTML = `<div class="stream-status" style="margin-top:8px"><span class="spinner"></span>Loading…</div>`;
+  const { submission } = await api('/api/journal/submission/' + id);
+  const revs = submission.reviews || [];
+  const authors = (submission.authors_meta || []).map(a => `${esc(a.name)}${a.affiliation ? ` (${esc(a.affiliation)})` : ''}${a.corresponding ? ' ✉' : ''}`).join('; ');
+  box.innerHTML = `<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:12px">
+    <p class="hint" style="margin:0 0 4px"><b>Authors:</b> ${authors || '—'}</p>
+    <p class="hint" style="margin:0 0 4px"><b>Abstract.</b> ${esc(submission.abstract)}</p>
+    ${submission.cover_letter ? `<p class="hint" style="margin:0 0 4px"><b>Cover letter.</b> ${esc(submission.cover_letter)}</p>` : ''}
+    <details style="margin:6px 0"><summary style="cursor:pointer;font-weight:600">Declarations</summary><pre style="white-space:pre-wrap;font-size:12px;background:var(--surface-2);padding:8px;border-radius:6px">${esc(JSON.stringify(submission.declarations || {}, null, 1))}</pre></details>
+    <details style="margin:6px 0"><summary style="cursor:pointer;font-weight:600">Manuscript (${(submission.manuscript || '').split(/\s+/).length.toLocaleString()} words)</summary><div class="result" style="max-height:300px;overflow:auto;margin-top:6px;font-size:12.5px;white-space:pre-wrap">${esc(submission.manuscript || '')}</div></details>
+    <b style="font-size:13px">Reviews (${revs.filter(r => r.status === 'submitted').length} in / ${revs.length} invited)</b>
+    ${revs.map(r => r.status === 'submitted' ? `<div class="rev-line"><b>${esc(r.reviewer_name || 'Reviewer')}</b> → <b>${esc(r.recommendation)}</b> · scores ${esc(JSON.stringify(r.scores))}<br/><b>To author:</b> ${esc((r.comments_author || '').slice(0, 800))}${r.comments_editor ? `<br/><b>Confidential:</b> ${esc(r.comments_editor)}` : ''}${r.coi ? `<br/><b>COI:</b> ${esc(r.coi)}` : ''}</div>` : `<div class="rev-line hint">${esc(r.reviewer_name || r.reviewer_email || 'Reviewer')} — ${esc(r.status)}</div>`).join('') || '<p class="hint">No reviewers invited yet.</p>'}
+    <label class="field-label">Invite a reviewer <span class="hint">(by account email)</span></label>
+    <div style="display:flex;gap:8px"><input id="inv-${id}" placeholder="reviewer@university.edu" style="flex:1"/><button type="button" data-invite="${id}">Invite</button></div>
+    <label class="field-label">Editor decision</label>
+    <textarea id="dn-${id}" style="min-height:80px" placeholder="Decision letter to the author (synthesise the reviews)…"></textarea>
+    <div class="ed-actions">
+      <button type="button" data-decide="${id}" data-d="accept">Accept</button>
+      <button type="button" class="ghost" data-decide="${id}" data-d="minor">Minor revision</button>
+      <button type="button" class="ghost" data-decide="${id}" data-d="major">Major revision</button>
+      <button type="button" class="ghost" data-decide="${id}" data-d="reject" style="color:#a33520">Reject</button>
+      ${submission.status === 'accepted' ? `<button type="button" data-publish="${id}">Publish to issue</button>` : ''}
+    </div>
+  </div>`;
+  box.querySelector('[data-invite]').onclick = async (e) => {
+    const email = $('inv-' + id).value.trim(); if (!email) return;
+    e.target.disabled = true;
+    try { await api('/api/journal/editor/assign/' + id, { method: 'POST', body: { email } }); toast('Reviewer invited'); box.dataset.open = ''; editorDetail(id); } catch (err) { toast(err.message, 'error'); e.target.disabled = false; }
+  };
+  box.querySelectorAll('[data-decide]').forEach(b => b.onclick = async () => {
+    const note = $('dn-' + id).value.trim();
+    if (!confirm(`Record decision: ${b.dataset.d}?`)) return;
+    try { await api('/api/journal/editor/decision/' + id, { method: 'POST', body: { decision: b.dataset.d, note } }); toast('Decision recorded'); showEditor(); } catch (e) { toast(e.message, 'error'); }
+  });
+  const pubBtn = box.querySelector('[data-publish]');
+  if (pubBtn) pubBtn.onclick = async () => {
+    if (!confirm('Publish this accepted manuscript to the current monthly issue?')) return;
+    try { const r = await api('/api/journal/editor/publish/' + id, { method: 'POST' }); toast(`Published — Vol ${r.volume}, Issue ${r.issue}`); showEditor(); } catch (e) { toast(e.message, 'error'); }
+  };
+}
+</script>
+</body>
+</html>

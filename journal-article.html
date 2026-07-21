@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" type="image/png" href="favicon.png"/>
+<link rel="apple-touch-icon" href="favicon.png"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Article — JBMS · ItsMyResearch</title>
+<meta property="og:image" content="https://www.itsmyresearch.com/og-card.png"/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.art-head { border-bottom:2px solid var(--border-strong); padding-bottom:14px; margin-bottom:14px; }
+.art-head h1 { font-family:var(--font-serif); font-size:26px; line-height:1.2; margin:0 0 8px; }
+.art-authors { font-size:15px; color:var(--ink-2); }
+.art-meta { font-size:12.5px; color:var(--muted); margin-top:6px; }
+.art-body { font-size:15px; line-height:1.75; white-space:pre-wrap; }
+.art-abstract { background:var(--surface-2); border-radius:var(--radius); padding:14px 16px; margin:14px 0; font-size:14.5px; }
+</style>
+</head>
+<body>
+<div class="hero" style="padding-bottom:10px">
+  <p class="lede" style="margin:0"><a class="link" href="journal.html">Journal of Business, Management &amp; Sustainability</a></p>
+</div>
+<main style="max-width:800px"><div id="out"><div class="card"><div class="stream-status"><span class="spinner"></span>Loading article…</div></div></div></main>
+<script src="shared.js"></script>
+<script>
+const { esc, icon, toast } = Rewiseed;
+Rewiseed.renderNav('journal.html');
+const msId = new URLSearchParams(location.search).get('id');
+const out = document.getElementById('out');
+if (!msId) out.innerHTML = `<div class="card"><div class="empty-state">No article specified.</div></div>`;
+else fetch('/api/journal/article/' + encodeURIComponent(msId)).then(r => r.json().then(j => ({ ok: r.ok, j }))).then(({ ok, j }) => {
+  if (!ok) { out.innerHTML = `<div class="card"><div class="empty-state">${icon('alert', 24)}<br/>${esc(j.error || 'Article not found.')}</div></div>`; return; }
+  const a = j.article;
+  const authors = (a.authors || []).map(x => `${esc(x.name)}${x.affiliation ? `<sup title="${esc(x.affiliation)}">*</sup>` : ''}`).join(', ');
+  const affs = [...new Set((a.authors || []).map(x => x.affiliation).filter(Boolean))];
+  const cite = `${(a.authors || []).map(x => x.name).join(', ')} (2026). ${a.title}. Journal of Business, Management & Sustainability, ${a.volume}(${a.issue}). ${a.ms_id}.`;
+  out.innerHTML = `<div class="card">
+    <div class="art-head">
+      <span class="overline">${esc(a.track)} · Research article</span>
+      <h1>${esc(a.title)}</h1>
+      <div class="art-authors">${authors || 'Anonymous'}</div>
+      ${affs.length ? `<div class="art-meta">${affs.map((f, i) => `<sup>*</sup>${esc(f)}`).join(' · ')}</div>` : ''}
+      <div class="art-meta">JBMS · Vol. ${a.volume} (2026), Issue ${a.issue} · ${esc(a.ms_id)} · Published ${new Date(a.published_at).toLocaleDateString()} · <b>Open access (CC-BY 4.0)</b></div>
+    </div>
+    <div class="art-abstract"><b>Abstract.</b> ${esc(a.abstract)}${a.keywords ? `<div style="margin-top:8px;font-size:13px"><b>Keywords:</b> ${esc(a.keywords)}</div>` : ''}</div>
+    <div class="btn-row" style="margin-bottom:14px">
+      <button class="ghost" id="cite-btn">${icon('copy', 15)} Copy citation</button>
+      <button class="ghost" id="pdf-btn">${icon('doc', 15)} Export PDF</button>
+    </div>
+    <div class="art-body" id="body">${esc(a.manuscript || '')}</div>
+    ${(a.declarations && (a.declarations.funding || a.declarations.dataAvailability || a.declarations.aiUse)) ? `<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:12px;font-size:13px">
+      ${a.declarations.funding ? `<p class="hint" style="margin:0 0 4px"><b>Funding:</b> ${esc(a.declarations.funding)}</p>` : ''}
+      ${a.declarations.dataAvailability ? `<p class="hint" style="margin:0 0 4px"><b>Data availability:</b> ${esc(a.declarations.dataAvailability)}</p>` : ''}
+      ${a.declarations.aiUse ? `<p class="hint" style="margin:0"><b>AI use:</b> ${esc(a.declarations.aiUse)}</p>` : ''}
+    </div>` : ''}
+    <p class="hint" style="margin-top:16px">© 2026 the authors. Published open access by ItsMyResearch under a Creative Commons Attribution 4.0 licence. Peer-reviewed.</p>
+  </div>`;
+  document.getElementById('cite-btn').onclick = (e) => Rewiseed.copyText(cite, e.currentTarget);
+  document.getElementById('pdf-btn').onclick = () => Rewiseed.exportPDF(out.querySelector('.card'), a.title);
+}).catch(() => { out.innerHTML = `<div class="card"><div class="empty-state">Could not load the article.</div></div>`; });
+</script>
+</body>
+</html>

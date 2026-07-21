@@ -82,6 +82,42 @@ db.exec(`CREATE TABLE IF NOT EXISTS library (
   added_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_library_user ON library(user_id);`);
+db.exec(`CREATE TABLE IF NOT EXISTS journal_submissions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ms_id TEXT UNIQUE NOT NULL,
+  author_id INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  abstract TEXT NOT NULL DEFAULT '',
+  keywords TEXT NOT NULL DEFAULT '',
+  track TEXT NOT NULL DEFAULT '',
+  authors_meta TEXT NOT NULL DEFAULT '',
+  manuscript TEXT NOT NULL DEFAULT '',
+  cover_letter TEXT NOT NULL DEFAULT '',
+  declarations TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'submitted',
+  editor_id INTEGER,
+  decision_note TEXT NOT NULL DEFAULT '',
+  volume INTEGER, issue INTEGER, published_at INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_jsub_author ON journal_submissions(author_id);
+CREATE TABLE IF NOT EXISTS journal_reviews (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  submission_id INTEGER NOT NULL,
+  reviewer_id INTEGER NOT NULL,
+  scores TEXT NOT NULL DEFAULT '',
+  recommendation TEXT NOT NULL DEFAULT '',
+  comments_author TEXT NOT NULL DEFAULT '',
+  comments_editor TEXT NOT NULL DEFAULT '',
+  coi TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'invited',
+  invited_at INTEGER NOT NULL,
+  submitted_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_jrev_sub ON journal_reviews(submission_id);
+CREATE INDEX IF NOT EXISTS idx_jrev_reviewer ON journal_reviews(reviewer_id);
+`);
 db.exec(`CREATE TABLE IF NOT EXISTS events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ts INTEGER NOT NULL,
@@ -97,7 +133,7 @@ const TERMS_VERSION = '2026-07-18';
 const TOOL_IDS = new Set([
   'smart-literature-finder', 'doi-finder', 'originality-checker',
   'research-gap-identifier', 'research-question-generator', 'instrument-designer',
-  'qualitative-coding-assistant', 'peer-review-simulator', 'citation-formatter', 'apa-formatter',
+  'qualitative-coding-assistant', 'ai-peer-review', 'citation-formatter', 'apa-formatter',
   'stats-advisor', 'literature-matrix', 'writing-polisher', 'citation-graph',
   'data-explorer', 'data-sources', 'scholar-profiles', 'statpls', 'rubric-lens',
   'abstract-generator', 'paper-generator', 'bibliometrics', 'journal-metrics', 'journal-rankings',
@@ -105,7 +141,8 @@ const TOOL_IDS = new Set([
 ]);
 // things that report usage but are not grantable/gateable pages
 const TRACKABLE = new Set([...TOOL_IDS, 'assistant', 'library']);
-const parseToolAccess = (s) => String(s || '').split(',').map(x => x.trim()).map(x => (x === 'pls-sem' || x === 'ai-pls') ? 'statpls' : x).filter(x => TOOL_IDS.has(x)); // pls-sem/ai-pls: legacy ids after the StatPLS renames
+const LEGACY_TOOL = { 'pls-sem': 'statpls', 'ai-pls': 'statpls', 'peer-review-simulator': 'ai-peer-review' };
+const parseToolAccess = (s) => String(s || '').split(',').map(x => x.trim()).map(x => LEGACY_TOOL[x] || x).filter(x => TOOL_IDS.has(x)); // remap renamed tool ids
 
 // ---------- role-based feature access ----------
 // Four levels: superadmin > admin > educator > student. Each role has a default
@@ -876,6 +913,202 @@ app.delete('/api/library/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// ========================================================================
+// Journal of Business, Management & Sustainability — editorial workflow
+// Submit → desk screen → double-anonymous peer review → decision → publish.
+// Editors = admin/superadmin; reviewers = any user an editor invites.
+// ========================================================================
+const JOURNAL_TRACKS = ['General Management', 'Strategy', 'Entrepreneurship & Innovation', 'Marketing', 'Finance & Accounting', 'Organizational Behaviour & HRM', 'Operations & Supply Chain', 'Information Systems & Digital', 'Economics & Policy', 'Sustainability & CSR', 'International Business'];
+const JOURNAL_STATUSES = ['submitted', 'screening', 'under_review', 'minor_revision', 'major_revision', 'revised', 'accepted', 'rejected', 'withdrawn', 'published'];
+const isEditor = (u) => u && ['admin', 'superadmin'].includes(u.role);
+function nextMsId() {
+  const y = new Date(now()).getUTCFullYear();
+  const n = db.prepare("SELECT COUNT(*) c FROM journal_submissions").get().c + 1;
+  return `JBMS-${y}-${String(n).padStart(4, '0')}`;
+}
+function submissionPublic(s, viewer, opts = {}) {
+  const out = {
+    id: s.id, ms_id: s.ms_id, title: s.title, abstract: s.abstract, keywords: s.keywords,
+    track: s.track, status: s.status, created_at: s.created_at, updated_at: s.updated_at,
+    volume: s.volume, issue: s.issue, published_at: s.published_at, decision_note: s.decision_note,
+  };
+  if (opts.full) {
+    out.authors_meta = safeJson(s.authors_meta, []);
+    out.declarations = safeJson(s.declarations, {});
+    out.cover_letter = s.cover_letter;
+    // manuscript withheld from reviewers is not needed — double-anonymous is about identity, not text;
+    // authors and editors always see it; assigned reviewers see it too (identity fields are separate)
+    out.manuscript = s.manuscript;
+    out.is_author = viewer && s.author_id === viewer.id;
+    out.is_editor = isEditor(viewer);
+  }
+  return out;
+}
+const safeJson = (s, fb) => { try { return JSON.parse(s || ''); } catch { return fb; } };
+
+// --- author: submit a manuscript ---
+app.post('/api/journal/submit', requireAuth, (req, res) => {
+  if (!rateLimit('jsub:' + req.user.id, 20, 60 * 60_000)) return res.status(429).json({ error: 'Too many submissions in a short time — please wait.' });
+  const b = req.body || {};
+  const title = cap(b.title, 400);
+  const abstract = cap(b.abstract, 5000);
+  const manuscript = cap(b.manuscript, 400_000);
+  const track = JOURNAL_TRACKS.includes(b.track) ? b.track : '';
+  if (!title || title.length < 8) return res.status(400).json({ error: 'A descriptive title (8+ characters) is required.' });
+  if (abstract.length < 100) return res.status(400).json({ error: 'An abstract of at least 100 characters is required.' });
+  if (manuscript.length < 2000) return res.status(400).json({ error: 'The full manuscript text is required (paste or upload the whole paper).' });
+  if (!track) return res.status(400).json({ error: 'Choose a subject track.' });
+  const d = b.declarations || {};
+  const required = ['original', 'notConcurrent', 'ethics', 'coiDisclosed', 'aiDisclosed', 'allAuthorsAgree'];
+  if (!required.every(k => d[k] === true)) return res.status(400).json({ error: 'All submission declarations must be confirmed before you can submit.' });
+  const authors = Array.isArray(b.authors_meta) ? b.authors_meta.slice(0, 30).map(a => ({ name: cap(a.name, 120), affiliation: cap(a.affiliation, 200), email: cap(a.email, 254), orcid: cap(a.orcid, 40), corresponding: !!a.corresponding })) : [];
+  if (!authors.length || !authors.some(a => a.name)) return res.status(400).json({ error: 'List at least one author with a name.' });
+  const msId = nextMsId();
+  const info = db.prepare(`INSERT INTO journal_submissions (ms_id, author_id, title, abstract, keywords, track, authors_meta, manuscript, cover_letter, declarations, status, created_at, updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(msId, req.user.id, title, abstract, cap(b.keywords, 400), track,
+    JSON.stringify(authors), manuscript, cap(b.cover_letter, 5000), JSON.stringify({ ...d, funding: cap(d.funding, 500), dataAvailability: cap(d.dataAvailability, 500), aiUse: cap(d.aiUse, 1000) }), 'submitted', now(), now());
+  res.json({ ok: true, ms_id: msId, id: info.lastInsertRowid });
+});
+
+// --- author: my submissions ---
+app.get('/api/journal/mine', requireAuth, (req, res) => {
+  const rows = db.prepare('SELECT * FROM journal_submissions WHERE author_id = ? ORDER BY created_at DESC').all(req.user.id);
+  res.json({ submissions: rows.map(s => submissionPublic(s, req.user)) });
+});
+app.post('/api/journal/withdraw/:id', requireAuth, (req, res) => {
+  const s = db.prepare('SELECT * FROM journal_submissions WHERE id = ? AND author_id = ?').get(Number(req.params.id), req.user.id);
+  if (!s) return res.status(404).json({ error: 'Submission not found.' });
+  if (['published', 'withdrawn'].includes(s.status)) return res.status(400).json({ error: 'This submission cannot be withdrawn.' });
+  db.prepare("UPDATE journal_submissions SET status='withdrawn', updated_at=? WHERE id=?").run(now(), s.id);
+  res.json({ ok: true });
+});
+
+// --- shared: full submission view (author, editor, or assigned reviewer) ---
+app.get('/api/journal/submission/:id', requireAuth, (req, res) => {
+  const s = db.prepare('SELECT * FROM journal_submissions WHERE id = ?').get(Number(req.params.id));
+  if (!s) return res.status(404).json({ error: 'Not found.' });
+  const assigned = db.prepare('SELECT * FROM journal_reviews WHERE submission_id = ? AND reviewer_id = ?').get(s.id, req.user.id);
+  if (s.author_id !== req.user.id && !isEditor(req.user) && !assigned) return res.status(403).json({ error: 'Not authorised.' });
+  const out = submissionPublic(s, req.user, { full: true });
+  // reviewers see an anonymised copy: author identity fields stripped
+  if (!isEditor(req.user) && s.author_id !== req.user.id) { out.authors_meta = undefined; out.anonymised = true; }
+  if (isEditor(req.user) || s.author_id === req.user.id) {
+    out.reviews = db.prepare('SELECT r.*, u.name reviewer_name, u.email reviewer_email FROM journal_reviews r JOIN users u ON u.id=r.reviewer_id WHERE submission_id = ?').all(s.id)
+      .map(r => ({ id: r.id, recommendation: r.recommendation, scores: safeJson(r.scores, {}), comments_author: r.comments_author, status: r.status,
+        // editors see reviewer identity + confidential comments; authors do not
+        ...(isEditor(req.user) ? { reviewer_name: r.reviewer_name, reviewer_email: r.reviewer_email, comments_editor: r.comments_editor, coi: r.coi } : {}) }));
+  }
+  if (assigned) out.myReview = { id: assigned.id, status: assigned.status, scores: safeJson(assigned.scores, {}), recommendation: assigned.recommendation, comments_author: assigned.comments_author, comments_editor: assigned.comments_editor };
+  res.json({ submission: out });
+});
+
+// --- editor: queue ---
+app.get('/api/journal/editor/queue', requireAuth, (req, res) => {
+  if (!isEditor(req.user)) return res.status(403).json({ error: 'Editor access required.' });
+  const rows = db.prepare(`SELECT s.*, u.name author_name, u.email author_email,
+    (SELECT COUNT(*) FROM journal_reviews r WHERE r.submission_id=s.id) invited,
+    (SELECT COUNT(*) FROM journal_reviews r WHERE r.submission_id=s.id AND r.status='submitted') reviews_in
+    FROM journal_submissions s JOIN users u ON u.id=s.author_id ORDER BY s.updated_at DESC LIMIT 500`).all();
+  res.json({ queue: rows.map(s => ({ ...submissionPublic(s, req.user), author_name: s.author_name, author_email: s.author_email, invited: s.invited, reviews_in: s.reviews_in })), tracks: JOURNAL_TRACKS });
+});
+
+// --- editor: desk screen (advance to review or desk-reject) ---
+app.post('/api/journal/editor/screen/:id', requireAuth, (req, res) => {
+  if (!isEditor(req.user)) return res.status(403).json({ error: 'Editor access required.' });
+  const s = db.prepare('SELECT * FROM journal_submissions WHERE id = ?').get(Number(req.params.id));
+  if (!s) return res.status(404).json({ error: 'Not found.' });
+  const action = (req.body || {}).action;
+  const note = cap((req.body || {}).note, 3000);
+  if (action === 'advance') db.prepare("UPDATE journal_submissions SET status='under_review', editor_id=?, decision_note=?, updated_at=? WHERE id=?").run(req.user.id, note, now(), s.id);
+  else if (action === 'desk_reject') db.prepare("UPDATE journal_submissions SET status='rejected', editor_id=?, decision_note=?, updated_at=? WHERE id=?").run(req.user.id, note || 'Desk rejected at editorial screening.', now(), s.id);
+  else return res.status(400).json({ error: 'Unknown screening action.' });
+  res.json({ ok: true });
+});
+
+// --- editor: invite a reviewer by email ---
+app.post('/api/journal/editor/assign/:id', requireAuth, (req, res) => {
+  if (!isEditor(req.user)) return res.status(403).json({ error: 'Editor access required.' });
+  const s = db.prepare('SELECT * FROM journal_submissions WHERE id = ?').get(Number(req.params.id));
+  if (!s) return res.status(404).json({ error: 'Not found.' });
+  const email = cap((req.body || {}).email, 254).toLowerCase();
+  const reviewer = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  if (!reviewer) return res.status(400).json({ error: 'No account with that email. The reviewer must have an ItsMyResearch account first.' });
+  if (reviewer.id === s.author_id) return res.status(400).json({ error: 'The author cannot review their own manuscript.' });
+  const dup = db.prepare('SELECT id FROM journal_reviews WHERE submission_id=? AND reviewer_id=?').get(s.id, reviewer.id);
+  if (dup) return res.status(400).json({ error: 'That reviewer is already invited.' });
+  db.prepare("INSERT INTO journal_reviews (submission_id, reviewer_id, status, invited_at) VALUES (?,?,?,?)").run(s.id, reviewer.id, 'invited', now());
+  if (s.status === 'submitted' || s.status === 'screening') db.prepare("UPDATE journal_submissions SET status='under_review', updated_at=? WHERE id=?").run(now(), s.id);
+  res.json({ ok: true });
+});
+
+// --- editor: record a decision ---
+app.post('/api/journal/editor/decision/:id', requireAuth, (req, res) => {
+  if (!isEditor(req.user)) return res.status(403).json({ error: 'Editor access required.' });
+  const s = db.prepare('SELECT * FROM journal_submissions WHERE id = ?').get(Number(req.params.id));
+  if (!s) return res.status(404).json({ error: 'Not found.' });
+  const decision = (req.body || {}).decision;
+  const map = { accept: 'accepted', minor: 'minor_revision', major: 'major_revision', reject: 'rejected' };
+  if (!map[decision]) return res.status(400).json({ error: 'Unknown decision.' });
+  db.prepare("UPDATE journal_submissions SET status=?, editor_id=?, decision_note=?, updated_at=? WHERE id=?")
+    .run(map[decision], req.user.id, cap((req.body || {}).note, 5000), now(), s.id);
+  res.json({ ok: true });
+});
+
+// --- editor: publish an accepted manuscript into an issue ---
+app.post('/api/journal/editor/publish/:id', requireAuth, (req, res) => {
+  if (!isEditor(req.user)) return res.status(403).json({ error: 'Editor access required.' });
+  const s = db.prepare('SELECT * FROM journal_submissions WHERE id = ?').get(Number(req.params.id));
+  if (!s) return res.status(404).json({ error: 'Not found.' });
+  if (s.status !== 'accepted') return res.status(400).json({ error: 'Only accepted manuscripts can be published.' });
+  const dt = new Date(now());
+  const volume = dt.getUTCFullYear() - 2025; // Vol 1 = 2026
+  const issue = dt.getUTCMonth() + 1;
+  db.prepare("UPDATE journal_submissions SET status='published', volume=?, issue=?, published_at=?, updated_at=? WHERE id=?").run(volume, issue, now(), now(), s.id);
+  res.json({ ok: true, volume, issue });
+});
+
+// --- reviewer: my invitations ---
+app.get('/api/journal/reviews', requireAuth, (req, res) => {
+  const rows = db.prepare(`SELECT r.*, s.ms_id, s.title, s.abstract, s.track, s.status sub_status
+    FROM journal_reviews r JOIN journal_submissions s ON s.id=r.submission_id
+    WHERE r.reviewer_id = ? ORDER BY r.invited_at DESC`).all(req.user.id);
+  res.json({ reviews: rows.map(r => ({ id: r.id, submission_id: r.submission_id, ms_id: r.ms_id, title: r.title, abstract: r.abstract, track: r.track, status: r.status, sub_status: r.sub_status, invited_at: r.invited_at })) });
+});
+
+// --- reviewer: submit or decline a review ---
+app.post('/api/journal/review/:id', requireAuth, (req, res) => {
+  const rev = db.prepare('SELECT * FROM journal_reviews WHERE id = ? AND reviewer_id = ?').get(Number(req.params.id), req.user.id);
+  if (!rev) return res.status(404).json({ error: 'Review invitation not found.' });
+  const b = req.body || {};
+  if (b.action === 'decline') { db.prepare("UPDATE journal_reviews SET status='declined' WHERE id=?").run(rev.id); return res.json({ ok: true }); }
+  const rec = b.recommendation;
+  if (!['accept', 'minor', 'major', 'reject'].includes(rec)) return res.status(400).json({ error: 'Choose a recommendation.' });
+  const scores = {};
+  for (const k of ['originality', 'contribution', 'methodology', 'clarity', 'literature', 'ethics']) {
+    const v = Number((b.scores || {})[k]); if (v >= 1 && v <= 5) scores[k] = v;
+  }
+  if (Object.keys(scores).length < 6) return res.status(400).json({ error: 'Score every criterion (1–5).' });
+  const commentsAuthor = cap(b.comments_author, 20000);
+  if (commentsAuthor.length < 150) return res.status(400).json({ error: 'Comments to the author must be substantive (150+ characters).' });
+  db.prepare("UPDATE journal_reviews SET scores=?, recommendation=?, comments_author=?, comments_editor=?, coi=?, status='submitted', submitted_at=? WHERE id=?")
+    .run(JSON.stringify(scores), rec, commentsAuthor, cap(b.comments_editor, 10000), cap(b.coi, 1000), now(), rev.id);
+  res.json({ ok: true });
+});
+
+// --- public: published issues archive ---
+app.get('/api/journal/issues', (_req, res) => {
+  const rows = db.prepare("SELECT ms_id, title, abstract, keywords, track, authors_meta, volume, issue, published_at FROM journal_submissions WHERE status='published' ORDER BY published_at DESC LIMIT 500").all();
+  const articles = rows.map(s => ({ ms_id: s.ms_id, title: s.title, abstract: s.abstract, keywords: s.keywords, track: s.track, volume: s.volume, issue: s.issue, published_at: s.published_at, authors: safeJson(s.authors_meta, []).map(a => a.name).filter(Boolean) }));
+  res.json({ articles, tracks: JOURNAL_TRACKS });
+});
+app.get('/api/journal/article/:msId', (req, res) => {
+  const s = db.prepare("SELECT * FROM journal_submissions WHERE ms_id = ? AND status='published'").get(String(req.params.msId));
+  if (!s) return res.status(404).json({ error: 'Article not found.' });
+  res.json({ article: { ms_id: s.ms_id, title: s.title, abstract: s.abstract, keywords: s.keywords, track: s.track,
+    authors: safeJson(s.authors_meta, []), manuscript: s.manuscript, volume: s.volume, issue: s.issue, published_at: s.published_at,
+    declarations: (() => { const d = safeJson(s.declarations, {}); return { funding: d.funding, dataAvailability: d.dataAvailability, aiUse: d.aiUse }; })() } });
+});
+
 // ---------- usage metrics (privacy-respecting: tool id + output size only) ----------
 // ---------- billing routes ----------
 app.get('/api/billing/status', (req, res) => {
@@ -1092,6 +1325,7 @@ app.use((req, res, next) => {
 // legacy-friendly alias: the APA formatter grew into the Reference Style Generator
 app.get(['/reference-style-generator', '/reference-style-generator.html'], (_req, res) => res.redirect(301, '/apa-formatter'));
 app.get(['/pls-sem', '/pls-sem.html', '/ai-pls', '/ai-pls.html'], (_req, res) => res.redirect(301, '/statpls'));
+app.get(['/peer-review-simulator', '/peer-review-simulator.html'], (_req, res) => res.redirect(301, '/ai-peer-review'));
 app.use(express.static(__dirname, { extensions: ['html'], index: 'index.html' }));
 
 // unknown API route → clean JSON 404 (no HTML fallthrough)
