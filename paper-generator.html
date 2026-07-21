@@ -163,6 +163,7 @@ function renderPaper() {
       <button class="ghost" id="dl-md">${icon('download', 15)} Download draft (.md)</button>
       <button class="ghost" id="copy-md">${icon('copy', 15)} Copy</button>
       <button class="ghost" id="verify-cites" title="Check every DOI and reference line in the draft against the Crossref scholarly registry">${icon('shield', 15)} Verify citations</button>
+      <button class="ghost" id="dl-pdf" title="Opens your browser's print dialog — choose 'Save as PDF'">${icon('doc', 15)} Export PDF</button>
       <a class="link" href="apa-formatter.html" style="align-self:center">Format it as a .docx ${icon('arrow', 13)}</a>
     </div>
     <div id="verify-cites-out"></div>
@@ -191,6 +192,13 @@ function renderPaper() {
   renderUnlock();
   $('dl-md').onclick = () => Rewiseed.downloadText('research-paper-draft.md', assemble());
   $('copy-md').onclick = () => navigator.clipboard.writeText(assemble()).then(() => toast('Draft copied'));
+  $('dl-pdf').onclick = () => {
+    // export only generated content — locked placeholders and unlock UI stay out of the PDF
+    const tmp = document.createElement('div');
+    tmp.appendChild($('secs').closest('.card').cloneNode(true));
+    tmp.querySelectorAll('.sec.locked, .lock-overlay, #unlock-zone, #verify-cites-out').forEach(x => x.remove());
+    Rewiseed.exportPDF(tmp, meta.topic);
+  };
   $('verify-cites').onclick = async (e) => {
     const btn = e.currentTarget; btn.disabled = true;
     const vo = $('verify-cites-out');

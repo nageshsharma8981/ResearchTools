@@ -935,6 +935,7 @@ function render(est, boot, meta) {
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px">
       <button id="ai-interpret">${icon('sparkle', 15)} AI interpretation</button>
       <button class="ghost" id="dl-report">${icon('download', 15)} Download report (.md)</button>
+      <button class="ghost" id="dl-pdf" title="Opens your browser's print dialog — choose 'Save as PDF'">${icon('doc', 15)} Export PDF</button>
       <button class="ghost" id="dl-scores">${icon('download', 15)} Latent scores (.csv)</button>
       <button class="ghost" id="copy-apa">${icon('copy', 15)} Copy write-up</button>
     </div>
@@ -944,6 +945,7 @@ function render(est, boot, meta) {
   wireDiagram(diagram.pos);
   wireResultExports();
   $('dl-report').onclick = () => Rewiseed.downloadText('pls-sem-report.md', buildReport(est, pathRows, relRows, htmt, meta, boot, apa));
+  $('dl-pdf').onclick = () => Rewiseed.exportPDF($('out'), 'StatPLS Results');
   $('dl-scores').onclick = () => {
     const head = 'row,' + C.map(c => `"${c.name}"`).join(',');
     const lines = [head];

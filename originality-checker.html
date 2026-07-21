@@ -184,6 +184,76 @@ function stylometry(text) {
 const rate = (v, lo, hi, lowLabel, midLabel, highLabel) =>
   v < lo ? lowLabel : v > hi ? highLabel : midLabel;
 
+// ---------- 0. at-a-glance dashboard: AI likelihood and source similarity, SEPARATELY ----------
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+
+// Signal-based 0–100 estimate from the three stylometric families + sentence flags.
+// An estimate from evidence — never presented as proof.
+function aiLikelihood(m, sents) {
+  const flaggedShare = sents.length ? sents.filter(x => x.score >= 0.45).length / sents.length : 0;
+  const rhythm = clamp01((0.55 - m.burstiness) / 0.30);
+  const vocab = clamp01((0.50 - m.ttr) / 0.20);
+  const per1k = m.words ? (m.phraseHits / m.words) * 1000 : 0;
+  const phrasing = clamp01(per1k / 6);
+  return Math.round(100 * (0.30 * rhythm + 0.25 * vocab + 0.25 * phrasing + 0.20 * clamp01(flaggedShare * 2)));
+}
+
+function gauge(id, pct, color, label) {
+  const R = 42, C = 2 * Math.PI * R;
+  const dash = pct == null ? 0 : C * pct / 100;
+  return `<svg id="${id}" viewBox="0 0 110 110" width="118" height="118" role="img" aria-label="${esc(label)}">
+    <circle cx="55" cy="55" r="${R}" fill="none" stroke="var(--border)" stroke-width="10"/>
+    <circle class="g-arc" cx="55" cy="55" r="${R}" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round"
+      stroke-dasharray="${dash.toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 55 55)"/>
+    <text class="g-num" x="55" y="52" text-anchor="middle" font-size="24" font-weight="700" fill="var(--ink)" font-family="inherit">${pct == null ? '…' : pct + '%'}</text>
+    <text class="g-band" x="55" y="70" text-anchor="middle" font-size="10" fill="var(--muted)">${pct == null ? 'scanning' : ''}</text>
+  </svg>`;
+}
+const aiBand = (p) => p >= 60 ? ['High', '#b3402a'] : p >= 35 ? ['Uncertain', '#b07d1e'] : ['Low', '#3f7d54'];
+const simBand = (p) => p >= 25 ? ['High', '#b3402a'] : p >= 10 ? ['Moderate', '#b07d1e'] : ['Low', '#3f7d54'];
+
+function dashboardCard(aiPct, agg) {
+  const [band, color] = aiBand(aiPct);
+  return `
+  <div class="card" id="glance-card">
+    <span class="overline">At a glance · Two different questions</span>
+    <h2>Summary</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px;margin-top:8px">
+      <div style="display:flex;gap:14px;align-items:center">
+        ${gauge('g-ai', aiPct, color, 'AI-writing likelihood')}
+        <div>
+          <b style="font-size:15px">AI-writing likelihood</b><br/>
+          <span class="badge" style="border-color:${color};color:${color};margin:4px 0">${band}</span>
+          <p class="hint" style="margin:6px 0 0;max-width:100%">“Who wrote this?” — a signal-based estimate from rhythm, vocabulary, and phrasing. Evidence, not proof; the assessment below refines it.</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:14px;align-items:center">
+        ${gauge('g-sim', null, '#b07d1e', 'Source similarity')}
+        <div>
+          <b style="font-size:15px">Source similarity</b><br/>
+          <span class="badge" id="sim-badge" style="margin:4px 0">scanning…</span>
+          <p class="hint" style="margin:6px 0 0;max-width:100%">“Does it match published work?” — overlap of the scanned passages with 240M indexed scholarly works.</p>
+        </div>
+      </div>
+    </div>
+    <p class="hint" style="margin:12px 0 0;max-width:100%"><b>These are independent.</b> A fully human essay can still plagiarize (high similarity, low AI); a fully AI text can be 0% similar to any source. Tools that blur the two mislead you — we report each with its own evidence: <a class="link" href="#sec-heat">sentence heatmap</a> · <a class="link" href="#overlap-card">matched sources</a> · <a class="link" href="#sec-fix">how to fix</a>.</p>
+  </div>`;
+}
+
+function updateSimGauge(pct, nMatches) {
+  const svg = document.getElementById('g-sim');
+  const badge = document.getElementById('sim-badge');
+  if (!svg) return;
+  const [band, color] = simBand(pct);
+  const R = 42, C = 2 * Math.PI * R;
+  const arc = svg.querySelector('.g-arc');
+  arc.setAttribute('stroke', color);
+  arc.setAttribute('stroke-dasharray', `${(C * pct / 100).toFixed(1)} ${C.toFixed(1)}`);
+  svg.querySelector('.g-num').textContent = pct + '%';
+  svg.querySelector('.g-band').textContent = '';
+  if (badge) { badge.textContent = `${band} — ${nMatches} matched source${nMatches === 1 ? '' : 's'}`; badge.style.borderColor = color; badge.style.color = color; }
+}
+
 function metricsHtml(m) {
   return `
   <div class="card">
@@ -263,7 +333,7 @@ function heatCard(sents, agg) {
       : `<span>${esc(x.s)}</span>`;
   }).join(' ');
   return `
-  <div class="card">
+  <div class="card" id="sec-heat">
     <span class="overline">Section 2 · Instant · The evidence</span>
     <h2>Sentence-level heatmap</h2>
     <p class="hint">Where the signals actually fire — hover any highlighted sentence to see exactly which of the three families flagged it and why. Single-score checkers can't show you this.</p>
@@ -296,7 +366,7 @@ function guidanceCard(sents, m) {
     return `<li style="margin-bottom:10px"><em style="font-size:13px">“${esc(x.s.length > 140 ? x.s.slice(0, 140) + '…' : x.s)}”</em><br/><span style="font-size:13.5px">${esc([...new Set(fixes)].join('; '))}.</span></li>`;
   }).join('');
   return `
-  <div class="card">
+  <div class="card" id="sec-fix">
     <span class="overline">Section 3 · Instant · Free</span>
     <h2>How to fix what was flagged</h2>
     <p class="hint">Detection without direction is just an accusation. The strongest-flagged sentences, each with the concrete revision that removes the signal — because specific, cited, rhythmically varied prose is also just better writing.</p>
@@ -413,16 +483,25 @@ $('run').onclick = async () => {
 
   // 1. stylometry
   const m = stylometry(text);
-  out.innerHTML = metricsHtml(m);
-
-  // 2. sentence heatmap + family agreement + revision guidance (all instant, free)
   const sents = sentenceAnalysis(text, m);
   const agg = familyLeans(m, sents);
+
+  // 0. at-a-glance dashboard: the two headline questions, answered separately
+  const aiPct = aiLikelihood(m, sents);
+  out.innerHTML = dashboardCard(aiPct, agg);
+  out.insertAdjacentHTML('beforeend', metricsHtml(m));
+
+  // 2. sentence heatmap + family agreement + revision guidance (all instant, free)
   out.insertAdjacentHTML('beforeend', heatCard(sents, agg));
   out.insertAdjacentHTML('beforeend', guidanceCard(sents, m));
 
-  // 3. scholarly overlap
+  // 3. scholarly overlap → similarity gauge
   const matches = await overlapScan(text, out);
+  const scanned = pickChunks(text);
+  const scannedWords = scanned.reduce((s, c) => s + c.split(' ').length, 0);
+  const matchedWeighted = matches.reduce((s, r) => s + r.score * r.chunk.split(' ').length, 0);
+  const simPct = scannedWords ? Math.min(100, Math.round(100 * matchedWeighted / scannedWords)) : 0;
+  updateSimGauge(simPct, matches.length);
 
   // 3. LLM assessment (only if configured)
   const cfg = Rewiseed.getCfg();
@@ -464,6 +543,10 @@ $('run').onclick = async () => {
   const pf = $('para-flagged'); if (pf) pf.hidden = flaggedSents.length === 0;
   lastReport = [
     `# Originality report`,
+    `\n## At a glance\n`,
+    `- AI-writing likelihood: ${aiPct}% (${aiBand(aiPct)[0]}) — signal-based estimate, not proof`,
+    `- Source similarity: ${simPct}% of scanned passages (${matches.length} matched source${matches.length === 1 ? '' : 's'})`,
+    `- These measure different things: AI likelihood asks who wrote it; similarity asks whether it matches published sources.`,
     `\n## Stylometric signals\n`,
     `- Words: ${m.words} · Sentences: ${m.sentences} · Avg sentence: ${m.mean.toFixed(1)} words`,
     `- Burstiness: ${m.burstiness.toFixed(2)} · Vocabulary variety: ${(m.ttr * 100).toFixed(0)}% · Repeated 8-word passages: ${m.dupes} · Stock phrases: ${m.phraseHits}${m.hitList.length ? ` (${m.hitList.join(', ')})` : ''}`,
@@ -483,9 +566,11 @@ $('run').onclick = async () => {
     <div class="row">
       <button class="ghost" id="rep-copy">${icon('copy', 15)} Copy report</button>
       <button class="ghost" id="rep-dl">${icon('download', 15)} Download .md</button>
+      <button class="ghost" id="rep-pdf" title="Opens your browser's print dialog — choose 'Save as PDF'">${icon('doc', 15)} Export PDF</button>
     </div>`);
   $('rep-copy').onclick = (e) => Rewiseed.copyText(lastReport, e.currentTarget);
   $('rep-dl').onclick = () => Rewiseed.downloadText('originality-report.md', lastReport);
+  $('rep-pdf').onclick = () => Rewiseed.exportPDF($('out'), 'Originality & AI Report');
 
   running = false;
   btn.disabled = false;
