@@ -169,11 +169,15 @@ function costLabel(href) {
   if (rc[0] === 'both') return '1+ credits/run';
   return '1 credit/run';
 }
-fetch('/api/me', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).then(d => {
+Promise.all([
+  fetch('/api/me', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null),
+  Rewiseed.billingStatus().catch(() => ({ enforced: false })),
+]).then(([d, bill]) => {
   // access visibility: mark tools outside this account's plan with a lock badge
   // (tile stays clickable — the tool page explains which level includes it)
   const granted = (d && d.user && d.user.tool_access && d.user.tool_access.length)
     ? new Set(d.user.tool_access.map(t => t + '.html')) : null; // null = everything in plan
+  const showCosts = !!(bill && bill.enforced); // only surface credit costs when billing is live
   document.querySelectorAll('.rp-tile').forEach(tile => {
     const href = tile.getAttribute('href');
     const gated = href !== 'library.html' && href !== 'journal.html';
@@ -186,6 +190,7 @@ fetch('/api/me', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : nul
       return;
     }
     // accessible tool — show what a run costs, so usage can be planned before opening it
+    if (!showCosts) return;
     const lbl = costLabel(href);
     const free = lbl === 'Free';
     tile.querySelector('.ti').insertAdjacentHTML('beforeend',

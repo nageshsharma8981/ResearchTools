@@ -108,11 +108,11 @@ async function groupBy(query, filter, key) {
 }
 
 async function run() {
-  if (!await Rewiseed.meterDataRun('bibliometrics')) return;
   const query = $('q').value.trim();
   if (!query) { toast('Enter a field or topic to analyze', 'error'); $('q').focus(); return; }
   const y0 = parseInt($('y0').value, 10), y1 = parseInt($('y1').value, 10);
   if (y0 && y1 && y0 > y1) { toast('"From year" is after "To year"', 'error'); return; }
+  if (!await Rewiseed.meterDataRun('bibliometrics')) return;
   const btn = $('go'); btn.disabled = true;
   $('out').innerHTML = `<div class="card"><div class="stream-status"><span class="spinner"></span>Counting the field — publications, authors, venues, institutions…</div></div>`;
   const filter = filterString();

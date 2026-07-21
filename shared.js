@@ -426,10 +426,10 @@
         if (!b.enforced) return; // billing off — nothing is charged, say nothing
         const chip = document.createElement('div');
         chip.className = 'step-crumb run-cost-chip';
-        const bal = b.unlimited ? 'staff \u00b7 unlimited' : (b.signedIn && typeof b.credits === 'number' ? `balance ${b.credits}` : 'sign in to run');
-        chip.innerHTML = rc[0] === 'free'
-          ? `<a href="pricing.html" title="How run credits work \u2014 costs, allowances and plans">\u2726 ${esc(rc[1])}</a>`
-          : `<a href="pricing.html" title="How run credits work \u2014 costs, allowances and plans">\u2726 ${esc(rc[1])} \u00b7 ${esc(bal)}</a>`;
+        // show only the cost here \u2014 the live balance lives in the nav badge (single source of truth,
+        // so the two never drift apart after a run). Prompt sign-in only when a charge would apply.
+        const suffix = (rc[0] !== 'free' && !b.signedIn) ? ' \u00b7 sign in to run' : '';
+        chip.innerHTML = `<a href="pricing.html" title="How run credits work \u2014 costs, allowances and plans">\u2726 ${esc(rc[1])}${suffix}</a>`;
         (document.querySelector('.step-crumb') || nav).insertAdjacentElement('afterend', chip);
       });
     }

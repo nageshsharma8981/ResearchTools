@@ -97,9 +97,9 @@ function skeletons(n = 5) {
 }
 
 $('search').onclick = async () => {
-  if (!await Rewiseed.meterDataRun('smart-literature-finder')) return;
   const q = $('q').value.trim();
   if (!q) { toast('Type a search query first', 'error'); $('q').focus(); return; }
+  if (!await Rewiseed.meterDataRun('smart-literature-finder')) return;
   lastQuery = q;
   const out = $('out');
   $('toolbar').innerHTML = '';

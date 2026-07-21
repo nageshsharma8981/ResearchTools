@@ -756,7 +756,6 @@ $('run').onclick = async () => {
   try {
     if (!data) throw new Error('Load a dataset first (Step 1) — or click the example.');
     if (spec.constructs.length < 2) throw new Error('Define at least two constructs (Step 2).');
-    if (!await Rewiseed.meterDataRun('statpls')) return;
     for (const c of spec.constructs) {
       if (!c.inds.length) throw new Error(`“${c.name}” has no indicators — click its column chips to assign some.`);
       for (const i of c.inds) if (!data.cols[i]) throw new Error(`“${c.name}” uses column “${i}”, which isn't in the current dataset.`);
@@ -780,6 +779,8 @@ $('run').onclick = async () => {
       catch { throw new Error(`Column “${u}” has zero variance — every value is identical. Remove it from the model.`); }
     }
 
+    // all inputs validated — charge the run now, right before estimation begins
+    if (!await Rewiseed.meterDataRun('statpls')) { return; }
     const scheme = $('scheme').value;
     const est = pls(cols, spec.constructs, spec.paths, scheme);
     Rewiseed.track('run');

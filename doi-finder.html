@@ -169,10 +169,10 @@ document.querySelectorAll('.chip[data-ex]').forEach(c => c.onclick = () => { $('
 $('doi-in').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('lookup').click(); });
 
 $('lookup').onclick = async () => {
-  if (!await Rewiseed.meterDataRun('doi-finder')) return;
   const doi = extractDoi($('doi-in').value);
   const out = $('lookup-out');
   if (!doi) { toast('That does not look like a DOI (expected 10.xxxx/…)', 'error'); $('doi-in').focus(); return; }
+  if (!await Rewiseed.meterDataRun('doi-finder')) return;
   const btn = $('lookup'); btn.disabled = true;
   out.innerHTML = `<div class="card"><div class="stream-status"><span class="spinner"></span>Fetching ${esc(doi)}…</div></div>`;
   try {
