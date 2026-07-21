@@ -71,7 +71,7 @@
 <main style="max-width:960px">
   <div class="card">
     <h2>Find a journal</h2>
-    <p class="hint">Search 3,188 journals across the ABS and ABDC lists. Filters combine — e.g. Marketing + ABS 4 + Q1.</p>
+    <p class="hint">Search 3,186 journals across the ABS and ABDC lists. Filters combine — e.g. Marketing + ABS 4 + Q1.</p>
     <div class="search-row">
       <input id="q" type="search" autocomplete="off" placeholder="e.g. Journal of Marketing, MIS Quarterly, tourism…" aria-label="Search journals"/>
     </div>
@@ -106,7 +106,7 @@
       <li><b>FT50</b> — the 50 journals the Financial Times uses for its business-school research rank, © Financial Times. This tool carries the <b>2026 revision</b> (which added Academy of Management Annals, American Sociological Review, and Psychological Science, and removed Human Relations, Journal of Business Ethics, and Organization Studies). Membership is binary and unusually consequential for business-school hiring. Verify at <a class="link" href="https://www.ft.com/ft50-journals" target="_blank" rel="noopener noreferrer">ft.com/ft50-journals</a>.</li>
       <li><b>ABS / AJG 2024</b> — the Academic Journal Guide, © Chartered Association of Business Schools. Ratings 4* (world elite) → 1. Verify at <a class="link" href="https://charteredabs.org/academic-journal-guide" target="_blank" rel="noopener noreferrer">charteredabs.org</a>.</li>
       <li><b>ABDC 2025</b> — the Australian Business Deans Council Journal Quality List, © ABDC. Ratings A* → C. Verify at <a class="link" href="https://abdc.edu.au/abdc-journal-quality-list/" target="_blank" rel="noopener noreferrer">abdc.edu.au</a>.</li>
-      <li><b>Scopus-based quartile, SJR, CiteScore</b> — from the SCImago Journal Rank public data (snapshot: 2022 metrics). Quartiles shift year to year — check the journal's current standing via its Scimago link in the comparison. Powered by Scopus data, via scimagojr.com.</li>
+      <li><b>Scopus-based quartile, SJR, 2-yr citations/doc</b> — from the <b>SCImago Journal Rank 2025</b> release (the current edition), powered by Scopus data. Best quartile (Q1–Q4), SJR, H-index, and 2-year citations per document. Quartiles shift year to year — the comparison view links each journal's live Scimago page. Via scimagojr.com.</li>
       <li><b>Impact (2-yr cites/doc)</b> — citations per document over two years, the open analogue of an impact factor. It is <b>not</b> the official Journal Impact Factor (Clarivate JCR, proprietary). The comparison view adds a live OpenAlex 2-yr citedness for a current reading.</li>
       <li>Rankings are <b>opinions of their publishing bodies</b>, they differ by design, and they are not quality guarantees for an individual paper. Always confirm on the official list your institution uses before submitting.</li>
     </ul>
@@ -134,8 +134,8 @@ const badge = (kind, v) => kind === 'ft'
   ? `<span class="rb na" title="Not on this list">—</span>`
   : kind === 'abs' ? `<span class="rb ${absCls(v)}" title="ABS/AJG 2024 rating"><small>ABS</small>${esc(v)}</span>`
   : kind === 'abdc' ? `<span class="rb ${abdcCls(v)}" title="ABDC 2025 rating"><small>ABDC</small>${esc(v)}</span>`
-  : kind === 'q' ? `<span class="rb ${v.toLowerCase()}" title="Scopus-based best quartile (SJR, 2022 snapshot)">${esc(v)}</span>`
-  : `<span class="rb if" title="2-yr cites per document (open impact-factor analogue, 2022 snapshot)">${esc(v)}</span>`;
+  : kind === 'q' ? `<span class="rb ${v.toLowerCase()}" title="Scopus-based best quartile (SCImago 2025)">${esc(v)}</span>`
+  : `<span class="rb if" title="2-yr cites per document (open impact-factor analogue, SCImago 2025)">${esc(v)}</span>`;
 const rankScore = (r) => (ABS_ORDER[r.abs] || 0) * 100 + (ABDC_ORDER[r.abdc] || 0) * 10 + (Q_ORDER[r.q] || 0);
 
 function chipSet(elId, values, set, colorCls) {
@@ -222,11 +222,10 @@ async function renderCompare() {
         ${row('FT50 (Financial Times)', r => r.ft50 ? badge('ft') : '—', r => r.ft50 ? 1 : 0)}
         ${row('ABS / AJG 2024', r => badge('abs', r.abs), r => ABS_ORDER[r.abs] || 0)}
         ${row('ABDC 2025', r => badge('abdc', r.abdc), r => ABDC_ORDER[r.abdc] || 0)}
-        ${row('Scopus quartile (SJR 2022)', r => badge('q', r.q), r => Q_ORDER[r.q] || 0)}
-        ${row('Impact · 2-yr cites/doc (2022)', r => r.if2 != null ? `<b>${r.if2.toFixed(2)}</b>` : '—', r => r.if2 || 0)}
+        ${row('Scopus quartile (SCImago 2025)', r => badge('q', r.q), r => Q_ORDER[r.q] || 0)}
+        ${row('Impact · 2-yr cites/doc (2025)', r => r.if2 != null ? `<b>${r.if2.toFixed(2)}</b>` : '—', r => r.if2 || 0)}
         ${row('Live 2-yr citedness (OpenAlex)', r => `<span class="live-cite" data-t="${esc(r.t)}"><span class="spinner" style="width:12px;height:12px"></span></span>`)}
-        ${row('CiteScore (2022)', r => r.cs != null ? r.cs.toFixed(1) : '—', r => r.cs || 0)}
-        ${row('SJR (2022)', r => r.sjr != null ? r.sjr.toFixed(2) : '—', r => r.sjr || 0)}
+        ${row('SJR (SCImago 2025)', r => r.sjr != null ? r.sjr.toFixed(2) : '—', r => r.sjr || 0)}
         ${row('Field', r => esc(r.f || '—'))}
         ${row('Publisher', r => esc(r.pub || '—'))}
         ${row('Links', r => [
@@ -239,14 +238,14 @@ async function renderCompare() {
       <button class="ghost" id="cmp-csv">${icon('download', 15)} CSV</button>
       <button class="ghost" id="cmp-pdf">${icon('doc', 15)} Export PDF</button>
     </div>
-    <p class="hint" style="margin:10px 0 0;max-width:100%">Snapshot metrics are from the 2022 SJR data release; the live OpenAlex row shows where a journal's citation impact stands today. Rankings differ by design — a journal can be ABS 3 yet ABDC A*, and both bodies are "right."</p>
+    <p class="hint" style="margin:10px 0 0;max-width:100%">Metrics are from the SCImago 2025 release; the live OpenAlex row shows current citation impact for cross-reference. Rankings differ by design — a journal can be ABS 3 yet ABDC A*, and both bodies are "right."</p>
   </div>`;
   document.getElementById('cmp-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
   $('cmp').querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { compare.delete(b.dataset.rm); renderCmpBar(); render(); if (compare.size) renderCompare(); });
   $('cmp-csv').onclick = () => {
     const qq = (s) => `"${String(s ?? '').replace(/"/g, '""')}"`;
-    const rows = [['Journal', 'FT50', 'ABS 2024', 'ABDC 2025', 'Scopus quartile (2022)', '2yr cites/doc (2022)', 'CiteScore (2022)', 'SJR (2022)', 'Field', 'Publisher'].join(',')];
-    list.forEach(r => rows.push([qq(r.t), r.ft50 ? 'Yes' : '', qq(r.abs), qq(r.abdc), qq(r.q), r.if2 ?? '', r.cs ?? '', r.sjr ?? '', qq(r.f), qq(r.pub)].join(',')));
+    const rows = [['Journal', 'FT50', 'ABS 2024', 'ABDC 2025', 'Scopus quartile (2025)', '2yr cites/doc (2025)', 'SJR (2025)', 'Field', 'Publisher'].join(',')];
+    list.forEach(r => rows.push([qq(r.t), r.ft50 ? 'Yes' : '', qq(r.abs), qq(r.abdc), qq(r.q), r.if2 ?? '', r.sjr ?? '', qq(r.f), qq(r.pub)].join(',')));
     Rewiseed.downloadText('journal-rankings-comparison.csv', rows.join('\n'));
   };
   $('cmp-pdf').onclick = () => Rewiseed.exportPDF(document.getElementById('cmp-card'), 'Journal Rankings Comparison');
