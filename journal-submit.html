@@ -37,7 +37,7 @@
       <input id="title" maxlength="400" placeholder="The full title of your paper"/>
       <label class="field-label" for="track">Subject track</label>
       <select id="track"><option value="">Choose the best-fitting track…</option></select>
-      <label class="field-label" for="abstract">Abstract <span class="hint">(150–300 words)</span></label>
+      <label class="field-label" for="abstract">Abstract <span class="hint">(200–300 words — purpose &amp; objectives, methodology, key findings, implications)</span></label>
       <textarea id="abstract" style="min-height:130px" placeholder="Structured or unstructured abstract…"></textarea>
       <label class="field-label" for="keywords">Keywords <span class="hint">(comma-separated, 4–6)</span></label>
       <input id="keywords" maxlength="400" placeholder="e.g. circular economy, SME, dynamic capabilities"/>
@@ -154,8 +154,14 @@ $('form').addEventListener('submit', async (e) => {
     },
   };
   if (body.title.length < 8) return fail('Enter a fuller title.');
-  if (body.abstract.length < 100) return fail('The abstract needs at least 100 characters.');
+  const absWords = body.abstract.split(/\s+/).filter(Boolean).length;
+  if (absWords < 200 || absWords > 300) return fail(`The abstract must be 200\u2013300 words (currently ${absWords}). It should outline the purpose and objectives, methodology, key findings, and practical and theoretical implications.`);
+  const kwCount = body.keywords.split(',').map(k => k.trim()).filter(Boolean).length;
+  if (kwCount < 4 || kwCount > 6) return fail(`Provide 4\u20136 comma-separated keywords (currently ${kwCount}).`);
   if (body.manuscript.length < 2000) return fail('Paste or upload the full manuscript.');
+  const msWords = body.manuscript.split(/\s+/).filter(Boolean).length;
+  if (msWords > 8000) return fail(`The manuscript is ${msWords.toLocaleString()} words \u2014 full research papers are limited to 5,000\u20138,000 words including references, tables, and appendices (case studies 2,000\u20134,000).`);
+  if (msWords < 2000) return fail(`The manuscript is ${msWords.toLocaleString()} words \u2014 below the 2,000-word minimum (case studies 2,000\u20134,000; full papers 5,000\u20138,000).`);
   if (!body.track) return fail('Choose a subject track.');
   $('submit').disabled = true;
   try {

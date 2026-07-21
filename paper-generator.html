@@ -68,11 +68,8 @@
       <label style="font-size:12.5px;font-weight:600;color:var(--ink-2)">Discipline / field
         <input id="field" maxlength="120" placeholder="e.g. Education technology" style="margin-top:4px"/></label>
       <label style="font-size:12.5px;font-weight:600;color:var(--ink-2)">Target length
-        <select id="length" style="margin-top:4px">
-          <option value="3000">Short article — ~3,000 words</option>
-          <option value="8000" selected>Full paper — ~8,000 words (incl. references)</option>
-          <option value="12000">Extended — ~12,000 words</option>
-        </select></label>
+        <select id="length" style="margin-top:4px"></select>
+        <span class="hint" style="margin:4px 0 0;font-size:12px">Submission standard: full research papers 5,000–8,000 words · case studies 2,000–4,000. Word count includes references, tables, and appendices.</span></label>
     </div>
     <label class="field-label" for="rq" style="margin-top:12px">Research question(s) or aim <span style="font-weight:400;color:var(--muted)">— optional; the Question Generator's output drops in</span></label>
     <textarea id="rq" rows="2" placeholder="e.g. RQ1: Does AI tutoring improve exam performance vs. traditional tutoring?"></textarea>
@@ -113,7 +110,17 @@ const TYPES = {
     sections: [['Abstract', .04], ['Introduction', .12], ['Theoretical Framework & Hypotheses', .10], ['Method', .18], ['Results', .18], ['Discussion', .20], ['Conclusion', .06], ['References', .12]] },
   theoretical: { name: 'Theoretical', desc: 'build a framework or model',
     sections: [['Abstract', .04], ['Introduction', .13], ['Theoretical Background', .22], ['Proposed Framework & Propositions', .26], ['Discussion & Implications', .21], ['Conclusion', .07], ['References', .07]] },
+  case: { name: 'Case Study', desc: 'a real organization, decision, or event', caseStudy: true,
+    sections: [['Abstract', .09], ['Introduction', .13], ['Background & Context', .17], ['Case Description', .22], ['Analysis & Discussion', .21], ['Lessons & Implications', .08], ['Conclusion', .04], ['References', .06]] },
 };
+// submission-standard length ranges (word count includes references, tables, appendices)
+const RANGE = () => paperType === 'case' ? [2000, 4000] : [5000, 8000];
+function setLengthOptions() {
+  const el = $('length'), [lo, hi] = RANGE();
+  const mid = Math.round((lo + hi) / 2 / 500) * 500;
+  el.innerHTML = [lo, mid, hi].map((v, i) =>
+    `<option value="${v}" ${i === 1 ? 'selected' : ''}>~${v.toLocaleString()} words${i === 0 ? ' (minimum)' : i === 2 ? ' (maximum)' : ' (recommended)'}</option>`).join('');
+}
 let paperType = 'litreview';
 $('types').innerHTML = Object.entries(TYPES).map(([k, t]) =>
   `<div class="type-card ${k === paperType ? 'on' : ''}" data-t="${k}"><b>${esc(t.name)}</b><span>${esc(t.desc)}</span></div>`).join('');
@@ -121,6 +128,7 @@ function selectType(k) {
   paperType = k;
   document.querySelectorAll('.type-card').forEach(c => c.classList.toggle('on', c.dataset.t === k));
   $('prisma-wrap').hidden = !TYPES[k].prisma;
+  setLengthOptions();
 }
 $('types').querySelectorAll('[data-t]').forEach(c => c.onclick = () => selectType(c.dataset.t));
 selectType('litreview');
@@ -133,7 +141,10 @@ let plan = null, sections = {}, meta = null, generating = false;
 function sectionSystem(title, words, ctx) {
   const prismaNote = (paperType === 'litreview' && $('prisma').checked && /methodolog/i.test(title))
     ? ' Follow PRISMA 2020: state the search strategy (databases, keywords, date range), explicit inclusion/exclusion criteria, and describe the flow as identification → screening → eligibility → inclusion with indicative counts (mark counts as [example — replace with your screening numbers]).' : '';
-  return `You are an academic author writing ONE section of a ${TYPES[paperType].name.toLowerCase()} research paper for the field of "${ctx.field || 'the stated discipline'}". Write the "${title}" section only, in scholarly prose, targeting about ${words} words.${prismaNote}
+  const abstractNote = /^abstract$/i.test(title)
+    ? ' The abstract MUST be 200\u2013300 words and clearly outline, in this order: (1) the purpose and objectives of the study, (2) the research methodology, (3) the key findings, and (4) the practical and theoretical implications. Immediately after the abstract text, add one final line starting with "**Keywords:** " followed by 4\u20136 comma-separated keywords.' : '';
+  const [lo, hi] = RANGE();
+  return `You are an academic author writing ONE section of a ${TYPES[paperType].name.toLowerCase()} research paper for the field of "${ctx.field || 'the stated discipline'}". The full manuscript targets the journal submission standard: APA 7th Edition throughout, total length ${lo.toLocaleString()}\u2013${hi.toLocaleString()} words including references, tables, and appendices. Write the "${title}" section only, in scholarly prose, targeting about ${words} words.${abstractNote}${prismaNote}
 Rules: use formal academic register and APA 7 in-text citation style (Author, Year). Where you cite, the references must be plausible and consistent with any provided key references, but mark the whole paper's citations as requiring verification — never claim a specific DOI. Do not repeat the section heading. Do not write other sections. Use Markdown; use ### subheadings within the section only if it genuinely helps. If this is the References section, produce an alphabetical APA 7 reference list of the works you cited, and begin it with the line: "> AI-suggested references — verify each with the DOI Finder before citing; replace any that do not resolve."`;
 }
 function sectionUser(title, ctx) {
@@ -156,7 +167,9 @@ function renderPaper() {
   const total = plan.reduce((s, x) => s + (sections[x.title] ? (sections[x.title].split(/\s+/).length) : 0), 0);
   $('out').innerHTML = `<div class="card">
     <p class="paper-title">${esc(meta.topic)}</p>
-    <p class="hint" style="text-align:center;margin:0 0 14px">${TYPES[paperType].name} paper · target ~${(+$('length').value).toLocaleString()} words · <span id="livewc">${total.toLocaleString()}</span> words drafted so far</p>
+    <p class="hint" style="text-align:center;margin:0 0 6px">${TYPES[paperType].name} paper · target ~${(+$('length').value).toLocaleString()} words · <span id="livewc">${total.toLocaleString()}</span> words drafted so far</p>
+    <p class="hint" style="text-align:center;margin:0 0 8px;font-size:12px">Submission format: APA 7th Edition · Times New Roman 12pt · 1.5 line spacing · 1-inch margins · justified (applied in the Word export)</p>
+    <div id="compliance" style="text-align:center;margin:0 0 14px"></div>
     <div id="secs"></div>
     <div id="unlock-zone" style="margin-top:6px"></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
@@ -164,6 +177,7 @@ function renderPaper() {
       <button class="ghost" id="copy-md">${icon('copy', 15)} Copy</button>
       <button class="ghost" id="verify-cites" title="Check every DOI and reference line in the draft against the Crossref scholarly registry">${icon('shield', 15)} Verify citations</button>
       <button class="ghost" id="dl-pdf" title="Opens your browser's print dialog — choose 'Save as PDF'">${icon('doc', 15)} Export PDF</button>
+      <button class="ghost" id="dl-doc" title="Times New Roman 12pt, 1.5 spacing, 1-inch margins, justified — the journal submission format">${icon('download', 15)} Word (.doc, submission format)</button>
       <a class="link" href="apa-formatter.html" style="align-self:center">Format it as a .docx ${icon('arrow', 13)}</a>
     </div>
     <div id="verify-cites-out"></div>
@@ -190,13 +204,17 @@ function renderPaper() {
     renderPaper();
   });
   renderUnlock();
+  renderCompliance();
   $('dl-md').onclick = () => Rewiseed.downloadText('research-paper-draft.md', assemble());
+  $('dl-doc').onclick = dlDoc;
   $('copy-md').onclick = () => navigator.clipboard.writeText(assemble()).then(() => toast('Draft copied'));
   $('dl-pdf').onclick = () => {
     // export only generated content — locked placeholders and unlock UI stay out of the PDF
     const tmp = document.createElement('div');
     tmp.appendChild($('secs').closest('.card').cloneNode(true));
     tmp.querySelectorAll('.sec.locked, .lock-overlay, #unlock-zone, #verify-cites-out').forEach(x => x.remove());
+    // journal submission typography for the PDF as well
+    tmp.style.cssText = "font-family:'Times New Roman',Georgia,serif;line-height:1.5;text-align:justify";
     Rewiseed.exportPDF(tmp, meta.topic);
   };
   $('verify-cites').onclick = async (e) => {
@@ -211,6 +229,40 @@ function renderPaper() {
     } catch (err) { vo.innerHTML = `<div class="error-box" style="margin-top:8px">${icon('alert', 16)}<span>${esc(err.message)}</span></div>`; }
     finally { btn.disabled = false; }
   };
+}
+function renderCompliance() {
+  const el = $('compliance'); if (!el) return;
+  const wc = (t) => String(t || '').split(/\s+/).filter(Boolean).length;
+  const [lo, hi] = RANGE();
+  const totalWords = plan.reduce((s, x) => s + (typeof sections[x.title] === 'string' ? wc(sections[x.title]) : 0), 0);
+  const allDone = plan.every(x => typeof sections[x.title] === 'string');
+  const abs = typeof sections['Abstract'] === 'string' ? sections['Abstract'] : '';
+  const kwLine = (abs.match(/\*\*Keywords:\*\*([^\n]+)/i) || [])[1] || '';
+  const kwN = kwLine.split(',').map(x => x.trim()).filter(Boolean).length;
+  const absWords = wc(abs.replace(/\*\*Keywords:\*\*[^\n]*/i, ''));
+  const chip = (ok, txt) => `<span style="font-size:11.5px;padding:2px 10px;border-radius:999px;margin:0 3px;background:${ok ? 'var(--accent-soft)' : 'var(--surface-2)'};color:${ok ? 'var(--accent-strong)' : 'var(--muted)'};border:1px solid ${ok ? 'var(--accent)' : 'var(--border)'}">${ok ? '\u2713' : '\u26a0'} ${txt}</span>`;
+  el.innerHTML = [
+    abs ? chip(absWords >= 200 && absWords <= 300, `Abstract ${absWords} words (need 200\u2013300)`) : '',
+    abs ? chip(kwN >= 4 && kwN <= 6, `${kwN} keywords (need 4\u20136)`) : '',
+    allDone ? chip(totalWords >= lo && totalWords <= hi, `Total ${totalWords.toLocaleString()} words (${TYPES[paperType].name === 'Case Study' ? 'case study' : 'full paper'} range ${lo.toLocaleString()}\u2013${hi.toLocaleString()}, incl. references)`) : '',
+  ].join('');
+}
+function dlDoc() {
+  // MS Word opens HTML saved as .doc; styles below apply the journal submission format
+  const body = Rewiseed.md(assemble());
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>${esc(meta.topic)}</title><style>
+@page { size: 8.5in 11in; margin: 1in; }
+body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5; text-align: justify; }
+h1, h2, h3, h4 { font-family: 'Times New Roman', serif; text-align: left; line-height: 1.3; }
+h1 { font-size: 16pt; } h2 { font-size: 14pt; } h3 { font-size: 12pt; }
+table { border-collapse: collapse; } td, th { border: 1px solid #444; padding: 4pt 6pt; font-size: 11pt; }
+</style></head><body>${body}</body></html>`;
+  const blob = new Blob(['\ufeff' + html], { type: 'application/msword' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (meta.topic || 'research-paper').replace(/[^\w\- ]+/g, '').trim().slice(0, 60).replace(/\s+/g, '-') + '.doc';
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast('Word document downloaded \u2014 Times New Roman 12pt, 1.5 spacing, 1-inch margins, justified');
 }
 const sampleBlur = () => 'This section will develop the argument in full, integrate the literature, and connect back to the research aim with the depth an examiner expects. '.repeat(6);
 function assemble() {

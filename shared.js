@@ -1348,6 +1348,28 @@
       </div>`;
   }
 
+  // ---------- source-protection deterrents ----------
+  // Blocks the casual right-click → Inspect / view-source route. This deters
+  // casual copying only — devtools can always be opened from the browser menu,
+  // and anything shipped to a browser is ultimately readable.
+  (function protectSource() {
+    document.addEventListener('contextmenu', (e) => {
+      // keep native context menus where users legitimately need them
+      // (paste into form fields, and any element that opts in)
+      if (e.target.closest('input, textarea, select, [contenteditable="true"], [data-allow-context]')) return;
+      e.preventDefault();
+    });
+    document.addEventListener('keydown', (e) => {
+      const k = (e.key || '').toLowerCase();
+      const devtools =
+        e.key === 'F12' ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && ['i', 'j', 'c'].includes(k)) ||
+        (e.metaKey && e.altKey && ['i', 'j', 'c', 'u'].includes(k)) ||   // Cmd+Opt+I/J/C on Mac
+        ((e.ctrlKey || e.metaKey) && !e.shiftKey && k === 'u');          // view-source
+      if (devtools) { e.preventDefault(); e.stopPropagation(); }
+    }, true);
+  })();
+
   window.Rewiseed = {
     renderNav, renderSettingsBar, openSettings, billingStatus, checkText, assertTextAllowed, aiDisclaimer,
     verifyCitations, renderCitationCheck, exportPDF,

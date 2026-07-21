@@ -157,6 +157,7 @@ const STUDENT_TOOLS = new Set([
   'smart-literature-finder', 'doi-finder', 'citation-formatter', 'apa-formatter',
   'writing-polisher', 'originality-checker', 'citation-integrity', 'rubric-lens',
   'research-question-generator', 'stats-advisor',
+  'research-gap-identifier', 'author-impact', 'journal-rankings',
 ]);
 // null = unrestricted (all tools); a Set = the exact default for that role
 function roleDefaultTools(role) { return role === 'basic' ? BASIC_TOOLS : role === 'student' ? STUDENT_TOOLS : null; }
@@ -1353,11 +1354,44 @@ app.get('/api/admin/analytics', requireAuth, requireAdmin, (req, res) => {
   } : {
     total: db.prepare('SELECT COUNT(*) c FROM users WHERE org = ?').get(req.user.org).c,
   };
+  // per-user feature usage (top 100 by runs in window); org admins see their org only
+  const byUser = db.prepare(`
+    SELECT e.user_id, u.email, u.role, u.plan_status, u.credits,
+           COUNT(*) runs, SUM(e.out_chars) chars, COUNT(DISTINCT e.tool) toolsUsed,
+           MAX(e.ts) lastActive
+    FROM events e JOIN users u ON u.id = e.user_id
+    WHERE e.ts > ? ${orgFilter.replace(/user_id/g, 'e.user_id')}
+    GROUP BY e.user_id ORDER BY runs DESC LIMIT 100`).all(since30, ...orgArgs)
+    .map(r => {
+      const tools = db.prepare(
+        'SELECT tool, COUNT(*) runs FROM events WHERE user_id = ? AND ts > ? GROUP BY tool ORDER BY runs DESC LIMIT 5'
+      ).all(r.user_id, since30);
+      return { email: r.email, role: r.role, pro: r.plan_status === 'active', credits: r.credits,
+               runs: r.runs, estTokens: Math.round((r.chars || 0) / 4), toolsUsed: r.toolsUsed,
+               lastActive: r.lastActive, topTools: tools };
+    });
+  // billing & cost metrics — superadmin only (revenue is platform-wide, not org-scoped)
+  let billing = null;
+  if (req.user.role === 'superadmin') {
+    const pay30 = db.prepare('SELECT kind, COUNT(*) n, SUM(amount) amt, SUM(credits) cr FROM payments WHERE ts > ? GROUP BY kind').all(since30);
+    const payAll = db.prepare('SELECT COUNT(*) n, SUM(amount) amt FROM payments').get();
+    billing = {
+      activePro: db.prepare("SELECT COUNT(*) c FROM users WHERE plan_status = 'active'").get().c,
+      cancelling: db.prepare("SELECT COUNT(*) c FROM users WHERE plan_status = 'cancelled'").get().c,
+      // amounts are paise; expose INR
+      last30d: pay30.map(p => ({ kind: p.kind, count: p.n, inr: Math.round((p.amt || 0) / 100), creditsGranted: p.cr || 0 })),
+      allTimeInr: Math.round((payAll.amt || 0) / 100),
+      allTimePayments: payAll.n || 0,
+      creditsOutstanding: db.prepare('SELECT SUM(credits) s FROM users').get().s || 0,
+      creditsSpent30d: db.prepare("SELECT COUNT(*) c FROM events WHERE ts > ? AND kind = 'run' AND user_id IS NOT NULL").get(since30).c,
+      byRole: db.prepare('SELECT role, COUNT(*) n, SUM(credits) credits FROM users GROUP BY role').all(),
+    };
+  }
   res.json({
     windowDays: 30,
     byTool: byTool.map(r => ({ tool: r.tool, runs: r.runs, estTokens: Math.round((r.chars || 0) / 4), users: r.users })),
     totals: { runs: totals.runs || 0, estTokens: Math.round((totals.chars || 0) / 4), anonRuns },
-    users,
+    users, byUser, billing,
     note: 'Token figures are estimates derived from output length (~4 chars/token). BYOK requests go directly from the browser to the AI provider, so exact provider token counts are not visible to this server.',
   });
 });

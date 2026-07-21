@@ -61,10 +61,10 @@ const TOOL_LABELS = {
   'journal-rankings': 'Journal Rankings & Comparison', 'citation-integrity': 'Citation Integrity Checker',
 };
 // mirrors the server's STUDENT_TOOLS default (kept in sync with server.js)
-const STUDENT_DEFAULT = new Set(['smart-literature-finder','doi-finder','citation-formatter','apa-formatter','writing-polisher','originality-checker','citation-integrity','rubric-lens','research-question-generator','stats-advisor']);
+const STUDENT_DEFAULT = new Set(['smart-literature-finder','doi-finder','citation-formatter','apa-formatter','writing-polisher','originality-checker','citation-integrity','rubric-lens','research-question-generator','stats-advisor','research-gap-identifier','author-impact','journal-rankings']);
 const ROLE_BLURB = { basic: 'Basic — non-institutional accounts; only Literature Finder + DOI Finder by default.', student: 'Student — a curated essentials set (finding, citing, writing, checking).', educator: 'Educator / Researcher — full access to every tool.', admin: 'Admin — full access, and can manage users.', superadmin: 'Super admin — full platform control.' };
 const BASIC_DEFAULT = new Set(['smart-literature-finder', 'doi-finder']);
-const USAGE_LABELS = { ...TOOL_LABELS, assistant: 'Assistant (chatbot)', library: 'Reference Library' };
+const USAGE_LABELS = { ...TOOL_LABELS, assistant: 'Assistant (chatbot)', library: 'Reference Library', 'pls-sem': 'StatPLS (legacy id)', 'ai-pls': 'StatPLS (legacy id)', 'peer-review-simulator': 'AI Peer Review (legacy id)' };
 
 async function loadAnalytics() {
   try {
@@ -82,9 +82,27 @@ async function loadAnalytics() {
           ${u.newLast30d !== undefined ? `<div style="background:var(--surface-2);border-radius:var(--radius);padding:12px 14px"><b style="font-family:var(--font-serif);font-size:22px;display:block">${u.newLast30d.toLocaleString()}</b><span class="hint" style="margin:0">new signups</span></div>` : ''}
           ${a.totals.anonRuns !== null && a.totals.anonRuns !== undefined ? `<div style="background:var(--surface-2);border-radius:var(--radius);padding:12px 14px"><b style="font-family:var(--font-serif);font-size:22px;display:block">${a.totals.anonRuns.toLocaleString()}</b><span class="hint" style="margin:0">anonymous runs</span></div>` : ''}
         </div>
-        ${a.byTool.length ? `<div class="users-wrap"><table class="users"><thead><tr><th>Tool</th><th>Runs</th><th>Est. tokens</th><th>Signed-in users</th></tr></thead><tbody>
+        ${a.byTool.length ? `<h3 style="margin:14px 0 6px">Feature usage</h3><div class="users-wrap"><table class="users"><thead><tr><th>Tool</th><th>Runs</th><th>Est. tokens</th><th>Signed-in users</th></tr></thead><tbody>
           ${a.byTool.map(t => `<tr><td><b>${esc(USAGE_LABELS[t.tool] || t.tool)}</b></td><td>${t.runs.toLocaleString()}</td><td>~${t.estTokens.toLocaleString()}</td><td>${t.users || 0}</td></tr>`).join('')}
         </tbody></table></div>` : `<p class="hint" style="margin:0">No usage recorded yet — metrics appear as tools get used.</p>`}
+        ${a.byUser && a.byUser.length ? `<h3 style="margin:18px 0 6px">Usage by user</h3><div class="users-wrap"><table class="users"><thead><tr><th>User</th><th>Level</th><th>Runs</th><th>Tools used</th><th>Top tools</th><th>Credits left</th><th>Last active</th></tr></thead><tbody>
+          ${a.byUser.map(r => `<tr><td><b>${esc(r.email)}</b>${r.pro ? ' <span class="badge gold" style="font-size:10px;padding:1px 7px">PRO</span>' : ''}</td><td>${esc(r.role)}</td><td>${r.runs.toLocaleString()}</td><td>${r.toolsUsed}</td><td class="hint" style="font-size:12px">${r.topTools.map(t => `${esc(USAGE_LABELS[t.tool] || t.tool)} (${t.runs})`).join(' · ')}</td><td>${r.credits}</td><td>${new Date(r.lastActive).toLocaleDateString()}</td></tr>`).join('')}
+        </tbody></table></div>` : ''}
+        ${a.billing ? `<h3 style="margin:18px 0 6px">Billing &amp; revenue</h3>
+        <div class="metric-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;margin:10px 0 12px">
+          <div style="background:var(--surface-2);border-radius:var(--radius);padding:12px 14px"><b style="font-family:var(--font-serif);font-size:22px;display:block">${a.billing.activePro}</b><span class="hint" style="margin:0">active Pro subs</span></div>
+          <div style="background:var(--surface-2);border-radius:var(--radius);padding:12px 14px"><b style="font-family:var(--font-serif);font-size:22px;display:block">₹${a.billing.last30d.reduce((s,p)=>s+p.inr,0).toLocaleString()}</b><span class="hint" style="margin:0">revenue · 30 days</span></div>
+          <div style="background:var(--surface-2);border-radius:var(--radius);padding:12px 14px"><b style="font-family:var(--font-serif);font-size:22px;display:block">₹${a.billing.allTimeInr.toLocaleString()}</b><span class="hint" style="margin:0">revenue · all time</span></div>
+          <div style="background:var(--surface-2);border-radius:var(--radius);padding:12px 14px"><b style="font-family:var(--font-serif);font-size:22px;display:block">${a.billing.creditsSpent30d.toLocaleString()}</b><span class="hint" style="margin:0">credited runs · 30 days</span></div>
+          <div style="background:var(--surface-2);border-radius:var(--radius);padding:12px 14px"><b style="font-family:var(--font-serif);font-size:22px;display:block">${a.billing.creditsOutstanding.toLocaleString()}</b><span class="hint" style="margin:0">credits outstanding</span></div>
+          <div style="background:var(--surface-2);border-radius:var(--radius);padding:12px 14px"><b style="font-family:var(--font-serif);font-size:22px;display:block">${a.billing.cancelling}</b><span class="hint" style="margin:0">cancelling at period end</span></div>
+        </div>
+        ${a.billing.last30d.length ? `<div class="users-wrap"><table class="users"><thead><tr><th>Payment type</th><th>Count · 30d</th><th>Revenue (₹)</th><th>Credits granted</th></tr></thead><tbody>
+          ${a.billing.last30d.map(p => `<tr><td><b>${esc(p.kind)}</b></td><td>${p.count}</td><td>₹${p.inr.toLocaleString()}</td><td>${p.creditsGranted}</td></tr>`).join('')}
+        </tbody></table></div>` : '<p class="hint" style="margin:0">No payments in the last 30 days.</p>'}
+        <div class="users-wrap" style="margin-top:10px"><table class="users"><thead><tr><th>Level</th><th>Accounts</th><th>Credits held</th></tr></thead><tbody>
+          ${a.billing.byRole.map(r => `<tr><td><b>${esc(r.role)}</b></td><td>${r.n}</td><td>${(r.credits||0).toLocaleString()}</td></tr>`).join('')}
+        </tbody></table></div>` : ''}
         <p class="hint" style="margin:10px 0 0">${esc(a.note)}</p>
       </div>`;
   } catch (e) { document.getElementById('analytics').innerHTML = ''; }

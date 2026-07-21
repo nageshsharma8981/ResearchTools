@@ -12,10 +12,11 @@ const TOOL_IDS = new Set(['smart-literature-finder', 'doi-finder', 'originality-
   'stats-advisor', 'literature-matrix', 'writing-polisher', 'citation-graph',
   'data-explorer', 'data-sources', 'scholar-profiles', 'statpls', 'rubric-lens',
   'abstract-generator', 'paper-generator', 'bibliometrics', 'journal-metrics', 'journal-rankings',
-  'citation-integrity']);
+  'citation-integrity', 'author-impact']);
 const STUDENT_TOOLS = new Set(['smart-literature-finder', 'doi-finder', 'citation-formatter', 'apa-formatter',
   'writing-polisher', 'originality-checker', 'citation-integrity', 'rubric-lens',
-  'research-question-generator', 'stats-advisor']);
+  'research-question-generator', 'stats-advisor',
+  'research-gap-identifier', 'author-impact', 'journal-rankings']);
 const parseToolAccess = (s) => String(s || '').split(',').map(x => x.trim()).filter(x => TOOL_IDS.has(x));
 const roleDefaultTools = (role) => role === 'student' ? STUDENT_TOOLS : null;
 function effectiveTools(u) {
