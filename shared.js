@@ -260,7 +260,7 @@
     { href: 'research-question-generator.html', icon: 'flask', name: 'Research Question Generator' },
     { href: 'instrument-designer.html', icon: 'clipboard', name: 'Survey & Interview Designer' },
     { href: 'stats-advisor.html', icon: 'sigma', name: 'Statistical Test Advisor' },
-    { href: 'ai-pls.html', icon: 'sigma', name: 'AI PLS' },
+    { href: 'statpls.html', icon: 'sigma', name: 'StatPLS' },
     { href: 'qualitative-coding-assistant.html', icon: 'dna', name: 'Qualitative Coding Assistant' },
     { href: 'peer-review-simulator.html', icon: 'grad', name: 'Peer Review Simulator' },
     { href: 'rubric-lens.html', icon: 'clipboard', name: 'RubricLens' },

@@ -7,12 +7,12 @@
 <link rel="apple-touch-icon" href="favicon.png"/>
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
-<title>AI PLS — ItsMyResearch</title>
+<title>StatPLS — ItsMyResearch</title>
 <meta property="og:type" content="website"/>
 <meta property="og:site_name" content="ItsMyResearch"/>
-<meta property="og:title" content="AI PLS — ItsMyResearch"/>
+<meta property="og:title" content="StatPLS — ItsMyResearch"/>
 <meta property="og:description" content="Run partial least squares structural equation modeling in your browser: measurement model, reliability, discriminant validity, bootstrapped path coefficients. Data never leaves your device."/>
-<meta property="og:url" content="https://www.itsmyresearch.com/ai-pls"/>
+<meta property="og:url" content="https://www.itsmyresearch.com/statpls"/>
 <meta property="og:image" content="https://www.itsmyresearch.com/og-card.png"/>
 <meta property="og:image:width" content="1200"/>
 <meta property="og:image:height" content="630"/>
@@ -54,7 +54,7 @@ button.mode-tab.active { background:var(--accent-soft); color:var(--accent-stron
 <body>
 <div class="hero">
   <span class="tool-icon" id="hero-icon"></span>
-  <h1>AI PLS</h1>
+  <h1>StatPLS</h1>
   <p class="lede">One workbench, three methods — pick what fits your question: full PLS-SEM (TAM template, drag-and-drop canvas, 5,000-resample bootstrapping, complete quality report), PROCESS-style mediation and moderation (Hayes Models 4 & 1), and multiple regression. Plus an optional AI interpretation of your results. Your data never leaves this device. Free, keyless.</p>
 </div>
 <main style="max-width:940px">
@@ -79,7 +79,7 @@ button.mode-tab.active { background:var(--accent-soft); color:var(--accent-stron
   </div>
 
   <div class="mode-tabs" role="tablist" aria-label="Analysis method" style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 14px">
-    <button type="button" class="mode-tab active" data-m="pls" role="tab">AI PLS</button>
+    <button type="button" class="mode-tab active" data-m="pls" role="tab">StatPLS</button>
     <button type="button" class="mode-tab" data-m="med" role="tab">Mediation &amp; Moderation</button>
     <button type="button" class="mode-tab" data-m="reg" role="tab">Regression</button>
   </div>
@@ -143,7 +143,7 @@ button.mode-tab.active { background:var(--accent-soft); color:var(--accent-stron
     <h2>Run the model</h2>
     <div class="settings-grid" style="display:flex;gap:14px;flex-wrap:wrap">
       <label>Weighting scheme
-        <select id="scheme"><option value="path" selected>AI PLS</option><option value="factor">Factor</option><option value="centroid">Centroid</option></select>
+        <select id="scheme"><option value="path" selected>StatPLS</option><option value="factor">Factor</option><option value="centroid">Centroid</option></select>
       </label>
       <label>Bootstrap samples
         <select id="nboot">
@@ -171,7 +171,7 @@ button.mode-tab.active { background:var(--accent-soft); color:var(--accent-stron
   <div class="card">
     <span class="overline">Scholarship</span>
     <h2>Methods &amp; attribution</h2>
-    <p class="hint">AI PLS is an independent implementation of methods from the published literature. Cite the original methodologists in your write-up — these are the canonical sources for what each part of your results rests on.</p>
+    <p class="hint">StatPLS is an independent implementation of methods from the published literature. Cite the original methodologists in your write-up — these are the canonical sources for what each part of your results rests on.</p>
     <div class="tbl-wrap"><table class="data-table"><thead><tr><th style="text-align:left">Method in this tool</th><th style="text-align:left">Canonical source</th></tr></thead><tbody>
       <tr><td style="text-align:left">PLS path modeling algorithm</td><td style="text-align:left">Wold (1982); Lohmöller (1989)</td></tr>
       <tr><td style="text-align:left">Bootstrap resampling &amp; CIs</td><td style="text-align:left">Efron (1979)</td></tr>
@@ -191,10 +191,10 @@ button.mode-tab.active { background:var(--accent-soft); color:var(--accent-stron
 <script>
 const { esc, icon, toast, md } = Rewiseed;
 const $ = (id) => document.getElementById(id);
-Rewiseed.renderNav('ai-pls.html');
+Rewiseed.renderNav('statpls.html');
 Rewiseed.renderSettingsBar('settings');
 $('hero-icon').innerHTML = icon('sigma', 26);
-$('run').innerHTML = `${icon('sigma', 15)} Run AI PLS`;
+$('run').innerHTML = `${icon('sigma', 15)} Run StatPLS`;
 
 // ---------- state ----------
 let data = null;            // { cols: {name: Float64Array-ish number[]}, names: [], n }
@@ -798,7 +798,7 @@ $('run').onclick = async () => {
         if (b % 20 === 19) { $('prog-fill').style.width = `${Math.round(100 * b / B)}%`; $('run-status').textContent = `Bootstrapping ${b + 1}/${B}…`; await yieldNow(); }
       }
       $('prog').hidden = true; $('run-status').textContent = '';
-      btn.dataset.running = ''; btn.classList.remove('danger'); btn.innerHTML = `${icon('sigma', 15)} Run AI PLS`;
+      btn.dataset.running = ''; btn.classList.remove('danger'); btn.innerHTML = `${icon('sigma', 15)} Run StatPLS`;
       const done = samples[pathKeys[0]].length;
       if (done >= 50) boot = { samples, B: done, failed, cancelled: cancelBoot };
       else if (cancelBoot) toast('Bootstrap cancelled — showing estimates without significance tests');
@@ -806,7 +806,7 @@ $('run').onclick = async () => {
     render(est, boot, { n: keep.length, dropped, scheme, B });
   } catch (e) {
     $('prog').hidden = true; $('run-status').textContent = '';
-    btn.dataset.running = ''; btn.classList.remove('danger'); btn.innerHTML = `${icon('sigma', 15)} Run AI PLS`;
+    btn.dataset.running = ''; btn.classList.remove('danger'); btn.innerHTML = `${icon('sigma', 15)} Run StatPLS`;
     $('out').innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>${esc(e.message)}</span></div></div>`;
   }
 };
@@ -947,7 +947,7 @@ function render(est, boot, meta) {
     Rewiseed.downloadText('latent-scores.csv', lines.join('\n'));
   };
   $('copy-apa').onclick = (e) => { navigator.clipboard.writeText($('out').querySelector('.result').innerText).then(() => toast('Write-up copied')); };
-  // the "AI" in AI PLS: an interpretation of the numbers, using the user's model.
+  // the "AI" in StatPLS: an interpretation of the numbers, using the user's model.
   // Only aggregate statistics leave the browser — never the raw data.
   $('ai-interpret').onclick = async (e) => {
     const btn = e.currentTarget; btn.disabled = true;

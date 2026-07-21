@@ -50,7 +50,7 @@ directly; the server never sees keys or content. Tool prompts are grounded
 citations, verbatim-quote requirements). The RAG assistant answers only from
 kb.json with an explicit refusal path. The Qualitative Coding Assistant
 anonymizes participant PII in-browser before any provider call (on by
-default). AI PLS's interpretation sends aggregate statistics only, never raw
+default). StatPLS's interpretation sends aggregate statistics only, never raw
 data. Usage telemetry records tool id + output size — never content. Server
 logs never contain passwords, tokens, or document content.
 
