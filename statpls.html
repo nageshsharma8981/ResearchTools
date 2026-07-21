@@ -674,6 +674,9 @@ function pls(cols, constructs, paths, scheme) {
           terms.push([scheme === 'centroid' ? Math.sign(r) : r, Y[idx[o]]]);
         });
       }
+      // an isolated construct (no paths in or out) keeps its own composite — its
+      // measurement model is still estimated; it just contributes no structural links
+      if (!terms.length) return Y[k].slice();
       return std(Array.from({ length: n }, (_, r) => terms.reduce((s, [w, y]) => s + w * y[r], 0)));
     });
     // outer estimation (Mode A)
@@ -759,8 +762,9 @@ $('run').onclick = async () => {
     }
     if (!spec.paths.length) throw new Error('Add at least one structural path (Step 2).');
     topoOrder(spec.constructs, spec.paths);
-    const iso = spec.constructs.find(c => !spec.paths.some(([f, t]) => f === c.name || t === c.name));
-    if (iso) throw new Error(`“${iso.name}” is not connected to any path — connect it or remove it.`);
+    // isolated constructs are allowed: they still get a full measurement model
+    // (loadings, α, ρA, CR, AVE, cross-loadings), they just carry no structural paths
+    const isolated = spec.constructs.filter(c => !spec.paths.some(([f, t]) => f === c.name || t === c.name)).map(c => c.name);
 
     // listwise deletion on used columns, then standardize
     // (Set: an indicator may sit in several constructs — repeated-indicators HOC)
@@ -816,7 +820,7 @@ $('run').onclick = async () => {
       if (done >= 50) boot = { samples, B: done, failed, cancelled: cancelBoot };
       else if (cancelBoot) toast('Bootstrap cancelled — showing estimates without significance tests');
     }
-    render(est, boot, { n: keep.length, dropped, scheme, B });
+    render(est, boot, { n: keep.length, dropped, scheme, B, isolated });
   } catch (e) {
     $('prog').hidden = true; $('run-status').textContent = '';
     btn.dataset.running = ''; btn.classList.remove('danger'); btn.innerHTML = `${icon('sigma', 15)} Run StatPLS`;
@@ -885,6 +889,7 @@ function render(est, boot, meta) {
   <div class="card">
     <span class="overline">Results · n = ${meta.n}${meta.dropped ? ` (${meta.dropped} incomplete rows dropped)` : ''} · ${est.iter} iterations · ${meta.scheme} weighting${boot ? ` · ${boot.B} bootstrap samples${boot.failed ? ` (${boot.failed} failed)` : ''}${boot.cancelled ? ' (cancelled early)' : ''}` : ' · no bootstrap'}</span>
     <h2>Model results</h2>
+    ${(meta.isolated && meta.isolated.length) ? `<div class="hint" style="background:var(--surface-2);border-radius:var(--radius);padding:10px 14px;margin:0 0 10px">${icon('grid', 13)} <b>${meta.isolated.map(esc).join(', ')}</b> ${meta.isolated.length === 1 ? 'is' : 'are'} not connected to any structural path — measurement-model results (loadings, reliability, validity) are reported for ${meta.isolated.length === 1 ? 'it' : 'them'}, but ${meta.isolated.length === 1 ? 'it carries' : 'they carry'} no path coefficients. Connect ${meta.isolated.length === 1 ? 'it' : 'them'} in Step 2 to add structural relationships.</div>` : ''}
     <div class="diag-wrap">${diagram.svg}</div>
     <p class="hint" style="margin:6px 0 0">${icon('grid', 12)} Drag any construct to rearrange — arrows and β labels follow. Use <b>Expand canvas</b> for a full-size working area when adjusting the layout; right-click the diagram to export it as an image.</p>
 

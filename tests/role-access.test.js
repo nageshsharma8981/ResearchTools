@@ -75,8 +75,9 @@ test('server wires role defaults into the gate, publicUser, and the update route
   assert.ok(server.includes('const STUDENT_TOOLS'), 'STUDENT_TOOLS defined');
   assert.ok(server.includes('function effectiveTools'), 'effectiveTools defined');
   assert.ok(server.includes('tool_access: effectiveToolList(u)'), 'publicUser returns effective list');
-  assert.ok(server.includes("['student', 'educator', 'admin']"), 'superadmin can set all three roles');
-  assert.ok(server.includes("role IN ('student','educator')"), 'admin query includes educators');
+  assert.ok(server.includes("['basic', 'student', 'educator', 'admin']"), 'superadmin can set every non-super role');
+  assert.ok(server.includes("role IN ('basic','student','educator')"), 'admin query includes basic + educators');
+  assert.ok(server.includes("const BASIC_TOOLS"), 'basic tier defined');
 });
 
 test('bulk-tools endpoint exists with the same guardrails as single-user', () => {

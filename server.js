@@ -118,6 +118,7 @@ CREATE TABLE IF NOT EXISTS journal_reviews (
 CREATE INDEX IF NOT EXISTS idx_jrev_sub ON journal_reviews(submission_id);
 CREATE INDEX IF NOT EXISTS idx_jrev_reviewer ON journal_reviews(reviewer_id);
 `);
+try { db.exec("ALTER TABLE journal_submissions ADD COLUMN doi TEXT NOT NULL DEFAULT ''"); } catch { /* already present */ }
 db.exec(`CREATE TABLE IF NOT EXISTS events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ts INTEGER NOT NULL,
@@ -149,14 +150,16 @@ const parseToolAccess = (s) => String(s || '').split(',').map(x => x.trim()).map
 // set of enabled tools; an admin can override any single user's set explicitly
 // (stored in tool_access). Educators/admins get everything; students get a
 // curated essentials set until an admin grants more.
-const ROLES = ['student', 'educator', 'admin', 'superadmin'];
+const ROLES = ['basic', 'student', 'educator', 'admin', 'superadmin'];
+// non-institutional (e.g. gmail) accounts start here — very limited access
+const BASIC_TOOLS = new Set(['smart-literature-finder', 'doi-finder']);
 const STUDENT_TOOLS = new Set([
   'smart-literature-finder', 'doi-finder', 'citation-formatter', 'apa-formatter',
   'writing-polisher', 'originality-checker', 'citation-integrity', 'rubric-lens',
   'research-question-generator', 'stats-advisor',
 ]);
 // null = unrestricted (all tools); a Set = the exact default for that role
-function roleDefaultTools(role) { return role === 'student' ? STUDENT_TOOLS : null; }
+function roleDefaultTools(role) { return role === 'basic' ? BASIC_TOOLS : role === 'student' ? STUDENT_TOOLS : null; }
 // effective access for a user: explicit override wins, else the role default
 function effectiveTools(u) {
   const explicit = parseToolAccess(u.tool_access);
@@ -494,7 +497,6 @@ app.post('/api/auth/signup', async (req, res) => {
   if (!consumeCaptcha(captchaToken)) return res.status(400).json({ error: 'Please complete the puzzle first.' });
   const em = cap(email, 254).toLowerCase();
   if (!EMAIL_RE.test(em)) return res.status(400).json({ error: 'Enter a valid email address.' });
-  if (!accessAllowed(em)) return res.status(403).json({ error: ACCESS_DENIED_MSG, reason: 'restricted' });
   if (typeof password !== 'string' || password.length < 8 || password.length > 200) {
     return res.status(400).json({ error: 'Password must be at least 8 characters.' });
   }
@@ -526,7 +528,9 @@ app.post('/api/auth/signup', async (req, res) => {
     return res.json(genericOk);
   }
   const salt = rand(16);
-  const role = SUPERADMINS.includes(em) ? 'superadmin' : 'student';
+  // institutional emails (edu/ac/rewiseed/allow-listed) get the student essentials;
+  // everyone else may join but starts on the limited 'basic' tier (2 tools)
+  const role = SUPERADMINS.includes(em) ? 'superadmin' : accessAllowed(em) ? 'student' : 'basic';
   const info = db.prepare('INSERT INTO users (email, name, pass_hash, salt, role, created_at, terms_version, terms_accepted_at) VALUES (?,?,?,?,?,?,?,?)')
     .run(em, displayName, hashPassword(password, salt), salt, role, now(), TERMS_VERSION, now());
   const confirmToken = rand(32);
@@ -589,11 +593,8 @@ app.post('/api/auth/signin', (req, res) => {
   }
   if (!u.confirmed) return res.status(403).json({ error: 'Please confirm your email first — check your inbox (and spam).', unconfirmed: true });
   if (u.disabled) return res.status(403).json({ error: 'This account has been disabled. Contact your administrator.' });
-  // access gate also enforced at login, so accounts predating the policy (or later
-  // restricted) are caught — superadmins, rewiseed.com, educational, and allow-listed pass
-  if (!accessAllowed(em) && u.role !== 'admin' && u.role !== 'superadmin') {
-    return res.status(403).json({ error: ACCESS_DENIED_MSG, reason: 'restricted' });
-  }
+  // anyone with a confirmed account may sign in; non-institutional accounts simply
+  // hold the limited 'basic' tier until an admin grants more.
   const token = rand(32);
   db.prepare('INSERT INTO sessions (token, user_id, expires) VALUES (?,?,?)').run(sha(token), u.id, now() + 30 * 24 * 3600_000);
   setSession(res, token, 30 * 24 * 3600_000);
@@ -764,7 +765,7 @@ app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
     rows = db.prepare('SELECT * FROM users ORDER BY created_at DESC LIMIT 500').all();
   } else {
     // org-scoped: admins see students and educators of their own institution, never other admins/superadmins
-    rows = db.prepare("SELECT * FROM users WHERE org = ? AND role IN ('student','educator') ORDER BY created_at DESC LIMIT 500").all(req.user.org);
+    rows = db.prepare("SELECT * FROM users WHERE org = ? AND role IN ('basic','student','educator') ORDER BY created_at DESC LIMIT 500").all(req.user.org);
   }
   res.json({ users: rows.map(u => publicUser(u, true)), scope: req.user.role === 'superadmin' ? 'all' : req.user.org });
 });
@@ -783,7 +784,7 @@ app.post('/api/admin/users/bulk-tools', requireAuth, requireAdmin, (req, res) =>
       // same guardrails as the single-user route: never touch superadmins, yourself,
       // or (for org admins) anyone outside your institution / above student+educator
       if (!target || target.role === 'superadmin' || target.id === req.user.id) { skipped++; continue; }
-      if (req.user.role === 'admin' && (target.org !== req.user.org || !['student', 'educator'].includes(target.role))) { skipped++; continue; }
+      if (req.user.role === 'admin' && (target.org !== req.user.org || !['basic', 'student', 'educator'].includes(target.role))) { skipped++; continue; }
       const def = roleDefaultTools(target.role);
       const sel = new Set(toolAccess);
       const isDefault = def === null ? toolAccess.length === TOOL_IDS.size : (sel.size === def.size && [...def].every(t => sel.has(t)));
@@ -802,16 +803,16 @@ app.put('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
   const { role, disabled, org, toolAccess } = req.body || {};
   if (req.user.role === 'admin') {
     // admins: only students/educators in their own org
-    if (target.org !== req.user.org || !['student', 'educator'].includes(target.role)) return res.status(403).json({ error: 'You can only manage students and educators of your own institution.' });
+    if (target.org !== req.user.org || !['basic', 'student', 'educator'].includes(target.role)) return res.status(403).json({ error: 'You can only manage users of your own institution.' });
     if (org !== undefined) return res.status(403).json({ error: 'Only super admins can change institutions.' });
-    if (role !== undefined && !['student', 'educator'].includes(role)) return res.status(403).json({ error: 'Admins can set the student or educator level only.' });
+    if (role !== undefined && !['basic', 'student', 'educator'].includes(role)) return res.status(403).json({ error: 'Admins can set the basic, student, or educator level only.' });
   }
   // determine the role that WILL apply, so tool_access collapses against the right default
   const nextRole = role !== undefined ? role : target.role;
   const updates = {};
   if (disabled !== undefined) updates.disabled = disabled ? 1 : 0;
   if (role !== undefined) {
-    const allowedRoles = req.user.role === 'superadmin' ? ['student', 'educator', 'admin'] : ['student', 'educator'];
+    const allowedRoles = req.user.role === 'superadmin' ? ['basic', 'student', 'educator', 'admin'] : ['basic', 'student', 'educator'];
     if (!allowedRoles.includes(role)) return res.status(400).json({ error: `Role must be one of: ${allowedRoles.join(', ')}.` });
     updates.role = role;
   }
@@ -919,6 +920,13 @@ app.delete('/api/library/:id', requireAuth, (req, res) => {
 // Editors = admin/superadmin; reviewers = any user an editor invites.
 // ========================================================================
 const JOURNAL_TRACKS = ['General Management', 'Strategy', 'Entrepreneurship & Innovation', 'Marketing', 'Finance & Accounting', 'Organizational Behaviour & HRM', 'Operations & Supply Chain', 'Information Systems & Digital', 'Economics & Policy', 'Sustainability & CSR', 'International Business'];
+// A DOI needs a registered prefix from Crossref (10.NNNNN). Set CROSSREF_DOI_PREFIX
+// once the journal is a Crossref member; until then articles carry a reserved,
+// human-readable DOI suffix that becomes a live https://doi.org/ link the moment
+// the prefix (and Crossref deposit) are in place.
+const DOI_PREFIX = (process.env.CROSSREF_DOI_PREFIX || '').trim();
+const doiSuffix = (s) => `jbms.v${s.volume}i${s.issue}.${String(s.id).padStart(4, '0')}`;
+const fullDoi = (s) => s.doi || (DOI_PREFIX ? `${DOI_PREFIX}/${doiSuffix(s)}` : '');
 const JOURNAL_STATUSES = ['submitted', 'screening', 'under_review', 'minor_revision', 'major_revision', 'revised', 'accepted', 'rejected', 'withdrawn', 'published'];
 const isEditor = (u) => u && ['admin', 'superadmin'].includes(u.role);
 function nextMsId() {
@@ -931,6 +939,7 @@ function submissionPublic(s, viewer, opts = {}) {
     id: s.id, ms_id: s.ms_id, title: s.title, abstract: s.abstract, keywords: s.keywords,
     track: s.track, status: s.status, created_at: s.created_at, updated_at: s.updated_at,
     volume: s.volume, issue: s.issue, published_at: s.published_at, decision_note: s.decision_note,
+    doi: s.doi || '',
   };
   if (opts.full) {
     out.authors_meta = safeJson(s.authors_meta, []);
@@ -1063,8 +1072,21 @@ app.post('/api/journal/editor/publish/:id', requireAuth, (req, res) => {
   const dt = new Date(now());
   const volume = dt.getUTCFullYear() - 2025; // Vol 1 = 2026
   const issue = dt.getUTCMonth() + 1;
-  db.prepare("UPDATE journal_submissions SET status='published', volume=?, issue=?, published_at=?, updated_at=? WHERE id=?").run(volume, issue, now(), now(), s.id);
-  res.json({ ok: true, volume, issue });
+  // reserve a DOI (real, resolvable once CROSSREF_DOI_PREFIX is set + deposited)
+  const doi = DOI_PREFIX ? `${DOI_PREFIX}/${doiSuffix({ volume, issue, id: s.id })}` : '';
+  db.prepare("UPDATE journal_submissions SET status='published', volume=?, issue=?, published_at=?, doi=?, updated_at=? WHERE id=?").run(volume, issue, now(), doi, now(), s.id);
+  res.json({ ok: true, volume, issue, doi: doi || `${doiSuffix({ volume, issue, id: s.id })} (prefix pending)` });
+});
+
+// --- editor: set/override the DOI once a Crossref prefix is registered ---
+app.post('/api/journal/editor/doi/:id', requireAuth, (req, res) => {
+  if (!isEditor(req.user)) return res.status(403).json({ error: 'Editor access required.' });
+  const s = db.prepare('SELECT * FROM journal_submissions WHERE id = ?').get(Number(req.params.id));
+  if (!s) return res.status(404).json({ error: 'Not found.' });
+  const doi = cap((req.body || {}).doi, 200).trim();
+  if (doi && !/^10\.\d{4,9}\/\S+$/.test(doi)) return res.status(400).json({ error: 'A DOI looks like 10.xxxxx/suffix.' });
+  db.prepare("UPDATE journal_submissions SET doi=?, updated_at=? WHERE id=?").run(doi, now(), s.id);
+  res.json({ ok: true, doi });
 });
 
 // --- reviewer: my invitations ---
@@ -1097,8 +1119,8 @@ app.post('/api/journal/review/:id', requireAuth, (req, res) => {
 
 // --- public: published issues archive ---
 app.get('/api/journal/issues', (_req, res) => {
-  const rows = db.prepare("SELECT ms_id, title, abstract, keywords, track, authors_meta, volume, issue, published_at FROM journal_submissions WHERE status='published' ORDER BY published_at DESC LIMIT 500").all();
-  const articles = rows.map(s => ({ ms_id: s.ms_id, title: s.title, abstract: s.abstract, keywords: s.keywords, track: s.track, volume: s.volume, issue: s.issue, published_at: s.published_at, authors: safeJson(s.authors_meta, []).map(a => a.name).filter(Boolean) }));
+  const rows = db.prepare("SELECT id, ms_id, title, abstract, keywords, track, authors_meta, volume, issue, published_at, doi FROM journal_submissions WHERE status='published' ORDER BY published_at DESC LIMIT 500").all();
+  const articles = rows.map(s => ({ ms_id: s.ms_id, title: s.title, abstract: s.abstract, keywords: s.keywords, track: s.track, volume: s.volume, issue: s.issue, published_at: s.published_at, doi: fullDoi(s), doiPending: !s.doi && !DOI_PREFIX, authors: safeJson(s.authors_meta, []).map(a => a.name).filter(Boolean) }));
   res.json({ articles, tracks: JOURNAL_TRACKS });
 });
 app.get('/api/journal/article/:msId', (req, res) => {
@@ -1106,6 +1128,7 @@ app.get('/api/journal/article/:msId', (req, res) => {
   if (!s) return res.status(404).json({ error: 'Article not found.' });
   res.json({ article: { ms_id: s.ms_id, title: s.title, abstract: s.abstract, keywords: s.keywords, track: s.track,
     authors: safeJson(s.authors_meta, []), manuscript: s.manuscript, volume: s.volume, issue: s.issue, published_at: s.published_at,
+    doi: fullDoi(s), doiPending: !s.doi && !DOI_PREFIX, doiSuffix: doiSuffix(s),
     declarations: (() => { const d = safeJson(s.declarations, {}); return { funding: d.funding, dataAvailability: d.dataAvailability, aiUse: d.aiUse }; })() } });
 });
 

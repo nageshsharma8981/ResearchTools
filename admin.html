@@ -62,7 +62,8 @@ const TOOL_LABELS = {
 };
 // mirrors the server's STUDENT_TOOLS default (kept in sync with server.js)
 const STUDENT_DEFAULT = new Set(['smart-literature-finder','doi-finder','citation-formatter','apa-formatter','writing-polisher','originality-checker','citation-integrity','rubric-lens','research-question-generator','stats-advisor']);
-const ROLE_BLURB = { student: 'Student — a curated essentials set (finding, citing, writing, checking).', educator: 'Educator / Researcher — full access to every tool.', admin: 'Admin — full access, and can manage users.', superadmin: 'Super admin — full platform control.' };
+const ROLE_BLURB = { basic: 'Basic — non-institutional accounts; only Literature Finder + DOI Finder by default.', student: 'Student — a curated essentials set (finding, citing, writing, checking).', educator: 'Educator / Researcher — full access to every tool.', admin: 'Admin — full access, and can manage users.', superadmin: 'Super admin — full platform control.' };
+const BASIC_DEFAULT = new Set(['smart-literature-finder', 'doi-finder']);
 const USAGE_LABELS = { ...TOOL_LABELS, assistant: 'Assistant (chatbot)', library: 'Reference Library' };
 
 async function loadAnalytics() {
@@ -145,7 +146,7 @@ async function load() {
         <td>${u.photo ? `<img class="u-avatar" src="${esc(u.photo)}" alt=""/>` : ''}<b>${esc(u.name || '—')}</b><br/><span class="hint" style="margin:0">${esc(u.email)}</span></td>
         <td>${esc(u.org || '—')}</td>
         <td>${u.role !== 'superadmin' && u.id !== me.id
-            ? `<select data-role="${u.id}" title="${esc(ROLE_BLURB[u.role] || '')}"><option value="student" ${u.role === 'student' ? 'selected' : ''}>student</option><option value="educator" ${u.role === 'educator' ? 'selected' : ''}>educator</option>${su ? `<option value="admin" ${u.role === 'admin' ? 'selected' : ''}>admin</option>` : ''}</select>`
+            ? `<select data-role="${u.id}" title="${esc(ROLE_BLURB[u.role] || '')}"><option value="basic" ${u.role === 'basic' ? 'selected' : ''}>basic</option><option value="student" ${u.role === 'student' ? 'selected' : ''}>student</option><option value="educator" ${u.role === 'educator' ? 'selected' : ''}>educator</option>${su ? `<option value="admin" ${u.role === 'admin' ? 'selected' : ''}>admin</option>` : ''}</select>`
             : `<span class="badge ${u.role === 'superadmin' ? 'gold' : ''}">${esc(u.role)}</span>`}</td>
         <td>${u.disabled ? `<span class="badge warn">disabled</span>` : u.confirmed ? `<span class="badge ok">active</span>` : `<span class="badge">unconfirmed</span>`}</td>
         <td>${u.role !== 'superadmin' && u.id !== me.id
@@ -158,6 +159,7 @@ async function load() {
           <b style="font-size:13px">Tool access for ${esc(u.email)}</b>
           <p class="hint" style="margin:4px 0 8px">This account currently sees the ticked tools. Its <b>${esc(u.role)}</b> role default is applied automatically — tick extra tools to grant more, or untick to restrict. ${u.tool_override && u.tool_override.length ? '<b>Custom override active.</b>' : 'Following the role default.'}</p>
           <div class="row" style="margin:0 0 10px;gap:8px">
+            <button type="button" class="ghost" data-toolpreset="${u.id}" data-preset="basic" style="min-height:30px;padding:3px 12px;font-size:12px">Basic set</button>
             <button type="button" class="ghost" data-toolpreset="${u.id}" data-preset="student" style="min-height:30px;padding:3px 12px;font-size:12px">Student set</button>
             <button type="button" class="ghost" data-toolpreset="${u.id}" data-preset="all" style="min-height:30px;padding:3px 12px;font-size:12px">All tools (educator)</button>
           </div>
@@ -239,7 +241,7 @@ async function load() {
   document.querySelectorAll('[data-toolpreset]').forEach(b => b.onclick = () => {
     const id = b.dataset.toolpreset, preset = b.dataset.preset;
     document.querySelectorAll(`[data-toolcb="${id}"]`).forEach(cb => {
-      cb.checked = preset === 'all' ? true : STUDENT_DEFAULT.has(cb.value);
+      cb.checked = preset === 'all' ? true : preset === 'basic' ? BASIC_DEFAULT.has(cb.value) : STUDENT_DEFAULT.has(cb.value);
     });
   });
   document.querySelectorAll('[data-toolsave]').forEach(b => b.onclick = async () => {

@@ -241,6 +241,8 @@ async function editorDetail(id) {
       <button type="button" class="ghost" data-decide="${id}" data-d="reject" style="color:#a33520">Reject</button>
       ${submission.status === 'accepted' ? `<button type="button" data-publish="${id}">Publish to issue</button>` : ''}
     </div>
+    ${submission.status === 'published' ? `<label class="field-label">DOI <span class="hint">(paste the registered Crossref DOI once minted, e.g. 10.71234/jbms.v1i7.0001)</span></label>
+      <div style="display:flex;gap:8px"><input id="doi-${id}" placeholder="10.xxxxx/jbms.v1i7.0001" value="${esc(submission.doi || '')}" style="flex:1"/><button type="button" data-setdoi="${id}">Save DOI</button></div>` : ''}
   </div>`;
   box.querySelector('[data-invite]').onclick = async (e) => {
     const email = $('inv-' + id).value.trim(); if (!email) return;
@@ -252,6 +254,10 @@ async function editorDetail(id) {
     if (!confirm(`Record decision: ${b.dataset.d}?`)) return;
     try { await api('/api/journal/editor/decision/' + id, { method: 'POST', body: { decision: b.dataset.d, note } }); toast('Decision recorded'); showEditor(); } catch (e) { toast(e.message, 'error'); }
   });
+  const doiBtn = box.querySelector('[data-setdoi]');
+  if (doiBtn) doiBtn.onclick = async () => {
+    try { await api('/api/journal/editor/doi/' + id, { method: 'POST', body: { doi: document.getElementById('doi-' + id).value.trim() } }); toast('DOI saved'); } catch (e) { toast(e.message, 'error'); }
+  };
   const pubBtn = box.querySelector('[data-publish]');
   if (pubBtn) pubBtn.onclick = async () => {
     if (!confirm('Publish this accepted manuscript to the current monthly issue?')) return;

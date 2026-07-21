@@ -37,7 +37,8 @@ else fetch('/api/journal/article/' + encodeURIComponent(msId)).then(r => r.json(
   const a = j.article;
   const authors = (a.authors || []).map(x => `${esc(x.name)}${x.affiliation ? `<sup title="${esc(x.affiliation)}">*</sup>` : ''}`).join(', ');
   const affs = [...new Set((a.authors || []).map(x => x.affiliation).filter(Boolean))];
-  const cite = `${(a.authors || []).map(x => x.name).join(', ')} (2026). ${a.title}. Journal of Business, Management & Sustainability, ${a.volume}(${a.issue}). ${a.ms_id}.`;
+  const doiTxt = a.doi ? ` https://doi.org/${a.doi}` : '';
+  const cite = `${(a.authors || []).map(x => x.name).join(', ')} (2026). ${a.title}. Journal of Business, Management & Sustainability, ${a.volume}(${a.issue}), ${a.ms_id}.${doiTxt}`;
   out.innerHTML = `<div class="card">
     <div class="art-head">
       <span class="overline">${esc(a.track)} · Research article</span>
@@ -45,6 +46,7 @@ else fetch('/api/journal/article/' + encodeURIComponent(msId)).then(r => r.json(
       <div class="art-authors">${authors || 'Anonymous'}</div>
       ${affs.length ? `<div class="art-meta">${affs.map((f, i) => `<sup>*</sup>${esc(f)}`).join(' · ')}</div>` : ''}
       <div class="art-meta">JBMS · Vol. ${a.volume} (2026), Issue ${a.issue} · ${esc(a.ms_id)} · Published ${new Date(a.published_at).toLocaleDateString()} · <b>Open access (CC-BY 4.0)</b></div>
+      <div class="art-meta">${a.doi ? `DOI: <a class="link" href="https://doi.org/${esc(a.doi)}" target="_blank" rel="noopener noreferrer">https://doi.org/${esc(a.doi)}</a>` : `DOI: <span title="A resolvable DOI is assigned when the journal completes Crossref registration">${esc(a.doiSuffix || '')} — registration pending</span>`}</div>
     </div>
     <div class="art-abstract"><b>Abstract.</b> ${esc(a.abstract)}${a.keywords ? `<div style="margin-top:8px;font-size:13px"><b>Keywords:</b> ${esc(a.keywords)}</div>` : ''}</div>
     <div class="btn-row" style="margin-bottom:14px">

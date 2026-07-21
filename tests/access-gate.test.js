@@ -23,17 +23,19 @@ function accessAllowed(email, envAllow = [], dbHit = false) {
   return dbHit;
 }
 
-test('educational and rewiseed emails are allowed', () => {
+// accessAllowed now decides the SIGNUP TIER (institutional → student, else → basic),
+// it no longer blocks sign-up/sign-in. It must still classify emails correctly.
+test('educational and rewiseed emails classify as institutional', () => {
   for (const em of ['prof@mit.edu', 'student@iitb.ac.in', 'r@cse.iitb.ac.in', 'a@ox.ac.uk',
     'b@unimelb.edu.au', 'c@nus.edu.sg', 'nagesh@rewiseed.com', 'anyone@rewiseed.com']) {
-    assert.ok(accessAllowed(em), `${em} should be allowed`);
+    assert.ok(accessAllowed(em), `${em} should classify institutional`);
   }
 });
 
-test('consumer and non-academic emails are refused', () => {
+test('consumer and non-academic emails classify as non-institutional (basic tier)', () => {
   for (const em of ['just4nagesh@gmail.com', 'x@yahoo.com', 'y@outlook.com', 'z@acme.com',
     'w@example.education', 'v@foo.academy', 'q@company.com']) {
-    assert.ok(!accessAllowed(em), `${em} should be refused`);
+    assert.ok(!accessAllowed(em), `${em} should classify non-institutional`);
   }
 });
 
@@ -44,10 +46,11 @@ test('env allowlist and DB allowlist are escape hatches', () => {
   assert.ok(accessAllowed('late@company.com', [], true), 'DB allowlist grants access');
 });
 
-test('the gate is actually wired into signup and signin', () => {
+test('signup assigns tier by email but no longer blocks anyone', () => {
   const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
   const signupIdx = server.indexOf("app.post('/api/auth/signup'");
-  const signinIdx = server.indexOf("app.post('/api/auth/signin'");
-  assert.ok(server.slice(signupIdx, signupIdx + 2000).includes('accessAllowed(em)'), 'signup calls accessAllowed');
-  assert.ok(server.slice(signinIdx, signinIdx + 2000).includes('accessAllowed(em)'), 'signin calls accessAllowed');
+  const block = server.slice(signupIdx, signupIdx + 4000);
+  assert.ok(server.includes("accessAllowed(em) ? 'student' : 'basic'"), 'signup sets tier by accessAllowed');
+  assert.ok(!block.includes('ACCESS_DENIED_MSG'), 'signup no longer 403-blocks non-institutional emails');
+  assert.ok(server.includes("const BASIC_TOOLS = new Set(['smart-literature-finder', 'doi-finder'])"), 'basic tier limited to 2 tools');
 });
