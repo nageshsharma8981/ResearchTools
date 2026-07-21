@@ -50,6 +50,7 @@
 .rb.q3 { background:#c07f2a; color:#fff; }
 .rb.q4 { background:#b3402a; color:#fff; }
 .rb.if { background:var(--accent-soft); color:var(--accent-strong); border-color:var(--accent); }
+.rb.ft { background:#fff1e5; color:#990f3d; border-color:#990f3d; }
 .cmp-bar { position:sticky; bottom:14px; z-index:8; display:flex; gap:10px; align-items:center; background:var(--surface); border:1.5px solid var(--accent); border-radius:999px; padding:8px 10px 8px 18px; box-shadow:var(--shadow-md); width:fit-content; margin:14px auto 0; max-width:95%; flex-wrap:wrap; }
 .cmp-bar .names { font-size:12.5px; color:var(--ink-2); max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .cmp-table { width:100%; border-collapse:collapse; font-size:13.5px; }
@@ -65,7 +66,7 @@
 <div class="hero">
   <span class="tool-icon" id="hero-icon"></span>
   <h1>Journal Rankings &amp; Comparison</h1>
-  <p class="lede">Where does a journal stand? ABS/AJG 2024, ABDC 2025, Scopus-based quartiles, and impact metrics for 3,000+ business &amp; management journals — search, filter by rating, and compare up to five side by side. Free, keyless, instant.</p>
+  <p class="lede">Where does a journal stand? FT50 membership, ABS/AJG 2024, ABDC 2025, Scopus-based quartiles, and impact metrics for 3,000+ business &amp; management journals — search, filter by rating, and compare up to five side by side. Free, keyless, instant.</p>
 </div>
 <main style="max-width:960px">
   <div class="card">
@@ -88,6 +89,7 @@
       <span class="rk-chips" id="chips-abs"><span class="lbl">ABS</span></span>
       <span class="rk-chips" id="chips-abdc"><span class="lbl">ABDC</span></span>
       <span class="rk-chips" id="chips-q"><span class="lbl">Quartile</span></span>
+      <button class="rk-chip" id="chip-ft" style="color:#990f3d" title="Only the Financial Times FT50 journals">FT50</button>
       <button class="ghost" id="clear-filters" style="min-height:30px;padding:3px 12px;font-size:12px">Clear</button>
     </div>
   </div>
@@ -101,6 +103,7 @@
     <span class="overline">Sources &amp; honesty</span>
     <h2 style="font-size:17px">Where these ratings come from</h2>
     <ul class="hint" style="max-width:100%;margin:0;padding-left:20px;line-height:1.7">
+      <li><b>FT50</b> — the 50 journals the Financial Times uses for its business-school research rank (2016 revision, current), © Financial Times. Membership is binary and unusually consequential for business-school hiring. Verify at <a class="link" href="https://www.ft.com/content/3405a512-5cbb-11e1-8f1f-00144feabdc0" target="_blank" rel="noopener noreferrer">ft.com</a>.</li>
       <li><b>ABS / AJG 2024</b> — the Academic Journal Guide, © Chartered Association of Business Schools. Ratings 4* (world elite) → 1. Verify at <a class="link" href="https://charteredabs.org/academic-journal-guide" target="_blank" rel="noopener noreferrer">charteredabs.org</a>.</li>
       <li><b>ABDC 2025</b> — the Australian Business Deans Council Journal Quality List, © ABDC. Ratings A* → C. Verify at <a class="link" href="https://abdc.edu.au/abdc-journal-quality-list/" target="_blank" rel="noopener noreferrer">abdc.edu.au</a>.</li>
       <li><b>Scopus-based quartile, SJR, CiteScore</b> — from the SCImago Journal Rank public data (snapshot: 2022 metrics). Quartiles shift year to year — check the journal's current standing via its Scimago link in the comparison. Powered by Scopus data, via scimagojr.com.</li>
@@ -117,7 +120,7 @@ Rewiseed.renderNav('journal-rankings.html');
 $('hero-icon').innerHTML = icon('grad', 26);
 
 let DATA = [];
-const state = { q: '', field: '', abs: new Set(), abdc: new Set(), qrt: new Set(), sort: 'rank' };
+const state = { q: '', field: '', abs: new Set(), abdc: new Set(), qrt: new Set(), ft: false, sort: 'rank' };
 const compare = new Map();
 
 const ABS_ORDER = { '4*': 5, '4': 4, '3': 3, '2': 2, '1': 1 };
@@ -125,7 +128,9 @@ const ABDC_ORDER = { 'A*': 4, 'A': 3, 'B': 2, 'C': 1 };
 const Q_ORDER = { 'Q1': 4, 'Q2': 3, 'Q3': 2, 'Q4': 1 };
 const absCls = (v) => v === '4*' ? 'abs4s' : 'abs' + v;
 const abdcCls = (v) => v === 'A*' ? 'abdcas' : 'abdc' + v.toLowerCase();
-const badge = (kind, v) => v == null || v === ''
+const badge = (kind, v) => kind === 'ft'
+  ? `<span class="rb ft" title="One of the Financial Times' FT50 — the 50 journals used for the FT research rank">FT50</span>`
+  : v == null || v === ''
   ? `<span class="rb na" title="Not on this list">—</span>`
   : kind === 'abs' ? `<span class="rb ${absCls(v)}" title="ABS/AJG 2024 rating"><small>ABS</small>${esc(v)}</span>`
   : kind === 'abdc' ? `<span class="rb ${abdcCls(v)}" title="ABDC 2025 rating"><small>ABDC</small>${esc(v)}</span>`
@@ -148,6 +153,7 @@ function matches(r) {
   if (state.abs.size && !state.abs.has(r.abs)) return false;
   if (state.abdc.size && !state.abdc.has(r.abdc)) return false;
   if (state.qrt.size && !state.qrt.has(r.q)) return false;
+  if (state.ft && !r.ft50) return false;
   if (state.q) {
     const q = state.q.toLowerCase();
     if (!r.t.toLowerCase().includes(q) && !(r.issn || []).some(i => i.includes(q)) && !(r.pub || '').toLowerCase().includes(q)) return false;
@@ -167,7 +173,7 @@ function render() {
   $('rows').innerHTML = shown.map(r => `
     <div class="jr-row">
       <div class="jr-title"><b>${esc(r.t)}</b><span class="sub">${esc(r.f || '')}${r.pub ? (r.f ? ' · ' : '') + esc(r.pub) : ''}</span></div>
-      <div class="jr-badges">${badge('abs', r.abs)}${badge('abdc', r.abdc)}${badge('q', r.q)}${r.if2 != null ? badge('if', r.if2.toFixed(1)) : '<span class="rb na">—</span>'}</div>
+      <div class="jr-badges">${r.ft50 ? badge('ft') : ''}${badge('abs', r.abs)}${badge('abdc', r.abdc)}${badge('q', r.q)}${r.if2 != null ? badge('if', r.if2.toFixed(1)) : '<span class="rb na">—</span>'}</div>
       <button class="ghost" style="min-height:30px;padding:3px 12px;font-size:12px" data-cmp="${esc(r.t)}">${compare.has(r.t) ? '✓ Added' : '+ Compare'}</button>
     </div>`).join('') || `<div class="empty-state" style="padding:30px">${icon('search', 28)}<br/>No journal matches those filters. The list covers business &amp; management fields — broader science journals live in the <a class="link" href="journal-metrics.html">Journal Metrics &amp; Finder</a>.</div>`;
   $('count').textContent = list.length ? `${list.length.toLocaleString()} journal${list.length === 1 ? '' : 's'} match${shown.length < list.length ? ` — showing the top ${shown.length}; refine the search to narrow further` : ''}` : '';
@@ -213,6 +219,7 @@ async function renderCompare() {
     <div class="tbl-wrap"><table class="cmp-table">
       <thead><tr><th></th>${list.map(r => `<th>${esc(r.t)}<br/><button class="ghost" style="min-height:24px;padding:1px 8px;font-size:11px;margin-top:4px" data-rm="${esc(r.t)}">Remove</button></th>`).join('')}</tr></thead>
       <tbody>
+        ${row('FT50 (Financial Times)', r => r.ft50 ? badge('ft') : '—', r => r.ft50 ? 1 : 0)}
         ${row('ABS / AJG 2024', r => badge('abs', r.abs), r => ABS_ORDER[r.abs] || 0)}
         ${row('ABDC 2025', r => badge('abdc', r.abdc), r => ABDC_ORDER[r.abdc] || 0)}
         ${row('Scopus quartile (SJR 2022)', r => badge('q', r.q), r => Q_ORDER[r.q] || 0)}
@@ -238,8 +245,8 @@ async function renderCompare() {
   $('cmp').querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { compare.delete(b.dataset.rm); renderCmpBar(); render(); if (compare.size) renderCompare(); });
   $('cmp-csv').onclick = () => {
     const qq = (s) => `"${String(s ?? '').replace(/"/g, '""')}"`;
-    const rows = [['Journal', 'ABS 2024', 'ABDC 2025', 'Scopus quartile (2022)', '2yr cites/doc (2022)', 'CiteScore (2022)', 'SJR (2022)', 'Field', 'Publisher'].join(',')];
-    list.forEach(r => rows.push([qq(r.t), qq(r.abs), qq(r.abdc), qq(r.q), r.if2 ?? '', r.cs ?? '', r.sjr ?? '', qq(r.f), qq(r.pub)].join(',')));
+    const rows = [['Journal', 'FT50', 'ABS 2024', 'ABDC 2025', 'Scopus quartile (2022)', '2yr cites/doc (2022)', 'CiteScore (2022)', 'SJR (2022)', 'Field', 'Publisher'].join(',')];
+    list.forEach(r => rows.push([qq(r.t), r.ft50 ? 'Yes' : '', qq(r.abs), qq(r.abdc), qq(r.q), r.if2 ?? '', r.cs ?? '', r.sjr ?? '', qq(r.f), qq(r.pub)].join(',')));
     Rewiseed.downloadText('journal-rankings-comparison.csv', rows.join('\n'));
   };
   $('cmp-pdf').onclick = () => Rewiseed.exportPDF(document.getElementById('cmp-card'), 'Journal Rankings Comparison');
@@ -269,11 +276,17 @@ async function init() {
   chipSet('chips-abs', ['4*', '4', '3', '2', '1'], state.abs);
   chipSet('chips-abdc', ['A*', 'A', 'B', 'C'], state.abdc);
   chipSet('chips-q', ['Q1', 'Q2', 'Q3', 'Q4'], state.qrt);
+  $('chip-ft').onclick = () => {
+    state.ft = !state.ft;
+    $('chip-ft').style.background = state.ft ? '#fff1e5' : '';
+    $('chip-ft').style.borderColor = state.ft ? '#990f3d' : '';
+    render();
+  };
   $('q').addEventListener('input', () => { state.q = $('q').value.trim(); render(); });
   $('f-field').onchange = () => { state.field = $('f-field').value; render(); };
   $('f-sort').onchange = () => { state.sort = $('f-sort').value; render(); };
   $('clear-filters').onclick = () => {
-    state.q = ''; state.field = ''; state.abs.clear(); state.abdc.clear(); state.qrt.clear();
+    state.q = ''; state.field = ''; state.abs.clear(); state.abdc.clear(); state.qrt.clear(); state.ft = false;
     $('q').value = ''; $('f-field').value = '';
     document.querySelectorAll('.rk-chip').forEach(c => { c.classList.remove('on'); c.style.background = ''; c.style.borderColor = ''; });
     render();
