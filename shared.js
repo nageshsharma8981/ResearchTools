@@ -278,6 +278,68 @@
     { href: 'journal.html', icon: 'book', name: 'JBMS Journal — submit & review' },
   ];
 
+  // ---------- global feedback widget (fixed button + modal, on every page) ----------
+  function mountFeedback() {
+    if (document.getElementById('fb-btn')) return;
+    const btn = document.createElement('button');
+    btn.id = 'fb-btn';
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'Send feedback');
+    btn.innerHTML = `${icon('chat', 15)} Feedback`;
+    btn.style.cssText = 'position:fixed;left:16px;bottom:16px;z-index:60;display:inline-flex;align-items:center;gap:6px;background:var(--accent-strong);color:#fff;border:0;border-radius:999px;padding:9px 15px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:var(--shadow-md);min-height:0';
+    btn.onmouseenter = () => { btn.style.filter = 'brightness(1.08)'; };
+    btn.onmouseleave = () => { btn.style.filter = ''; };
+    btn.onclick = openFeedback;
+    document.body.appendChild(btn);
+  }
+  function openFeedback() {
+    document.getElementById('fb-modal')?.remove();
+    const ov = document.createElement('div');
+    ov.id = 'fb-modal';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML = `<div role="dialog" aria-modal="true" aria-label="Send feedback" style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-md);max-width:460px;width:100%;padding:22px 22px 20px;max-height:90vh;overflow:auto">
+      <div id="fb-inner">
+        <h2 style="margin:0 0 4px;font-size:19px">Share your feedback</h2>
+        <p class="hint" style="margin:0 0 12px">Ideas, problems, or anything you'd like us to know. It goes straight to the team.</p>
+        <label class="field-label" for="fb-msg">Your feedback</label>
+        <textarea id="fb-msg" style="min-height:120px" placeholder="What's on your mind?"></textarea>
+        <label class="field-label" for="fb-email" style="margin-top:10px">Your email <span class="hint">(optional — only if you'd like a reply)</span></label>
+        <input id="fb-email" type="email" autocomplete="email" placeholder="you@example.com"/>
+        <div id="fb-err"></div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+          <button type="button" class="ghost" id="fb-cancel">Cancel</button>
+          <button type="button" id="fb-send">${icon('chat', 15)} Send feedback</button>
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    const close = () => ov.remove();
+    ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+    document.addEventListener('keydown', function onEsc(e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onEsc); } });
+    $('fb-cancel').onclick = close;
+    $('fb-msg').focus();
+    $('fb-send').onclick = async () => {
+      const message = $('fb-msg').value.trim();
+      const email = $('fb-email').value.trim();
+      if (message.length < 3) { $('fb-err').innerHTML = `<div class="error-box" style="margin-top:8px">${icon('alert', 15)}<span>Please write your feedback first.</span></div>`; return; }
+      $('fb-send').disabled = true; $('fb-err').innerHTML = '';
+      try {
+        const r = await fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, email, page: location.pathname }) });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || 'Could not send.');
+        document.getElementById('fb-inner').innerHTML = `<div style="text-align:center;padding:14px 0">
+          <div style="font-size:44px">🙏</div>
+          <h2 style="margin:6px 0 4px;font-size:20px">Thank you for providing your valuable feedback.</h2>
+          <p class="hint" style="margin:0 0 16px">We read every message.</p>
+          <button type="button" id="fb-done">Close</button></div>`;
+        document.getElementById('fb-done').onclick = close;
+      } catch (e) {
+        $('fb-err').innerHTML = `<div class="error-box" style="margin-top:8px">${icon('alert', 15)}<span>${esc(e.message)}</span></div>`;
+        $('fb-send').disabled = false;
+      }
+    };
+  }
+
   function renderNav(activeHref) {
     const nav = document.createElement('nav');
     nav.className = 'topnav';
@@ -299,6 +361,7 @@
       <a id="nav-credits" class="nav-credits" href="pricing.html" hidden title="Your AI run credits — click for plans and how runs are counted"></a>
       <button id="theme-toggle" class="icon-btn" aria-label="Toggle theme"></button>`;
     document.body.prepend(nav);
+    mountFeedback();
     // credit transparency: signed-in users always see their balance
     billingStatus().then(b => {
       const el = document.getElementById('nav-credits');

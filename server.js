@@ -1132,6 +1132,32 @@ app.get('/api/journal/article/:msId', (req, res) => {
     declarations: (() => { const d = safeJson(s.declarations, {}); return { funding: d.funding, dataAvailability: d.dataAvailability, aiUse: d.aiUse }; })() } });
 });
 
+// ---------- feedback: any visitor can send us a note (recipients hidden) ----------
+const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const FEEDBACK_TO = ['nagesh@rewiseed.com', 'johann@rewiseed.com'];
+app.post('/api/feedback', async (req, res) => {
+  if (!rateLimit('fb:' + req.ip, 8, 60 * 60_000)) return res.status(429).json({ error: 'Thanks — you have sent a few already. Please try again later.' });
+  const message = cap((req.body || {}).message, 5000).trim();
+  const fromEmail = cap((req.body || {}).email, 254).trim();
+  const page = cap((req.body || {}).page, 300);
+  if (message.length < 3) return res.status(400).json({ error: 'Please write your feedback first.' });
+  if (fromEmail && !EMAIL_RE.test(fromEmail)) return res.status(400).json({ error: 'That reply email doesn’t look valid — leave it blank or fix it.' });
+  const u = currentUser(req);
+  const html = `<h3>New feedback — ItsMyResearch</h3>
+    <p><b>Message:</b></p><p style="white-space:pre-wrap">${esc(message)}</p>
+    <hr/><p style="color:#666;font-size:13px">
+      Reply-to: ${esc(fromEmail || (u && u.email) || 'not provided')}<br/>
+      Account: ${u ? esc(u.email + ' (' + u.role + ')') : 'not signed in'}<br/>
+      Page: ${esc(page || 'unknown')}</p>`;
+  // send to each internal recipient; addresses never leave the server
+  const results = await Promise.allSettled(FEEDBACK_TO.map(to => sendEmail(to, 'ItsMyResearch feedback', html)));
+  const anyOk = results.some(r => r.status === 'fulfilled');
+  if (!anyOk) { console.error('feedback email failed', results.map(r => r.reason?.message)); return res.status(502).json({ error: 'Could not send just now — please try again shortly.' }); }
+  const dev = results.every(r => r.status === 'fulfilled' && r.value?.dev);
+  res.json({ ok: true, ...(dev ? { devNote: 'Email sending not configured — feedback logged to server console.' } : {}) });
+  if (dev) console.log(`[dev-feedback] from ${fromEmail || (u && u.email) || 'anon'}: ${message}`);
+});
+
 // ---------- usage metrics (privacy-respecting: tool id + output size only) ----------
 // ---------- billing routes ----------
 app.get('/api/billing/status', (req, res) => {
