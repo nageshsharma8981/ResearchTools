@@ -272,6 +272,7 @@
     { href: 'scholar-profiles.html', icon: 'user', name: 'Author & Institution Profiles' },
     { href: 'bibliometrics.html', icon: 'chart', name: 'Bibliometric Analysis' },
     { href: 'journal-metrics.html', icon: 'book', name: 'Journal Metrics & Finder' },
+    { href: 'journal-rankings.html', icon: 'grad', name: 'Journal Rankings & Comparison' },
   ];
 
   function renderNav(activeHref) {
