@@ -498,6 +498,7 @@ $('run-reg').onclick = () => {
       <p style="font-size:14px;margin-top:12px">R² = <b>${f3(m.r2)}</b> (adjusted ${f3(m.adjR2)}) · F(${regSpec.ivs.length}, ${m.df}) = ${m.F.toFixed(2)} · The model explains ${(m.r2 * 100).toFixed(1)}% of the variance in ${esc(regSpec.dv)}.</p>
       <p class="hint">B = unstandardized coefficient · β = standardized · p-values via normal approximation (df = ${m.df}). * p&lt;.05 · ** p&lt;.01 · *** p&lt;.001.</p>
     </div>`;
+    wireResultExports();
   } catch (e) {
     const msg = e.message === 'ZERO_VAR' ? 'One of the selected columns has zero variance — every value is identical. Deselect it.' : e.message;
     $('out').innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>${esc(msg)}</span></div></div>`;
@@ -556,6 +557,7 @@ $('run-med').onclick = async () => {
           R² for Y = ${f3(mB.r2)}.</p>
         <p class="hint">Percentile bootstrap on a×b (${samples.length.toLocaleString()} resamples); coefficient p-values via normal approximation. Mediation language describes statistical consistency, not proven causality.</p>
       </div>`;
+      wireResultExports();
     } else {
       // moderation: center X and W, add interaction
       const mx = mean(x), mww = mean(mw);
@@ -587,6 +589,7 @@ $('run-med').onclick = async () => {
         </tbody></table></div>
         <p class="hint">X and W mean-centered before forming the interaction; p-values via normal approximation.</p>
       </div>`;
+      wireResultExports();
     }
   } catch (e) {
     $('out').innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>${esc(e.message)}</span></div></div>`;
@@ -873,7 +876,7 @@ function render(est, boot, meta) {
     <span class="overline">Results · n = ${meta.n}${meta.dropped ? ` (${meta.dropped} incomplete rows dropped)` : ''} · ${est.iter} iterations · ${meta.scheme} weighting${boot ? ` · ${boot.B} bootstrap samples${boot.failed ? ` (${boot.failed} failed)` : ''}${boot.cancelled ? ' (cancelled early)' : ''}` : ' · no bootstrap'}</span>
     <h2>Model results</h2>
     <div class="diag-wrap">${diagram.svg}</div>
-    <p class="hint" style="margin:6px 0 0">${icon('grid', 12)} Drag any construct to rearrange the diagram — arrows and β labels follow.</p>
+    <p class="hint" style="margin:6px 0 0">${icon('grid', 12)} Drag any construct to rearrange — arrows and β labels follow. Right-click the diagram to export it as an image.</p>
 
     <div class="result-section"><h3>Outer loadings</h3><p class="hint">Reflective indicators should load ≥ 0.708 on their construct (≥ 0.5 acceptable in exploratory work).</p>
     <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Construct</th><th>Indicator</th><th>Loading</th></tr></thead><tbody>
@@ -939,6 +942,7 @@ function render(est, boot, meta) {
   </div>`;
 
   wireDiagram(diagram.pos);
+  wireResultExports();
   $('dl-report').onclick = () => Rewiseed.downloadText('pls-sem-report.md', buildReport(est, pathRows, relRows, htmt, meta, boot, apa));
   $('dl-scores').onclick = () => {
     const head = 'row,' + C.map(c => `"${c.name}"`).join(',');
@@ -1078,6 +1082,111 @@ function drawDiagram(est) {
 }
 
 // SmartPLS-style canvas: constructs are draggable; edges and β labels follow live
+// ---------- exports: every table to CSV/Word, the diagram to PNG/SVG (buttons + right-click) ----------
+function tableToRows(tbl) { return [...tbl.querySelectorAll('tr')].map(tr => [...tr.querySelectorAll('th,td')].map(c => c.textContent.trim().replace(/\s+/g, ' '))); }
+function tableCSV(tbl) { const q = (s) => `"${String(s).replace(/"/g, '""')}"`; return tableToRows(tbl).map(r => r.map(q).join(',')).join('\n'); }
+function tableTSV(tbl) { return tableToRows(tbl).map(r => r.join('\t')).join('\n'); }
+const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) || 'table';
+
+function wireResultExports() {
+  document.querySelectorAll('#out table').forEach(tbl => {
+    if (tbl.dataset.exp) return; tbl.dataset.exp = '1';
+    const title = tbl.closest('.result-section')?.querySelector('h3')?.textContent
+      || document.querySelector('#out h2')?.textContent || 'statpls-table';
+    const bar = document.createElement('div');
+    bar.style.cssText = 'display:flex;gap:6px;justify-content:flex-end;margin:4px 0 2px';
+    bar.innerHTML = `<button class="ghost" style="min-height:26px;padding:2px 10px;font-size:11.5px">${icon('download', 12)} CSV</button>
+      <button class="ghost" style="min-height:26px;padding:2px 10px;font-size:11.5px" title="Copies as a real table — paste straight into Word or Excel">${icon('copy', 12)} Copy table</button>`;
+    const [csvB, copyB] = bar.querySelectorAll('button');
+    csvB.onclick = () => Rewiseed.downloadText(`statpls-${slug(title)}.csv`, tableCSV(tbl));
+    copyB.onclick = () => navigator.clipboard.writeText(tableTSV(tbl)).then(() => toast('Table copied — paste into Word or Excel'));
+    (tbl.closest('.tbl-wrap') || tbl).insertAdjacentElement('beforebegin', bar);
+  });
+  wireDiagramExport();
+}
+
+// the diagram styles itself with CSS variables — resolve them to literal colors
+// so the exported file looks right outside the page (canvas/other apps)
+function resolveCssVars(s) {
+  const cs = getComputedStyle(document.documentElement);
+  return s.replace(/var\((--[a-z0-9-]+)(?:\s*,\s*([^)]+))?\)/gi, (_, v, fb) => cs.getPropertyValue(v).trim() || (fb || '#000').trim());
+}
+function diagramSvgString() {
+  const svg = document.getElementById('pls-diagram'); if (!svg) return null;
+  const clone = svg.cloneNode(true);
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  clone.setAttribute('font-family', getComputedStyle(svg).fontFamily);
+  const vb = svg.viewBox.baseVal;
+  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  bg.setAttribute('x', vb.x); bg.setAttribute('y', vb.y);
+  bg.setAttribute('width', vb.width); bg.setAttribute('height', vb.height);
+  bg.setAttribute('fill', getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#ffffff');
+  clone.insertBefore(bg, clone.firstChild);
+  return resolveCssVars(new XMLSerializer().serializeToString(clone));
+}
+function downloadDiagramSVG() { const s = diagramSvgString(); if (s) { Rewiseed.downloadText('statpls-model.svg', s); toast('Diagram saved as SVG (vector — scales cleanly in Word/LaTeX)'); } }
+async function diagramPngBlob(scale = 2) {
+  const s = diagramSvgString(); if (!s) return null;
+  const vb = document.getElementById('pls-diagram').viewBox.baseVal;
+  const url = URL.createObjectURL(new Blob([s], { type: 'image/svg+xml;charset=utf-8' }));
+  try {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error('Could not rasterize the diagram')); img.src = url; });
+    const c = document.createElement('canvas');
+    c.width = Math.round(vb.width * scale); c.height = Math.round(vb.height * scale);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return await new Promise(res => c.toBlob(res, 'image/png'));
+  } finally { URL.revokeObjectURL(url); }
+}
+async function downloadDiagramPNG() {
+  try {
+    const b = await diagramPngBlob(); if (!b) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b); a.download = 'statpls-model.png'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast('Diagram saved as PNG (2× resolution)');
+  } catch (e) { toast(e.message, 'error'); }
+}
+async function copyDiagramPNG() {
+  try {
+    const b = await diagramPngBlob();
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': b })]);
+    toast('Diagram copied as image — paste into Word or PowerPoint');
+  } catch { toast('Image copy not supported in this browser — use Download PNG', 'error'); }
+}
+function wireDiagramExport() {
+  const svg = document.getElementById('pls-diagram');
+  if (!svg || svg.dataset.exp) return; svg.dataset.exp = '1';
+  const bar = document.createElement('div');
+  bar.style.cssText = 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px';
+  bar.innerHTML = `<button class="ghost" style="min-height:30px;padding:3px 12px;font-size:12.5px">${icon('download', 13)} Diagram PNG</button>
+    <button class="ghost" style="min-height:30px;padding:3px 12px;font-size:12.5px">${icon('download', 13)} Diagram SVG</button>
+    <button class="ghost" style="min-height:30px;padding:3px 12px;font-size:12.5px">${icon('copy', 13)} Copy as image</button>`;
+  const [pngB, svgB, cpB] = bar.querySelectorAll('button');
+  pngB.onclick = downloadDiagramPNG; svgB.onclick = downloadDiagramSVG; cpB.onclick = copyDiagramPNG;
+  svg.closest('.diag-wrap').insertAdjacentElement('afterend', bar);
+  svg.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    document.getElementById('diag-menu')?.remove();
+    const m = document.createElement('div'); m.id = 'diag-menu';
+    m.style.cssText = `position:fixed;left:${Math.min(e.clientX, innerWidth - 220)}px;top:${Math.min(e.clientY, innerHeight - 150)}px;z-index:99;background:var(--surface);border:1px solid var(--border-strong);border-radius:10px;box-shadow:var(--shadow-md);padding:6px;display:flex;flex-direction:column;min-width:200px`;
+    const item = (label, fn) => {
+      const b = document.createElement('button'); b.textContent = label;
+      b.style.cssText = 'background:none;border:0;text-align:left;padding:8px 12px;font-size:13px;border-radius:6px;min-height:0;color:var(--ink);box-shadow:none';
+      b.onmouseenter = () => { b.style.background = 'var(--surface-2)'; };
+      b.onmouseleave = () => { b.style.background = 'none'; };
+      b.onclick = () => { m.remove(); fn(); };
+      m.appendChild(b);
+    };
+    item('Export as PNG image', downloadDiagramPNG);
+    item('Export as SVG (vector)', downloadDiagramSVG);
+    item('Copy as image', copyDiagramPNG);
+    document.body.appendChild(m);
+    const close = (ev) => { if (!m.contains(ev.target)) { m.remove(); document.removeEventListener('pointerdown', close, true); } };
+    document.addEventListener('pointerdown', close, true);
+  });
+}
+
 function wireDiagram(pos) {
   const svg = document.getElementById('pls-diagram');
   if (!svg) return;
