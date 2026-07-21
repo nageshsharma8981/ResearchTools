@@ -45,7 +45,7 @@
 <div class="hero">
   <span class="tool-icon" id="hero-icon"></span>
   <h1>Bibliometric Analysis</h1>
-  <p class="lede">Map an entire research field in seconds — how publication activity has grown, who publishes most, where, and which papers anchor the conversation. Free and keyless via OpenAlex; AI reading of the results is optional.</p>
+  <p class="lede">Map an entire research field in seconds — how publication activity has grown, who publishes most, where, and which papers anchor the conversation. Built on OpenAlex with a live PubMed cross-check and one-click hand-offs to Google Scholar and ScienceDirect. Free and keyless; AI reading of the results is optional.</p>
 </div>
 <main style="max-width:900px">
   <div class="card">
@@ -223,6 +223,12 @@ function render(d) {
       ${d.works.length ? `<div id="topw">${d.works.map(w => D.paperCard(w)).join('')}</div>` : '<p class="hint" style="margin:0">Could not load the top-cited list.</p>'}
     </div>
     <div class="card">
+      <span class="overline">Cross-check</span>
+      <h2 style="font-size:17px">The same field in other databases</h2>
+      <p class="hint" style="margin:0 0 10px;max-width:100%">No single index sees everything — cross-checking is standard bibliometric practice. PubMed is queried live below; Google Scholar and ScienceDirect don't offer open APIs, so we hand you the exact same search there in one click.</p>
+      <div id="xdb"></div>
+    </div>
+    <div class="card">
       <span class="overline">Methods &amp; sources</span>
       <h2 style="font-size:17px">How this analysis works — and its limits</h2>
       <p class="hint" style="max-width:100%;margin:0 0 8px">Counts are computed live from OpenAlex's index of 240M+ scholarly works using faceted aggregation over your query. Read them as a map, not a census: OpenAlex coverage favors English-language, DOI-bearing, journal-published work; author counts depend on automated name disambiguation (common names can merge or split); very recent years undercount because indexing and citations lag. "Authors" is the number of distinct author records on matching works.</p>
@@ -230,12 +236,85 @@ function render(d) {
       <ul class="hint" style="max-width:100%;margin:4px 0 0;padding-left:20px">
         <li>Donthu, N., Kumar, S., Mukherjee, D., Pandey, N., &amp; Lim, W. M. (2021). How to conduct a bibliometric analysis: An overview and guidelines. <i>Journal of Business Research, 133</i>, 285–296. https://doi.org/10.1016/j.jbusres.2021.04.070</li>
         <li>Priem, J., Piwowar, H., &amp; Orr, R. (2022). <i>OpenAlex: A fully-open index of scholarly works, authors, venues, institutions, and concepts</i>. arXiv. https://doi.org/10.48550/arXiv.2205.01833</li>
+        <li>National Library of Medicine. (n.d.). <i>PubMed</i> [Database]. National Center for Biotechnology Information. https://pubmed.ncbi.nlm.nih.gov/ (queried via the NCBI E-utilities API)</li>
+        <li>Martín-Martín, A., Thelwall, M., Orduna-Malea, E., &amp; Delgado López-Cózar, E. (2021). Google Scholar, Microsoft Academic, Scopus, Dimensions, Web of Science, and OpenCitations' COCI: A multidisciplinary comparison of coverage via citations. <i>Scientometrics, 126</i>, 871–906. https://doi.org/10.1007/s11192-020-03690-4</li>
       </ul>
     </div>`;
   const tw = $('topw'); if (tw) D.wireSaveButtons(tw);
   $('csv-all').onclick = exportCSV;
   $('copy-cite').onclick = copyCite;
   $('ai-read').onclick = aiRead;
+  loadXdb(d);
+}
+
+// ---------- cross-database check: PubMed live, Scholar & ScienceDirect as link-outs ----------
+const EUTILS = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils';
+function pubmedTerm(d) {
+  let t = d.query;
+  const y0 = parseInt($('y0').value, 10), y1 = parseInt($('y1').value, 10);
+  if (y0 || y1) t += ` AND ("${y0 || 1900}"[PDAT] : "${y1 || THIS_YEAR + 1}"[PDAT])`;
+  return t;
+}
+function xdbLinks(d) {
+  const y0 = parseInt($('y0').value, 10), y1 = parseInt($('y1').value, 10);
+  const gs = `https://scholar.google.com/scholar?q=${encodeURIComponent(d.query)}${y0 ? `&as_ylo=${y0}` : ''}${y1 ? `&as_yhi=${y1}` : ''}`;
+  const sd = `https://www.sciencedirect.com/search?qs=${encodeURIComponent(d.query)}`;
+  const pm = `https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(pubmedTerm(d))}`;
+  return { gs, sd, pm };
+}
+async function loadXdb(d) {
+  const box = $('xdb'); if (!box) return;
+  const links = xdbLinks(d);
+  const linkTiles = `
+    <div class="two-col" style="margin-top:12px">
+      <div style="background:var(--surface-2);border-radius:var(--radius);padding:12px 14px">
+        <b style="font-size:14px">Google Scholar</b>
+        <p class="hint" style="margin:4px 0 8px;max-width:100%">The broadest net — includes theses, preprints, books, and grey literature, so its counts run highest. Google offers no public API (automated querying is against its terms), so we can't chart it here — but your exact search is one click away.</p>
+        <a class="link" href="${esc(links.gs)}" target="_blank" rel="noopener noreferrer">Run this search on Google Scholar ${icon('external', 12)}</a>
+      </div>
+      <div style="background:var(--surface-2);border-radius:var(--radius);padding:12px 14px">
+        <b style="font-size:14px">ScienceDirect (Elsevier)</b>
+        <p class="hint" style="margin:4px 0 8px;max-width:100%">Full text of 4,000+ Elsevier journals. Its API needs an institutional Elsevier key, so counts can't be shown keyless — open the same search there to check coverage and grab publisher PDFs your library licenses.</p>
+        <a class="link" href="${esc(links.sd)}" target="_blank" rel="noopener noreferrer">Run this search on ScienceDirect ${icon('external', 12)}</a>
+      </div>
+    </div>`;
+  box.innerHTML = `<div class="stream-status"><span class="spinner"></span>Querying PubMed…</div>` + linkTiles;
+  try {
+    const r = await T(`${EUTILS}/esearch.fcgi?db=pubmed&term=${encodeURIComponent(pubmedTerm(d))}&retmode=json&retmax=5&sort=relevance`);
+    if (!r.ok) throw new Error(`PubMed returned ${r.status}`);
+    const j = await r.json();
+    const pmCount = parseInt(j.esearchresult?.count || '0', 10);
+    last.pubmed = pmCount;
+    let papersHtml = '';
+    if (pmCount > 0 && (j.esearchresult.idlist || []).length) {
+      const sr = await T(`${EUTILS}/esummary.fcgi?db=pubmed&id=${j.esearchresult.idlist.join(',')}&retmode=json`);
+      if (sr.ok) {
+        const sj = await sr.json();
+        const items = (sj.result?.uids || []).map(id => sj.result[id]).filter(Boolean);
+        papersHtml = items.map(p => `<li style="margin-bottom:6px"><a class="link" href="https://pubmed.ncbi.nlm.nih.gov/${esc(p.uid)}/" target="_blank" rel="noopener noreferrer">${esc(p.title || 'Untitled')}</a> <span style="color:var(--muted)">· ${esc(p.fulljournalname || p.source || '')} · ${esc((p.pubdate || '').slice(0, 4))}</span></li>`).join('');
+      }
+    }
+    const share = d.total ? Math.round(100 * pmCount / d.total) : 0;
+    box.innerHTML = `
+      <div style="background:var(--surface-2);border-radius:var(--radius);padding:12px 14px">
+        <b style="font-size:14px">PubMed · live</b>
+        <p style="margin:6px 0 4px;font-size:14px"><b style="font-family:var(--font-serif);font-size:22px">${num(pmCount)}</b> matching records <span class="hint">(≈${share}% of the OpenAlex count)</span></p>
+        <p class="hint" style="margin:0 0 8px;max-width:100%">${pmCount === 0
+          ? 'Zero here usually means the field isn’t biomedical — PubMed indexes medicine and life sciences (MEDLINE), not the whole of scholarship.'
+          : share < 15
+            ? 'PubMed covers medicine and life sciences only, so a low share simply means most of this field lives outside biomedicine.'
+            : 'A substantial biomedical footprint — worth running your systematic search in PubMed itself, where MeSH terms give more precise retrieval than keywords.'}</p>
+        ${papersHtml ? `<p class="hint" style="margin:0 0 4px"><b>Most relevant on PubMed:</b></p><ul class="hint" style="max-width:100%;margin:0;padding-left:20px">${papersHtml}</ul>` : ''}
+        <a class="link" href="${esc(links.pm)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin-top:8px">Open this search on PubMed ${icon('external', 12)}</a>
+      </div>` + linkTiles;
+  } catch (e) {
+    box.innerHTML = `
+      <div style="background:var(--surface-2);border-radius:var(--radius);padding:12px 14px">
+        <b style="font-size:14px">PubMed</b>
+        <p class="hint" style="margin:4px 0 8px;max-width:100%">Live count unavailable right now (${esc(e.message)}) — run the search directly instead.</p>
+        <a class="link" href="${esc(links.pm)}" target="_blank" rel="noopener noreferrer">Open this search on PubMed ${icon('external', 12)}</a>
+      </div>` + linkTiles;
+  }
 }
 
 function exportCSV() {
@@ -250,6 +329,8 @@ function exportCSV() {
   add('top_institutions', last.insts.groups, 25);
   add('countries', last.countries.groups, 50);
   last.works.forEach((w, i) => rows.push([q('most_cited_works'), i + 1, q(`${w.title} (${w.publication_year}) — ${(w.doi || w.id)}`), w.cited_by_count || 0].join(',')));
+  rows.push([q('database_counts'), 1, q('OpenAlex'), last.total].join(','));
+  if (typeof last.pubmed === 'number') rows.push([q('database_counts'), 2, q('PubMed'), last.pubmed].join(','));
   Rewiseed.downloadText(`bibliometrics-${last.query.replace(/\W+/g, '-').slice(0, 40)}.csv`, rows.join('\n'));
 }
 
@@ -274,6 +355,7 @@ async function aiRead(e) {
     topInstitutions: d.insts.groups.slice(0, 10).map(g => [g.key_display_name, g.count]),
     topCountries: d.countries.groups.slice(0, 10).map(g => [g.key_display_name || g.key, g.count]),
     mostCited: d.works.map(w => [w.title, w.publication_year, w.cited_by_count]),
+    pubmedCount: typeof d.pubmed === 'number' ? d.pubmed : 'not queried',
   };
   try {
     let raf = 0, pending = '';
@@ -288,6 +370,7 @@ The dominant authors, venues, and institutions — and what that concentration (
 What the most-cited works suggest as the intellectual anchors to read first.
 ## Openings
 2-4 concrete angles a new researcher could take, inferred cautiously from the aggregates (e.g. under-represented regions, cooling subtopics, venue gaps). Flag every inference as an inference.
+If pubmedCount is a number, add one sentence comparing it to totalWorks: a high ratio means a strongly biomedical field (recommend MeSH-based searching in PubMed); a low ratio means the field lives mostly outside biomedicine.
 Be precise with the numbers given; never invent statistics; under 400 words.`,
       user: JSON.stringify(summary), temperature: 0.3,
       onStream: (t) => { pending = t; if (!raf) raf = requestAnimationFrame(paint); },
