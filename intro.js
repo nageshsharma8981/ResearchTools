@@ -9,21 +9,21 @@
   function scenes(name) {
     return [
       { kicker: 'ItsMyResearch', h: 'Research, done <em>systematically.</em>',
-        p: 'A complete research workbench that runs in your browser — private by architecture, honest about AI.' },
-      { kicker: 'Discover', icons: ['search', 'doi', 'gap'], h: 'Start with the <em>literature.</em>',
-        p: 'Search 240M+ scholarly works, resolve any DOI, and surface the gaps other researchers missed — all without an API key.' },
-      { kicker: 'Design', icons: ['flask', 'clipboard'], h: 'Design studies that <em>hold up.</em>',
-        p: 'Turn topics into testable research questions — IVs, DVs, controls, hypotheses — then generate the survey or interview guide to run them.' },
-      { kicker: 'Analyze', icons: ['dna', 'shield'], h: 'Analyze with <em>integrity.</em>',
-        p: 'Thematic coding for qualitative data, and originality signals that are honest about what they can and cannot prove.' },
-      { kicker: 'Write & Review', icons: ['grad', 'book', 'doc'], h: 'Ship <em>publication-ready</em> work.',
-        p: 'Face a rigorous simulated reviewer, perfect your citations, and download an APA 7 formatted Word document.' },
-      { kicker: 'The pipeline', pipe: true, h: 'Everything <em>connects.</em>',
-        p: 'One click carries your work from search results to gap analysis to research questions to instruments — no copy-paste.' },
+        p: 'A complete research workbench that runs in your browser — organised around the way research actually works, private by architecture, honest about AI.' },
+      { kicker: 'The whole process', pipe: true, h: 'Seven steps, <em>one workbench.</em>',
+        p: 'Every tool sits at the step where you actually need it — from defining the problem to publishing the paper. Follow the path, or jump to your step.' },
+      { kicker: 'Steps I–II', icons: ['gap', 'search', 'graph'], h: 'Define the problem. <em>Map the field.</em>',
+        p: 'Surface the gap that becomes your question, then search 240M+ works, walk citation networks, and synthesise the literature — all without an API key.' },
+      { kicker: 'Steps III–V', icons: ['flask', 'clipboard', 'globe'], h: 'Design studies that <em>hold up.</em>',
+        p: 'Turn topics into testable hypotheses, build validated surveys and interview guides, plan the analysis early, and gather data from official sources.' },
+      { kicker: 'Step VI', icons: ['sigma', 'dna', 'shield'], h: 'Analyse with <em>rigour.</em>',
+        p: 'Full PLS-SEM, mediation and regression on a drag-and-drop canvas; reflexive thematic coding for qualitative data — your data never leaves your device.' },
+      { kicker: 'Step VII', icons: ['doc', 'grad', 'book'], h: 'Write, check, and <em>publish.</em>',
+        p: 'Draft the paper, verify every citation, face a journal-grade reviewer, format in six styles — then submit to our own peer-reviewed open-access journal.' },
       { kicker: 'Private by architecture', icons: ['key'], h: 'Your work never <em>leaves you.</em>',
         p: 'Documents, transcripts, and AI keys stay in your browser. We can’t leak what we never receive.' },
       { finale: true, kicker: 'You’re all set', h: `Welcome${name ? ', <em>' + esc(name.split(' ')[0]) + '</em>' : ''}.`,
-        p: 'The Tools menu (top right) goes everywhere. Your avatar opens your profile. That’s all you need.' },
+        p: 'The home page lays out all seven steps — click any step to see its tools. The Tools menu (top right) goes everywhere.' },
     ];
   }
 
@@ -31,9 +31,9 @@
     return `<div class="intro-scene" data-scene="${i}">
       ${s.icons ? `<div class="intro-icons">${s.icons.map(n => `<span class="ic">${icon(n, 30)}</span>`).join('')}</div>` : ''}
       ${s.pipe ? `<div class="intro-pipe">
-        ${['Discover', 'Design', 'Analyze', 'Write'].map((x, j) => `
-          <span class="chip" style="animation-delay:${250 + j * 260}ms">${x}</span>
-          ${j < 3 ? `<span class="arr" style="animation-delay:${380 + j * 260}ms">${icon('arrow', 18)}</span>` : ''}`).join('')}
+        ${['Define', 'Review', 'Design', 'Collect', 'Analyse', 'Report'].map((x, j, a) => `
+          <span class="chip" style="animation-delay:${250 + j * 200}ms">${x}</span>
+          ${j < a.length - 1 ? `<span class="arr" style="animation-delay:${360 + j * 200}ms">${icon('arrow', 16)}</span>` : ''}`).join('')}
       </div>` : ''}
       <div class="kicker">${s.kicker}</div>
       <h1>${s.h}</h1>

@@ -26,6 +26,43 @@
 // set theme before first paint to avoid a flash
 (function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();
 </script>
+<style>
+/* Seven-step research process — a vertical stepper with collapsible tool groups */
+.steps-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:6px 0 4px; }
+.steps-head h2 { margin:0; }
+.expand-toggle { background:none; border:1px solid var(--border-strong); border-radius:999px; padding:5px 14px; min-height:0; font-size:12.5px; font-weight:600; color:var(--ink-2); cursor:pointer; }
+button.expand-toggle:hover { background:var(--surface-2); box-shadow:none; transform:none; }
+.rp { position:relative; }
+.rp::before { content:''; position:absolute; left:21px; top:26px; bottom:26px; width:2px; background:linear-gradient(var(--accent) 0%, var(--border-strong) 100%); opacity:.4; }
+.rstep { position:relative; margin-bottom:12px; }
+.step-btn { display:grid; grid-template-columns:44px 1fr auto; align-items:center; gap:0 16px; width:100%; text-align:left; background:var(--surface); border:1px solid var(--border-strong); border-radius:var(--radius); padding:14px 16px; min-height:0; cursor:pointer; box-shadow:none; transition:border-color .18s, background .18s; }
+button.step-btn:hover { background:var(--surface-2); border-color:var(--accent); box-shadow:none; transform:none; }
+.rstep.open .step-btn { border-color:var(--accent); background:var(--accent-soft); border-bottom-left-radius:0; border-bottom-right-radius:0; }
+.step-node { width:44px; height:44px; border-radius:50%; background:var(--surface-2); border:2px solid var(--accent); color:var(--accent-strong); display:flex; align-items:center; justify-content:center; font-family:var(--font-serif); font-size:17px; font-weight:700; z-index:1; }
+.rstep.open .step-node { background:var(--accent); color:#fff; }
+.step-info h3 { margin:0; font-size:16px; line-height:1.25; }
+.step-info p { margin:2px 0 0; font-size:12.5px; color:var(--muted); line-height:1.4; }
+.step-info .sub { font-size:11.5px; color:var(--accent-strong); font-weight:600; margin-top:2px; }
+.step-meta { display:flex; align-items:center; gap:10px; color:var(--muted); }
+.step-count { font-size:12px; font-weight:700; background:var(--surface-2); border:1px solid var(--border); border-radius:999px; padding:2px 10px; white-space:nowrap; }
+.rstep.open .step-count { background:var(--surface); border-color:var(--accent); color:var(--accent-strong); }
+.chev { transition:transform .2s; color:var(--muted); display:inline-flex; }
+.rstep.open .chev { transform:rotate(180deg); }
+.step-panel { display:grid; grid-template-rows:0fr; transition:grid-template-rows .22s ease; }
+.rstep.open .step-panel { grid-template-rows:1fr; }
+.step-panel > .inner { overflow:hidden; }
+.rstep.open .step-panel > .inner { border:1px solid var(--accent); border-top:0; border-bottom-left-radius:var(--radius); border-bottom-right-radius:var(--radius); background:var(--surface); }
+.step-tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; padding:14px 16px; }
+.rp-tile { display:flex; flex-direction:column; text-decoration:none; border:1px solid var(--border); border-radius:var(--radius); padding:13px 15px; background:var(--surface); transition:border-color .16s, transform .16s; }
+.rp-tile:hover { border-color:var(--accent); transform:translateY(-2px); }
+.rp-tile .ti { display:flex; align-items:center; gap:9px; }
+.rp-tile .ti .ic { color:var(--accent-strong); display:inline-flex; }
+.rp-tile h4 { margin:0; font-size:14.5px; color:var(--ink); }
+.rp-tile p { margin:7px 0 0; font-size:12.5px; color:var(--ink-2); line-height:1.5; }
+.rp-tile .go { margin-top:auto; padding-top:9px; font-size:12px; font-weight:600; color:var(--accent-strong); display:inline-flex; align-items:center; gap:4px; }
+@media (max-width:600px){ .step-btn { grid-template-columns:38px 1fr auto; gap:0 11px; } .step-node { width:38px; height:38px; font-size:15px; } .rp::before { left:18px; } .step-meta .step-count { display:none; } }
+@media (prefers-reduced-motion: reduce){ .step-panel, .chev, .rp-tile { transition:none; } }
+</style>
 </head>
 <body>
 <div class="hero landing">
@@ -141,6 +178,7 @@
 <script src="intro.js"></script>
 <script>
 Rewiseed.renderNav('index.html');
+const esc = Rewiseed.esc;
 // cinematic intro on first sign-in; replayable from the footer
 fetch('/api/me', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).then(d => {
   if (d && d.user && !d.user.seen_intro) {
@@ -152,84 +190,117 @@ fetch('/api/me', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : nul
 document.addEventListener('click', (e) => {
   if (e.target.closest('#replay-intro')) { e.preventDefault(); RewiseedIntro.play(''); }
 });
-const PHASES = [
-  { label: 'Discover', tiles: [
-    { href: 'paper-generator.html', icon: 'doc', name: 'Research Paper Generator',
-      desc: 'Draft a full paper — literature review, qualitative, quantitative, experimental, or theoretical (with PRISMA). Preview free, unlock the full ~8,000-word draft.' },
-    { href: 'smart-literature-finder.html', icon: 'search', name: 'Smart Literature Finder',
-      desc: 'Search 240M+ scholarly works via OpenAlex — no key needed. Filters, citation sorting, BibTeX export, optional AI rerank.' },
-    { href: 'doi-finder.html', icon: 'doi', name: 'DOI Finder & Lookup',
-      desc: 'Paste a DOI for the full paper record — or paste messy references and discover their DOIs via Crossref. Fully keyless.' },
-    { href: 'citation-graph.html', icon: 'graph', name: 'Citation Graph Explorer',
-      desc: 'Walk any paper’s citation network — the work it builds on and the newer research citing it. Keyless.' },
-    { href: 'scholar-profiles.html', icon: 'user', name: 'Author & Institution Profiles',
-      desc: 'Look up any researcher or institution — works, citations, h-index, affiliations, and top papers. Keyless.' },
-    { href: 'author-impact.html', icon: 'user', name: 'Author Impact Dashboard',
-      desc: 'A fair, in-depth view of a researcher: co-author-normalised metrics, author-position & topic breakdowns, venues, geography, collaborators, retraction flags. Merge duplicate profiles. Keyless.' },
-    { href: 'bibliometrics.html', icon: 'chart', name: 'Bibliometric Analysis',
-      desc: 'Map a whole field in seconds — publication trends, top authors, journals, institutions, countries, and anchor papers. Keyless, CSV export, optional AI reading.' },
-    { href: 'literature-matrix.html', icon: 'grid', name: 'Literature Synthesis Matrix',
-      desc: 'Papers side by side — aims, methods, samples, findings, limitations — with a synthesis of agreements and contradictions.' },
-    { href: 'research-gap-identifier.html', icon: 'gap', name: 'Research Gap Identifier',
-      desc: 'Paste a literature set and surface unexplored gaps, contradictory findings, and methodological weaknesses.' },
-    { href: 'data-explorer.html', icon: 'chart', name: 'Statistical Data Explorer',
-      desc: 'Search 1,500+ World Bank indicators, compare countries and years, chart the trend, export CSV, and cite the dataset. Keyless.' },
-    { href: 'data-sources.html', icon: 'globe', name: 'Data Source Directory',
-      desc: 'Where to find official statistics — World Bank, IMF, Eurostat, OECD, UN, StatCan, ADB, JETRO — with coverage and access notes.' },
-  ]},
-  { label: 'Design', tiles: [
-    { href: 'research-question-generator.html', icon: 'flask', name: 'Research Question Generator',
-      desc: 'Turn a topic into testable research questions — each with IV, DV, control variables, hypotheses, and a suggested design.' },
-    { href: 'instrument-designer.html', icon: 'clipboard', name: 'Survey & Interview Designer',
-      desc: 'Turn research questions into a survey with proper scales and validated instruments, or a semi-structured interview guide with probes.' },
-  ]},
-  { label: 'Analyze', tiles: [
-    { href: 'stats-advisor.html', icon: 'sigma', name: 'Statistical Test Advisor',
-      desc: 'The right test for your design — assumptions, non-parametric fallbacks, effect sizes, APA results templates, and starter code.' },
-    { href: 'statpls.html', icon: 'sigma', name: 'StatPLS',
-      desc: 'Three methods in one: full PLS-SEM, mediation & moderation (Hayes Models 1 & 4), and regression — with a drag-and-drop canvas and AI interpretation. Data never leaves your device.' },
-    { href: 'qualitative-coding-assistant.html', icon: 'dna', name: 'Qualitative Coding Assistant',
-      desc: 'Braun & Clarke reflexive thematic analysis over interview transcripts — codes, themes, and a thematic map.' },
-    { href: 'originality-checker.html', icon: 'shield', name: 'Originality & AI Checker',
-      desc: 'Stylometric signals, overlap checks against 240M scholarly works, and a forensic AI-writing assessment — signals, not verdicts.' },
-  ]},
-  { label: 'Write & Review', tiles: [
-    { href: 'writing-polisher.html', icon: 'pen', name: 'Academic Writing Polisher',
-      desc: 'Polish tone or tighten clarity with every edit explained — or generate an abstract and title options from your draft.' },
-    { href: 'ai-peer-review.html', icon: 'grad', name: 'AI Peer Review',
-      desc: 'A journal-grade review scored on six criteria (originality, contribution, methodology, clarity, literature, ethics) with a recommendation — prepare before you submit.' },
-    { href: 'rubric-lens.html', icon: 'clipboard', name: 'RubricLens',
-      desc: 'Match your draft against the assignment rubric — criterion-by-criterion bands, evidence from your own text, and the fixes that move your grade most.' },
-    { href: 'abstract-generator.html', icon: 'doc', name: 'Abstract & Summary Studio',
-      desc: 'Upload your thesis — get an APA abstract with keywords, an executive summary, a conference abstract, and a plain-language version, all grounded in your document.' },
-    { href: 'citation-formatter.html', icon: 'book', name: 'Citation Formatter',
-      desc: 'Turn messy references into clean APA, MLA, Chicago, Harvard, IEEE, or Vancouver bibliographies.' },
-    { href: 'apa-formatter.html', icon: 'doc', name: 'Reference Style Generator',
-      desc: 'Upload a .docx or paste your paper — download it back formatted in APA 7, MLA 9, Chicago, Harvard, Vancouver, or IEEE, with style-true citations and references.' },
-    { href: 'journal-metrics.html', icon: 'book', name: 'Journal Metrics & Finder',
-      desc: 'Decide where to submit — journals ranked by how much of your topic they publish, with impact metrics, open-access terms, and side-by-side comparison. Keyless.' },
-    { href: 'journal-rankings.html', icon: 'grad', name: 'Journal Rankings & Comparison',
-      desc: 'ABS/AJG 2024, ABDC 2025, Scopus-based quartiles, and impact metrics for 3,000+ business & management journals — filter by rating, compare up to five side by side.' },
-    { href: 'citation-integrity.html', icon: 'check', name: 'Citation Integrity Checker',
-      desc: 'Upload your paper — every in-text citation checked against the reference list and every reference against the text: mismatches, orphans, APA style warnings, PDF report. Keyless.' },
-    { href: 'journal.html', icon: 'book', name: 'JBMS Journal — submit &amp; publish',
-      desc: 'Our peer-reviewed, open-access monthly journal. Submit a manuscript, review for us, or read published articles. Double-anonymous review, COPE ethics, DOIs.' },
-  ]},
+// Tools organised by the seven steps of the research process (Kothari's flow chart)
+const T = (href, icon, name, desc) => ({ href, icon, name, desc });
+const STEPS = [
+  { n: 'I', title: 'Define the research problem', q: 'What exactly am I studying — and why does it matter?',
+    tools: [
+      T('research-gap-identifier.html', 'gap', 'Research Gap Identifier', 'Surface unexplored gaps, contradictions, and methodological weaknesses in a body of literature — your problem lives in the gap.'),
+      T('bibliometrics.html', 'chart', 'Bibliometric Analysis', 'Map a whole field in seconds — trends, leading authors, journals, and anchor papers — to see where the open problems are. Keyless.'),
+    ]},
+  { n: 'II', title: 'Review the literature', sub: 'Review concepts & theories · Review previous findings', q: 'What is already known, and how does it connect?',
+    tools: [
+      T('smart-literature-finder.html', 'search', 'Smart Literature Finder', 'Search 240M+ scholarly works via OpenAlex — filters, citation sorting, BibTeX export, optional AI rerank. No key needed.'),
+      T('doi-finder.html', 'doi', 'DOI Finder & Lookup', 'Paste a DOI for the full record — or paste messy references and discover their DOIs via Crossref. Fully keyless.'),
+      T('citation-graph.html', 'graph', 'Citation Graph Explorer', 'Walk any paper’s citation network — the work it builds on and the newer research citing it. Keyless.'),
+      T('literature-matrix.html', 'grid', 'Literature Synthesis Matrix', 'Papers side by side — aims, methods, samples, findings, limitations — with a synthesis of agreements and contradictions.'),
+      T('scholar-profiles.html', 'user', 'Author & Institution Profiles', 'Look up any researcher or institution — works, citations, h-index, affiliations, and top papers. Keyless.'),
+      T('author-impact.html', 'user', 'Author Impact Dashboard', 'A fair, co-author-normalised view of a researcher — metrics, author position, venues, collaborators, retraction flags. Keyless.'),
+      T('library.html', 'library', 'My Library', 'Save papers from any finder tool, add notes, export BibTeX, and get recommendations. (Sign in.)'),
+    ]},
+  { n: 'III', title: 'Formulate hypotheses', q: 'What precisely will I test?',
+    tools: [
+      T('research-question-generator.html', 'flask', 'Research Question Generator', 'Turn a topic into testable research questions — each with independent, dependent, and control variables, hypotheses, and a suggested design.'),
+    ]},
+  { n: 'IV', title: 'Design the research', sub: 'Including sample & analysis plan', q: 'How exactly will I measure and analyse this?',
+    tools: [
+      T('instrument-designer.html', 'clipboard', 'Survey & Interview Designer', 'Turn research questions into a survey with validated instruments and proper scales, or a semi-structured interview guide with probes.'),
+      T('stats-advisor.html', 'sigma', 'Statistical Test Advisor', 'Plan the analysis before you collect: the right test, assumptions, non-parametric fallbacks, effect sizes, APA templates, and starter code.'),
+    ]},
+  { n: 'V', title: 'Collect the data', sub: 'Execution', q: 'Where does my evidence come from?',
+    tools: [
+      T('data-explorer.html', 'chart', 'Statistical Data Explorer', 'Search 1,500+ World Bank indicators, compare countries and years, chart the trend, export CSV, and cite the dataset. Keyless.'),
+      T('data-sources.html', 'globe', 'Data Source Directory', 'Where to find official statistics — World Bank, IMF, Eurostat, OECD, UN, StatCan, ADB, JETRO — with coverage and access notes.'),
+    ]},
+  { n: 'VI', title: 'Analyse the data', sub: 'Test the hypotheses', q: 'What does the data actually say?',
+    tools: [
+      T('statpls.html', 'sigma', 'StatPLS', 'Three methods in one: full PLS-SEM, mediation & moderation (Hayes 1 & 4), and regression — drag-and-drop canvas, AI interpretation. Data never leaves your device.'),
+      T('qualitative-coding-assistant.html', 'dna', 'Qualitative Coding Assistant', 'Braun & Clarke reflexive thematic analysis over interview transcripts — codes, themes, and a thematic map.'),
+    ]},
+  { n: 'VII', title: 'Interpret, write & report', sub: 'Draft · check · publish', q: 'How do I turn results into a paper others accept?',
+    tools: [
+      T('paper-generator.html', 'doc', 'Research Paper Generator', 'Draft a full paper — literature review, qualitative, quantitative, experimental, or theoretical (with PRISMA). Preview free, unlock the full draft.'),
+      T('abstract-generator.html', 'doc', 'Abstract & Summary Studio', 'Upload your thesis — get an APA abstract with keywords, an executive summary, a conference abstract, and a plain-language version.'),
+      T('writing-polisher.html', 'pen', 'Academic Writing Polisher', 'Polish tone or tighten clarity with every edit explained — or generate an abstract and title options from your draft.'),
+      T('originality-checker.html', 'shield', 'Originality & AI Checker', 'Stylometric signals, overlap against 240M works, and a forensic AI-writing assessment — signals, not verdicts. Plus a paraphrase studio.'),
+      T('citation-integrity.html', 'check', 'Citation Integrity Checker', 'Every in-text citation checked against the reference list and vice versa — mismatches, orphans, APA style warnings, PDF report. Keyless.'),
+      T('rubric-lens.html', 'clipboard', 'RubricLens', 'Match your draft against the assignment rubric — criterion bands, evidence from your own text, and the fixes that move your grade most.'),
+      T('citation-formatter.html', 'book', 'Citation Formatter', 'Turn messy references into clean APA, MLA, Chicago, Harvard, IEEE, or Vancouver bibliographies.'),
+      T('apa-formatter.html', 'doc', 'Reference Style Generator', 'Upload a .docx or paste your paper — download it back formatted in six styles with style-true citations and references.'),
+      T('ai-peer-review.html', 'grad', 'AI Peer Review', 'A journal-grade review scored on six criteria with a recommendation — prepare before you submit.'),
+      T('journal-metrics.html', 'book', 'Journal Metrics & Finder', 'Decide where to submit — journals ranked by how much of your topic they publish, with metrics and side-by-side comparison. Keyless.'),
+      T('journal-rankings.html', 'grad', 'Journal Rankings & Comparison', 'FT50, ABS 2024, ABDC 2025, and Scopus quartiles for 3,000+ business & management journals — filter and compare. Keyless.'),
+      T('journal.html', 'book', 'JBMS Journal — submit & publish', 'Our peer-reviewed, open-access monthly journal. Submit, review, or read published articles. Double-anonymous review, DOIs.'),
+    ]},
 ];
 document.getElementById('foot-brand').innerHTML = `<img src="logo.png" alt="ItsMyResearch" class="brand-logo" style="height:22px"/>`;
-document.getElementById('tools').outerHTML = PHASES.map(ph => `
-  <section class="phase-section">
-    <span class="overline">${ph.label}</span>
-    <div class="tools-grid">
-      ${ph.tiles.map(t => `
-      <a class="tool-tile" href="${t.href}">
-        <span class="tile-icon">${Rewiseed.icon(t.icon, 22)}</span>
-        <h3>${t.name}</h3>
-        <p>${t.desc}</p>
-        <span class="tile-go">Open tool ${Rewiseed.icon('arrow', 14)}</span>
-      </a>`).join('')}
-    </div>
-  </section>`).join('');
+const ic = Rewiseed.icon;
+document.getElementById('tools').outerHTML = `
+  <div class="steps-head">
+    <h2>The seven steps of research</h2>
+    <button type="button" class="expand-toggle" id="expand-all" aria-expanded="false">Expand all</button>
+  </div>
+  <p class="hint" style="margin:0 0 14px">Every tool sits at the step where you actually need it — follow the path, or jump to your step. Click a step to see its tools.</p>
+  <div class="rp" id="rp">
+    ${STEPS.map((s, i) => `
+    <section class="rstep" data-step="${i}">
+      <button type="button" class="step-btn" aria-expanded="false" aria-controls="panel-${i}">
+        <span class="step-node">${s.n}</span>
+        <span class="step-info">
+          <h3>${esc(s.title)}</h3>
+          ${s.sub ? `<span class="sub">${esc(s.sub)}</span>` : ''}
+          <p>${esc(s.q)}</p>
+        </span>
+        <span class="step-meta"><span class="step-count">${s.tools.length} tool${s.tools.length > 1 ? 's' : ''}</span><span class="chev">${ic('chevron', 18)}</span></span>
+      </button>
+      <div class="step-panel" id="panel-${i}" role="region"><div class="inner"><div class="step-tiles">
+        ${s.tools.map(t => `<a class="rp-tile" href="${t.href}">
+          <span class="ti"><span class="ic">${ic(t.icon, 19)}</span><h4>${esc(t.name)}</h4></span>
+          <p>${esc(t.desc)}</p>
+          <span class="go">Open ${ic('arrow', 13)}</span>
+        </a>`).join('')}
+      </div></div></div>
+    </section>`).join('')}
+  </div>`;
+
+// accordion behaviour — independent toggles, keyboard-accessible, aria-synced
+document.querySelectorAll('.rstep').forEach(step => {
+  const btn = step.querySelector('.step-btn');
+  btn.onclick = () => {
+    const open = step.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    syncExpandAll();
+  };
+});
+const expandBtn = document.getElementById('expand-all');
+function syncExpandAll() {
+  const steps = [...document.querySelectorAll('.rstep')];
+  const allOpen = steps.every(s => s.classList.contains('open'));
+  expandBtn.textContent = allOpen ? 'Collapse all' : 'Expand all';
+  expandBtn.setAttribute('aria-expanded', allOpen ? 'true' : 'false');
+}
+expandBtn.onclick = () => {
+  const steps = [...document.querySelectorAll('.rstep')];
+  const open = !steps.every(s => s.classList.contains('open'));
+  steps.forEach(s => { s.classList.toggle('open', open); s.querySelector('.step-btn').setAttribute('aria-expanded', open ? 'true' : 'false'); });
+  syncExpandAll();
+};
+// open the step named in the hash (e.g. #step-2), else open step II (literature) by default
+const hashStep = (location.hash.match(/^#step-(\d)$/) || [])[1];
+const openIdx = hashStep !== undefined ? +hashStep : 1;
+const first = document.querySelector(`.rstep[data-step="${openIdx}"]`) || document.querySelector('.rstep');
+if (first) { first.classList.add('open'); first.querySelector('.step-btn').setAttribute('aria-expanded', 'true'); if (hashStep !== undefined) first.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+syncExpandAll();
 </script>
 </body>
 </html>
