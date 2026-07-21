@@ -54,6 +54,7 @@
     <span>sentence-level evidence, not one opaque %</span>
     <span>signals must agree — disagreement is reported, not hidden</span>
     <span>fix-it guidance, not just accusations</span>
+    <span>paraphrase &amp; humanize studio — unlimited length, citation-safe</span>
     <span>100% in-browser · free · no upload</span>
   </div>
 </div>
@@ -75,6 +76,30 @@
       <button id="run"></button>
       <span class="hint" style="margin:0"><kbd>⌘</kbd>+<kbd>Enter</kbd> to run</span>
     </div>
+  </div>
+  <div class="card" id="para-card">
+    <span class="overline">Rewrite studio · uses your AI key</span>
+    <h2>Paraphrase &amp; Humanize</h2>
+    <p class="hint">Rewrites the text in the box above — unlimited length, citation-safe, every mode free. Detection tells you <i>what</i> reads badly; this fixes <i>how</i> it reads: stiff, robotic prose becomes clear, naturally varied writing. <b>A writing aid, not a disguise</b> — it improves your prose, it does not make anything "undetectable," and presenting AI writing as entirely your own may break your institution's rules. Disclose AI assistance where required.</p>
+    <div class="chip-row" id="para-modes" style="margin-bottom:10px"></div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <label style="font-size:13px">Rewrite strength
+        <select id="para-strength" style="margin-left:6px">
+          <option value="light">Light touch</option>
+          <option value="balanced" selected>Balanced</option>
+          <option value="full">Full rewrite</option>
+        </select>
+      </label>
+      <label style="font-size:13px;display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="para-preserve" checked style="width:auto;min-height:0;margin:0"/>
+        Keep quotes &amp; citations exactly as written
+      </label>
+    </div>
+    <div class="row">
+      <button id="para-run"></button>
+      <button id="para-flagged" class="ghost" hidden>Rewrite only the flagged sentences</button>
+    </div>
+    <div id="para-out"></div>
   </div>
   <div id="out"></div>
 </main>
@@ -435,6 +460,8 @@ $('run').onclick = async () => {
 
   // report download
   const flaggedSents = sents.filter(x => x.score >= 0.45);
+  window._flaggedSents = flaggedSents.map(x => x.s);
+  const pf = $('para-flagged'); if (pf) pf.hidden = flaggedSents.length === 0;
   lastReport = [
     `# Originality report`,
     `\n## Stylometric signals\n`,
@@ -468,6 +495,116 @@ $('run').onclick = async () => {
 $('in').addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); $('run').click(); }
 });
+
+// ---------- Paraphrase & Humanize studio ----------
+const PARA_MODES = {
+  natural: { label: '✨ Natural voice (humanize)', instr: 'into natural, human-sounding prose: varied sentence lengths and openings, active voice, concrete verbs, an occasional plain short sentence. Strip robotic boilerplate — chained "furthermore/moreover", "delve", "it is important to note", formulaic conclusions.' },
+  academic: { label: 'Academic polish', instr: 'into polished scholarly prose: precise terminology, hedged claims where evidence is limited, formal register, no colloquialisms — while keeping sentence rhythm varied and readable.' },
+  clear: { label: 'Clear & simple', instr: 'into plain, clear language a non-specialist can follow: short sentences, everyday words where they lose no precision, one idea per sentence.' },
+  formal: { label: 'Formal', instr: 'into a formal professional register: no contractions, measured tone, complete constructions.' },
+  concise: { label: 'Concise', instr: 'into a tighter version roughly two-thirds the length: cut redundancy, filler, and throat-clearing while preserving every substantive point.' },
+  creative: { label: 'Creative variation', instr: 'into a fresh phrasing with different sentence structures and vocabulary choices, as a writer restating their own ideas from scratch would.' },
+};
+let paraMode = 'natural';
+let lastRewrite = '', lastSource = '';
+function renderParaModes() {
+  $('para-modes').innerHTML = Object.entries(PARA_MODES).map(([k, m]) =>
+    `<button type="button" class="chip${k === paraMode ? ' active' : ''}" data-pm="${k}" ${k === paraMode ? 'style="background:var(--accent-soft);border-color:var(--accent);color:var(--accent-strong)"' : ''}>${esc(m.label)}</button>`).join('');
+  $('para-modes').querySelectorAll('[data-pm]').forEach(b => b.onclick = () => { paraMode = b.dataset.pm; renderParaModes(); });
+}
+renderParaModes();
+$('para-run').innerHTML = `${icon('pen', 15)} Paraphrase`;
+
+// word-level LCS diff, capped for very long texts
+function wordDiff(a, b) {
+  const A = a.split(/\s+/), B = b.split(/\s+/);
+  if (A.length > 1200 || B.length > 1200) return null;
+  const dp = Array.from({ length: A.length + 1 }, () => new Uint16Array(B.length + 1));
+  for (let i = A.length - 1; i >= 0; i--) for (let j = B.length - 1; j >= 0; j--)
+    dp[i][j] = A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const out = []; let i = 0, j = 0;
+  while (i < A.length && j < B.length) {
+    if (A[i] === B[j]) { out.push(esc(A[i])); i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) { out.push(`<del style="color:#b3402a;opacity:.75">${esc(A[i])}</del>`); i++; }
+    else { out.push(`<ins style="color:var(--accent-strong);text-decoration:none;font-weight:600">${esc(B[j])}</ins>`); j++; }
+  }
+  while (i < A.length) out.push(`<del style="color:#b3402a;opacity:.75">${esc(A[i++])}</del>`);
+  while (j < B.length) out.push(`<ins style="color:var(--accent-strong);text-decoration:none;font-weight:600">${esc(B[j++])}</ins>`);
+  return out.join(' ');
+}
+
+const PARA_NOTE = `<p class="hint" style="margin:8px 0 0;max-width:100%">⚠️ AI-assisted rewrite — check that the meaning survived, especially numbers and claims. Paraphrasing is a writing aid; it does not change who must be credited for ideas, and your institution's AI-disclosure rules still apply.</p>`;
+
+async function paraphrase(sourceText, label) {
+  const text = sourceText.trim();
+  if (!text) { toast('Paste text in the box above first', 'error'); $('in').focus(); return; }
+  const strength = $('para-strength').value;
+  const preserve = $('para-preserve').checked;
+  const btn = $('para-run'); btn.disabled = true; $('para-flagged').disabled = true;
+  const box = $('para-out');
+  box.innerHTML = `<div class="result" id="para-stream" style="margin-top:12px" aria-live="polite"><div class="stream-status"><span class="spinner"></span>Rewriting${label ? ` (${label})` : ''}…</div></div>`;
+  const strengthInstr = strength === 'light' ? 'Change as little as possible — only what the mode requires; keep most wording.'
+    : strength === 'full' ? 'Rewrite freely — restructure sentences and paragraphs as needed, while preserving meaning and roughly similar length.'
+    : 'Rewrite moderately — new phrasing where it helps, familiar wording where it already works.';
+  try {
+    let raf = 0, pending = '';
+    const paint = () => { $('para-stream').innerHTML = `<div class="cursor-blink">${md(pending)}</div>`; raf = 0; };
+    const rewrite = await Rewiseed.callLLM({
+      system: `You are an expert academic editor. Rewrite the user's text ${PARA_MODES[paraMode].instr}
+Rules: preserve the exact meaning; never add, drop, or alter facts, numbers, or claims. ${preserve ? 'Reproduce quoted passages ("…"), in-text citations like (Author, year) or [n], and reference-list entries EXACTLY as given — never paraphrase inside them.' : ''} ${strengthInstr} Output ONLY the rewritten text — no preamble, no commentary.`,
+      user: text, temperature: 0.5,
+      onStream: (t) => { pending = t; if (!raf) raf = requestAnimationFrame(paint); },
+    });
+    if (raf) cancelAnimationFrame(raf);
+    lastRewrite = rewrite; lastSource = text;
+    $('para-stream').innerHTML = md(rewrite);
+    box.insertAdjacentHTML('beforeend', `
+      <div class="row" style="margin-top:10px">
+        <button class="ghost" id="para-copy">${icon('copy', 15)} Copy rewrite</button>
+        <button class="ghost" id="para-diff">${icon('eye', 15)} Show changes</button>
+        <button class="ghost" id="para-explain">${icon('sparkle', 15)} Explain the edits</button>
+        <button class="ghost" id="para-recheck">${icon('shield', 15)} Re-check this rewrite</button>
+      </div>
+      <div id="para-extra"></div>
+      ${PARA_NOTE}`);
+    $('para-copy').onclick = (e) => Rewiseed.copyText(lastRewrite, e.currentTarget);
+    $('para-diff').onclick = () => {
+      const d = wordDiff(lastSource, lastRewrite);
+      $('para-extra').innerHTML = d
+        ? `<div class="result" style="margin-top:10px;font-size:13.5px;line-height:1.8">${d}</div><p class="hint" style="margin:6px 0 0"><del style="color:#b3402a">removed</del> · <ins style="color:var(--accent-strong);text-decoration:none;font-weight:600">added</ins></p>`
+        : `<p class="hint" style="margin:8px 0 0">Text too long for the word-by-word view — compare the copies side by side instead.</p>`;
+    };
+    $('para-explain').onclick = async (e) => {
+      const eb = e.currentTarget; eb.disabled = true;
+      $('para-extra').innerHTML = `<div class="stream-status" style="margin-top:8px"><span class="spinner"></span>Summarizing what changed…</div>`;
+      try {
+        const why = await Rewiseed.callLLM({
+          system: 'You are an editor explaining a revision to the author. Compare ORIGINAL and REWRITE and list, as short Markdown bullets, the substantive kinds of edits made and why each improves the text (rhythm, voice, precision, redundancy). Note anything whose meaning may have shifted so the author can check it. Under 200 words.',
+          user: `ORIGINAL:\n${lastSource.slice(0, 6000)}\n\nREWRITE:\n${lastRewrite.slice(0, 6000)}`,
+          temperature: 0.2,
+        });
+        $('para-extra').innerHTML = `<div class="result" style="margin-top:10px">${md(why)}</div>`;
+      } catch (err) { $('para-extra').innerHTML = `<div class="error-box" style="margin-top:8px">${icon('alert', 16)}<span>${esc(err.message)}</span></div>`; }
+      finally { eb.disabled = false; }
+    };
+    $('para-recheck').onclick = () => {
+      $('in').value = lastRewrite;
+      $('in').dispatchEvent(new Event('input'));
+      toast('Rewrite loaded — running the originality check');
+      $('run').click();
+    };
+    Rewiseed.track('run', rewrite.length);
+  } catch (e) {
+    box.innerHTML = `<div class="error-box" style="margin-top:10px">${icon('alert', 18)}<span>${esc(e.message)}</span></div>`;
+  } finally { btn.disabled = false; $('para-flagged').disabled = false; }
+}
+
+$('para-run').onclick = () => paraphrase($('in').value);
+$('para-flagged').onclick = () => {
+  const fl = window._flaggedSents || [];
+  if (!fl.length) { toast('Run a check first — no flagged sentences yet', 'error'); return; }
+  paraphrase(fl.join('\n\n'), 'flagged sentences only');
+};
 </script>
 </body>
 </html>
