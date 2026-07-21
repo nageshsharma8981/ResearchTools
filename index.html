@@ -32,7 +32,7 @@
   <h1>Research, done <span class="accent-word">systematically.</span></h1>
   <div class="stat-row">
     <div class="stat"><b>240M+</b><span>papers searchable</span></div>
-    <div class="stat"><b>24</b><span>research tools</span></div>
+    <div class="stat"><b>25</b><span>research tools</span></div>
     <div class="stat"><b>100%</b><span>private &amp; local</span></div>
     <div class="stat"><b>$0</b><span>with built-in AI</span></div>
   </div>
@@ -53,9 +53,7 @@
       <span class="badge gold">Walk the map →</span>
     </div>
   </a>
-  <div id="tools" class="tools-grid"></div>
-
-  <div class="card" style="margin-top:28px">
+  <div class="card" style="margin-bottom:24px">
     <span class="overline">Getting started</span>
     <h2>How it works</h2>
     <div class="steps">
@@ -64,6 +62,8 @@
       <div class="step"><span class="num">3</span><span>Paste your material, run, watch results stream in, and export — Markdown, Word (.docx), CSV, or BibTeX. Sign in (optional) to save papers to <b>My Library</b> and get recommendations.</span></div>
     </div>
   </div>
+
+  <div id="tools" class="tools-grid"></div>
 
   <div class="card">
     <span class="overline">Privacy</span>
@@ -91,6 +91,7 @@
         <li><a href="bibliometrics.html">Bibliometric Analysis</a></li>
         <li><a href="journal-metrics.html">Journal Metrics &amp; Finder</a></li>
         <li><a href="journal-rankings.html">Journal Rankings &amp; Comparison</a></li>
+        <li><a href="citation-integrity.html">Citation Integrity Checker</a></li>
         <li><a href="literature-matrix.html">Synthesis Matrix</a></li>
         <li><a href="research-gap-identifier.html">Gap Identifier</a></li>
         <li><a href="research-question-generator.html">Question Generator</a></li>
@@ -195,6 +196,8 @@ const PHASES = [
       desc: 'Decide where to submit — journals ranked by how much of your topic they publish, with impact metrics, open-access terms, and side-by-side comparison. Keyless.' },
     { href: 'journal-rankings.html', icon: 'grad', name: 'Journal Rankings & Comparison',
       desc: 'ABS/AJG 2024, ABDC 2025, Scopus-based quartiles, and impact metrics for 3,000+ business & management journals — filter by rating, compare up to five side by side.' },
+    { href: 'citation-integrity.html', icon: 'check', name: 'Citation Integrity Checker',
+      desc: 'Upload your paper — every in-text citation checked against the reference list and every reference against the text: mismatches, orphans, APA style warnings, PDF report. Keyless.' },
   ]},
 ];
 document.getElementById('foot-brand').innerHTML = `<img src="logo.png" alt="ItsMyResearch" class="brand-logo" style="height:22px"/>`;

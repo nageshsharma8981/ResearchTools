@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" type="image/png" href="favicon.png"/>
+<link rel="apple-touch-icon" href="favicon.png"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Citation Integrity Checker — ItsMyResearch</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ItsMyResearch"/>
+<meta property="og:title" content="Citation Integrity Checker — ItsMyResearch"/>
+<meta property="og:description" content="Upload your paper — every in-text citation is checked against the reference list and every reference against the text: missing references, uncited entries, author/year mismatches, and APA style warnings, with a PDF report."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/citation-integrity"/>
+<meta property="og:image" content="https://www.itsmyresearch.com/og-card.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://www.itsmyresearch.com/og-card.png"/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:12px 0; }
+.stat-grid .s { background:var(--surface-2); border-radius:var(--radius); padding:12px 14px; }
+.stat-grid b { display:block; font-family:var(--font-serif); font-size:24px; font-variant-numeric:tabular-nums; }
+.stat-grid span { font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+.cit-item { border:1px solid var(--border); border-left:4px solid var(--border-strong); border-radius:var(--radius); padding:12px 14px; margin-bottom:10px; }
+.cit-item.ok { border-left-color:#2e6b45; }
+.cit-item.warn { border-left-color:#c07f2a; }
+.cit-item.bad { border-left-color:#b3402a; }
+.cit-item .cite { font-size:14px; font-weight:700; }
+.cit-item .verdict { font-size:12.5px; font-weight:700; margin:6px 0 2px; }
+.verdict.v-ok { color:#2e6b45; } .verdict.v-warn { color:#a4671f; } .verdict.v-bad { color:#b3402a; }
+.cit-item .ref { font-size:12.5px; color:var(--ink-2); margin:2px 0 0; padding-left:14px; text-indent:-14px; line-height:1.55; }
+.cit-item .why { font-size:12px; color:var(--muted); margin:4px 0 0; }
+.sec-h { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+.sec-h .n { font-family:var(--font-serif); font-size:20px; }
+.pill-count { font-weight:800; }
+.pill-count.bad { color:#b3402a; } .pill-count.ok { color:#2e6b45; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Citation Integrity Checker</h1>
+  <p class="lede">The check reviewers do first: <b>every in-text citation must appear in the reference list, and every reference must be cited in the text.</b> Upload your paper — get each citation matched, mismatches and orphans flagged, APA style warnings, and a PDF report. Fully in-browser and keyless; your manuscript never leaves this device.</p>
+</div>
+<main style="max-width:880px">
+  <div class="card">
+    <h2>Your paper</h2>
+    <p class="hint">Upload a .docx, .pdf, or .txt — or paste the full text including the reference list. The parser detects APA-style citations (parenthetical and narrative); Vancouver/numeric styles aren't supported yet.</p>
+    <div class="chip-row" style="margin-bottom:10px">
+      <label class="chip" style="display:inline-flex;align-items:center;cursor:pointer">Upload .docx / .pdf / .txt<input id="file" type="file" accept=".docx,.pdf,.txt,.md" style="display:none"/></label>
+      <button type="button" class="chip" id="example">Try a demo paper</button>
+      <span id="fstatus" class="hint" style="align-self:center"></span>
+    </div>
+    <label class="field-label" for="in">…or paste the manuscript text</label>
+    <textarea id="in" placeholder="Paste the full paper here, including the References section…" style="min-height:170px"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button id="run"></button>
+    </div>
+  </div>
+  <div id="out"></div>
+</main>
+<script src="shared.js"></script>
+<script src="doc-extract.js"></script>
+<script>
+const { esc, icon, toast } = Rewiseed;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('citation-integrity.html');
+$('hero-icon').innerHTML = icon('check', 26);
+$('run').innerHTML = `${icon('play', 15)} Check citations`;
+
+$('file').addEventListener('change', async () => {
+  const f = $('file').files[0]; if (!f) return;
+  $('fstatus').innerHTML = `<span class="spinner"></span> reading…`;
+  try {
+    const text = await RewiseedDocExtract.extract(f);
+    $('in').value = text;
+    $('fstatus').innerHTML = `<span class="badge ok">${icon('check', 11)} ${esc(f.name)} — ${text.split(/\s+/).length.toLocaleString()} words</span>`;
+  } catch (e) { $('fstatus').innerHTML = `<span class="badge warn">${esc(e.message)}</span>`; }
+  $('file').value = '';
+});
+
+$('example').onclick = () => {
+  $('in').value = `Mobile payment adoption has grown rapidly (Zhou, 2011). Early work applied the technology acceptance model (Davis, 1989) and its extensions (Venkatesh & Davis, 2000). Hsieh (2020) examined mobile promotions, while Timur et al. (2023) studied food-ordering apps. Recent studies combine several models (Hsieh, 2020; Zhou, 2011; Kumar & Singh, 2024). According to Li and Wang (2022), trust remains central. However, Baker et al. (2025) report contrary evidence.
+
+References
+
+Davis, F. D. (1989). Perceived usefulness, perceived ease of use, and user acceptance of information technology. MIS Quarterly, 13(3), 319-340.
+Hsieh, J. K. (2020). The effects of transforming mobile services into mobile promotions. Journal of Business Research, 121, 195-208.
+Li, Q., & Wang, S. (2022). Trust in mobile commerce. Electronic Markets, 32(1), 1-18.
+Timur, B., Oguz, Y. E., & Yilmaz, V. (2023). Consumer behavior of mobile food ordering app users during COVID-19. Journal of Hospitality and Tourism Technology, 14(3), 460-475.
+Venkatesh, V., & Davis, F. D. (2000). A theoretical extension of the technology acceptance model. Management Science, 46(2), 186-204.
+Zhou, T. (2011). The effect of initial trust on user adoption of mobile payment. Information Development, 27(4), 290-300.
+Zhou, T. (2013). An empirical examination of continuance intention of mobile payment services. Decision Support Systems, 54(2), 1085-1091.`;
+  toast('Demo paper loaded — note the deliberate problems: a citation with no reference (Baker et al., 2025; Kumar & Singh, 2024) and an uncited reference (Zhou, 2013)');
+};
+
+// ---------- parsing ----------
+const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+function splitPaper(text) {
+  // find the LAST heading-like occurrence of References/Bibliography
+  const re = /^\s*(references|bibliography|works cited|reference list)\s*:?\s*$/gim;
+  let m, idx = -1;
+  while ((m = re.exec(text))) idx = m.index;
+  if (idx < 0) {
+    const loose = Math.max(text.lastIndexOf('\nReferences'), text.lastIndexOf('\nREFERENCES'), text.lastIndexOf('\nBibliography'));
+    if (loose > text.length * 0.3) idx = loose;
+  }
+  if (idx < 0) return null;
+  return { body: text.slice(0, idx), refs: text.slice(idx).replace(/^\s*\S+[^\n]*\n/, '') };
+}
+
+function parseRefs(refText) {
+  // entries start where an Author-line begins: "Surname, X." or "Surname, X.,"
+  const lines = refText.split(/\n+/).map(l => l.trim()).filter(Boolean);
+  const entries = [];
+  const startRe = /^[A-ZÀ-Þ][\p{L}'’-]+,\s+(?:[A-ZÀ-Þ]\.|\p{Lu}\p{L}+,)/u;
+  for (const line of lines) {
+    if (startRe.test(line) || (!entries.length && /\(\d{4}[a-z]?\)/.test(line))) entries.push(line);
+    else if (entries.length) entries[entries.length - 1] += ' ' + line;
+  }
+  return entries.map(raw => {
+    const yearM = raw.match(/\((\d{4})([a-z])?\)/) || raw.match(/\b(19|20)\d{2}\b/);
+    const year = yearM ? (yearM[1].length === 4 ? yearM[1] : yearM[0]) : null;
+    const suffix = yearM && yearM[2] ? yearM[2] : '';
+    const pre = raw.split(/\(\d{4}/)[0];
+    // surnames: tokens followed by comma+initials, plus "&"-joined last author
+    const surnames = [...pre.matchAll(/([\p{Lu}][\p{L}'’-]+(?:\s+[\p{Lu}][\p{L}'’-]+)?),\s*[\p{Lu}]\./gu)].map(x => x[1]);
+    if (!surnames.length) {
+      const first = pre.split(',')[0].trim();
+      if (first) surnames.push(first);
+    }
+    return { raw, year, suffix, surnames, lead: surnames[0] || '', nAuthors: surnames.length, cited: false };
+  }).filter(r => r.lead && r.year);
+}
+
+function parseCitations(body) {
+  const found = [];
+  // parenthetical: ( ... 1999 ... ) possibly multi via ';'
+  for (const m of body.matchAll(/\(([^()]*\b(?:19|20)\d{2}[a-z]?\b[^()]*)\)/g)) {
+    const inner = m[1];
+    if (!/[A-Za-z]/.test(inner)) continue;
+    const parts = inner.split(';').map(p => p.trim()).filter(p => /\b(19|20)\d{2}/.test(p));
+    if (!parts.length) continue;
+    const subs = parts.map(p => {
+      const y = p.match(/\b((?:19|20)\d{2})([a-z])?\b/);
+      const authors = p.slice(0, y.index).replace(/,\s*$/, '').trim();
+      if (!authors || /^(e\.g\.|i\.e\.|cf\.|see|see also)$/i.test(authors)) return null;
+      return { authorsText: authors.replace(/^(e\.g\.|i\.e\.|cf\.|see also|see)[,\s]+/i, ''), year: y[1], suffix: y[2] || '', narrative: false };
+    }).filter(Boolean);
+    if (subs.length) found.push({ display: `(${inner})`, subs, index: m.index });
+  }
+  // narrative: Surname (2020) · Surname et al. (2020) · Surname and Surname (2020)
+  const CONNECT = /^(However|Moreover|Furthermore|Similarly|Finally|Indeed|Additionally|Therefore|Thus|Also|Meanwhile|Conversely|Notably|Recently|First|Second|Third|Next|Then|Overall|Importantly|Interestingly|Specifically|Consequently|Nevertheless|Nonetheless|Instead|Likewise|Accordingly|Example|Contrast|Example)[,\s]+/i;
+  for (const m of body.matchAll(/([\p{Lu}][\p{L}'’-]+(?:(?:,?\s+(?:and|&)\s+|,\s+)[\p{Lu}][\p{L}'’-]+)*(?:\s+et\s+al\.?)?)\s*\((\d{4})([a-z])?\)/gu)) {
+    let authors = m[1];
+    while (CONNECT.test(authors)) authors = authors.replace(CONNECT, '');
+    if (!authors) continue;
+    found.push({ display: `${authors} (${m[2]}${m[3] || ''})`, subs: [{ authorsText: authors, year: m[2], suffix: m[3] || '', narrative: true }], index: m.index });
+  }
+  found.sort((a, b) => a.index - b.index);
+  // dedupe identical displays at same position handled; keep unique display+index
+  return found;
+}
+
+const surnameOf = (authorsText) => {
+  const t = authorsText.replace(/\s+et\s+al\.?/i, '').trim();
+  const first = t.split(/,|\s+(?:and|&)\s+/)[0].trim();
+  return first.split(/\s+/).pop() ? first : t;
+};
+function sim(a, b) {
+  a = norm(a); b = norm(b);
+  if (a === b) return 1;
+  if (a.startsWith(b) || b.startsWith(a)) return 0.8;
+  let hits = 0;
+  for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] === b[i]) hits++; else break;
+  return hits / Math.max(a.length, b.length);
+}
+
+function matchCitation(sub, refs) {
+  const cLead = norm(surnameOf(sub.authorsText));
+  const exact = refs.filter(r => norm(r.lead) === cLead && r.year === sub.year && (!sub.suffix || r.suffix === sub.suffix));
+  if (exact.length) return { verdict: 'ok', ref: exact[0], all: exact };
+  const sameAuthor = refs.filter(r => norm(r.lead) === cLead);
+  if (sameAuthor.length) return { verdict: 'year', ref: sameAuthor[0] };
+  const sameYear = refs.filter(r => r.year === sub.year);
+  let best = null, bs = 0;
+  for (const r of sameYear) { const s = sim(r.lead, cLead); if (s > bs) { bs = s; best = r; } }
+  if (best && bs >= 0.5) return { verdict: 'author', ref: best };
+  return { verdict: 'missing' };
+}
+
+function styleWarnings(sub, cit, refs) {
+  const w = [];
+  const cLead = norm(surnameOf(sub.authorsText));
+  const sameSurname = refs.filter(r => norm(r.lead) === cLead);
+  if (sameSurname.length > 1 && new Set(sameSurname.map(r => r.year + r.suffix)).size > 1 === false) { /* covered by suffix */ }
+  if (sameSurname.length > 1) w.push('Possible ambiguity — more than one reference shares this lead surname; add author initials or year suffixes (a, b) so each citation points to exactly one entry.');
+  if (sub.narrative && /&/.test(sub.authorsText)) w.push('In a narrative citation, join the last two authors with “and”, not “&” (APA 7). Use “&” only inside parentheses.');
+  if (!sub.narrative && /\b\p{Lu}[\p{L}'’-]+\s+and\s+\p{Lu}/u.test(sub.authorsText)) w.push('In a parenthetical citation, join authors with “&”, not “and” (APA 7).');
+  return w;
+}
+
+// ---------- run ----------
+let lastReport = '';
+$('run').onclick = () => {
+  const text = $('in').value.trim();
+  if (!text) { toast('Upload or paste the paper first', 'error'); return; }
+  const split = splitPaper(text);
+  const out = $('out');
+  if (!split) { out.innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>No “References” section found. Make sure the paper includes its reference list under a heading like “References” or “Bibliography”.</span></div></div>`; return; }
+  const refs = parseRefs(split.refs);
+  if (!refs.length) { out.innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>A References heading was found but no APA-style entries could be parsed under it.</span></div></div>`; return; }
+  const cits = parseCitations(split.body);
+
+  const items = [];
+  let issueCount = 0;
+  for (const cit of cits) {
+    const subResults = cit.subs.map(sub => {
+      const m = matchCitation(sub, refs);
+      if (m.ref) m.ref.cited = true;
+      if (m.all) m.all.forEach(r => { r.cited = true; });
+      const warns = styleWarnings(sub, cit, refs);
+      return { sub, ...m, warns };
+    });
+    const worst = subResults.some(r => r.verdict === 'missing') ? 'bad'
+      : subResults.some(r => r.verdict === 'author' || r.verdict === 'year') ? 'bad'
+      : subResults.some(r => r.warns.length) ? 'warn' : 'ok';
+    if (worst !== 'ok') issueCount++;
+    items.push({ cit, subResults, worst });
+  }
+  const uncited = refs.filter(r => !r.cited);
+
+  const verdictLine = (r) => r.verdict === 'ok' ? `<div class="verdict v-ok">✓ Year and author(s) match</div>`
+    : r.verdict === 'author' ? `<div class="verdict v-bad">Author mismatch — closest reference:</div>`
+    : r.verdict === 'year' ? `<div class="verdict v-bad">Year mismatch — this author appears with a different year:</div>`
+    : `<div class="verdict v-bad">✗ No matching reference — cited in text but absent from the reference list</div>`;
+
+  const itemHtml = (it, showOk) => {
+    if (it.worst === 'ok' && !showOk) return '';
+    return `<div class="cit-item ${it.worst}">
+      <span class="cite">${esc(it.cit.display)}</span>${it.cit.subs.length > 1 ? ` <span class="badge">multi-reference (${it.cit.subs.length})</span>` : ''}
+      ${it.subResults.map(r => `
+        ${it.cit.subs.length > 1 ? `<div class="why" style="margin-top:8px"><b>${esc(r.sub.authorsText)}, ${esc(r.sub.year + r.sub.suffix)}</b></div>` : ''}
+        ${verdictLine(r)}
+        ${r.ref ? `<p class="ref">${esc(r.ref.raw.slice(0, 400))}</p>` : ''}
+        ${r.warns.map(w => `<div class="verdict v-warn">Style warning</div><p class="why">${esc(w)}</p>`).join('')}
+      `).join('')}
+    </div>`;
+  };
+
+  const okCount = items.filter(i => i.worst === 'ok').length;
+  out.innerHTML = `
+    <div class="card" id="report-root">
+      <span class="overline">Report · APA (7th) conventions</span>
+      <h2>Citation integrity report</h2>
+      <div class="stat-grid">
+        <div class="s"><b class="pill-count ${issueCount ? 'bad' : 'ok'}">${issueCount}/${items.length}</b><span>in-text citations with issues</span></div>
+        <div class="s"><b class="pill-count ${uncited.length ? 'bad' : 'ok'}">${uncited.length}/${refs.length}</b><span>references never cited</span></div>
+        <div class="s"><b>${items.length}</b><span>citations scanned</span></div>
+        <div class="s"><b>${refs.length}</b><span>reference entries</span></div>
+      </div>
+      <div class="btn-row">
+        <button class="ghost" id="rep-pdf" title="Opens your browser's print dialog — choose 'Save as PDF'">${icon('doc', 15)} Export PDF report</button>
+        <button class="ghost" id="rep-md">${icon('download', 15)} Download .md</button>
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="show-ok" style="width:auto;min-height:0;margin:0"/> show matched citations too</label>
+      </div>
+
+      <div class="sec-h" style="margin-top:18px"><h3 class="n">In-text citations</h3><span class="hint">[<span class="pill-count ${issueCount ? 'bad' : 'ok'}">${issueCount}</span>/${items.length} need attention]</span></div>
+      <div id="cit-list">${items.map(it => itemHtml(it, false)).join('') || `<p class="hint">Every in-text citation matches a reference entry. ✓</p>`}</div>
+
+      <div class="sec-h" style="margin-top:20px"><h3 class="n">References never cited in the text</h3><span class="hint">[<span class="pill-count ${uncited.length ? 'bad' : 'ok'}">${uncited.length}</span>/${refs.length}]</span></div>
+      ${uncited.length ? uncited.map(r => `<div class="cit-item bad"><div class="verdict v-bad">Uncited reference — remove it, or cite it in the text</div><p class="ref">${esc(r.raw.slice(0, 400))}</p></div>`).join('') : `<p class="hint">Every reference entry is cited at least once. ✓</p>`}
+
+      <p class="hint" style="margin:16px 0 0;max-width:100%">⚠️ Automated parsing is not 100% accurate — unusual formats, footnote styles, and numeric (Vancouver/IEEE) citations aren't handled, and secondary citations (“as cited in”) may flag falsely. Treat this as a reviewer's first pass, verify each flag against your manuscript, and confirm reference details with the <a class="link" href="doi-finder.html">DOI Finder</a> or <a class="link" href="citation-formatter.html">Citation Formatter</a>.</p>
+    </div>`;
+  $('show-ok').onchange = () => {
+    $('cit-list').innerHTML = items.map(it => itemHtml(it, $('show-ok').checked)).join('') || `<p class="hint">Every in-text citation matches a reference entry. ✓</p>`;
+  };
+  $('rep-pdf').onclick = () => Rewiseed.exportPDF(document.getElementById('report-root'), 'Citation Integrity Report');
+  lastReport = [
+    `# Citation integrity report`, ``,
+    `- In-text citations with issues: ${issueCount}/${items.length}`,
+    `- References never cited: ${uncited.length}/${refs.length}`, ``,
+    `## Citation issues`, ``,
+    ...items.filter(i => i.worst !== 'ok').flatMap(it => [`### ${it.cit.display}`, ...it.subResults.flatMap(r => [
+      r.verdict === 'ok' ? '- Year and author(s) match' : r.verdict === 'missing' ? '- **No matching reference**' : `- **${r.verdict === 'author' ? 'Author' : 'Year'} mismatch** — closest: ${r.ref ? r.ref.raw.slice(0, 200) : ''}`,
+      ...r.warns.map(w => `- Style warning: ${w}`)]), ``]),
+    `## Uncited references`, ``,
+    ...(uncited.length ? uncited.map(r => `- ${r.raw.slice(0, 250)}`) : ['(none)']),
+    ``, `---`, `Automated first pass — verify every flag. Generated locally by ItsMyResearch.`,
+  ].join('\n');
+  $('rep-md').onclick = () => Rewiseed.downloadText('citation-integrity-report.md', lastReport);
+  Rewiseed.track('run', lastReport.length);
+};
+</script>
+</body>
+</html>

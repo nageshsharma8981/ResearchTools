@@ -273,6 +273,7 @@
     { href: 'bibliometrics.html', icon: 'chart', name: 'Bibliometric Analysis' },
     { href: 'journal-metrics.html', icon: 'book', name: 'Journal Metrics & Finder' },
     { href: 'journal-rankings.html', icon: 'grad', name: 'Journal Rankings & Comparison' },
+    { href: 'citation-integrity.html', icon: 'check', name: 'Citation Integrity Checker' },
   ];
 
   function renderNav(activeHref) {
