@@ -247,36 +247,54 @@
 
   // ---------- top navigation ----------
 
-  const TOOLS = [
-    { href: 'research-journey.html', icon: 'compass', name: 'Research Journey (start here)' },
-    { href: 'paper-generator.html', icon: 'doc', name: 'Research Paper Generator' },
-    { href: 'smart-literature-finder.html', icon: 'search', name: 'Smart Literature Finder' },
-    { href: 'doi-finder.html', icon: 'doi', name: 'DOI Finder & Lookup' },
-    { href: 'originality-checker.html', icon: 'shield', name: 'Originality & AI Checker' },
-    { href: 'literature-matrix.html', icon: 'grid', name: 'Literature Synthesis Matrix' },
-    { href: 'data-explorer.html', icon: 'chart', name: 'Statistical Data Explorer' },
-    { href: 'data-sources.html', icon: 'globe', name: 'Data Source Directory' },
-    { href: 'research-gap-identifier.html', icon: 'gap', name: 'Research Gap Identifier' },
-    { href: 'research-question-generator.html', icon: 'flask', name: 'Research Question Generator' },
-    { href: 'instrument-designer.html', icon: 'clipboard', name: 'Survey & Interview Designer' },
-    { href: 'stats-advisor.html', icon: 'sigma', name: 'Statistical Test Advisor' },
-    { href: 'statpls.html', icon: 'sigma', name: 'StatPLS' },
-    { href: 'qualitative-coding-assistant.html', icon: 'dna', name: 'Qualitative Coding Assistant' },
-    { href: 'ai-peer-review.html', icon: 'grad', name: 'AI Peer Review' },
-    { href: 'rubric-lens.html', icon: 'clipboard', name: 'RubricLens' },
-    { href: 'abstract-generator.html', icon: 'doc', name: 'Abstract & Summary Studio' },
-    { href: 'writing-polisher.html', icon: 'pen', name: 'Academic Writing Polisher' },
-    { href: 'citation-formatter.html', icon: 'book', name: 'Citation Formatter' },
-    { href: 'apa-formatter.html', icon: 'doc', name: 'Reference Style Generator' },
-    { href: 'citation-graph.html', icon: 'graph', name: 'Citation Graph Explorer' },
-    { href: 'scholar-profiles.html', icon: 'user', name: 'Author & Institution Profiles' },
-    { href: 'author-impact.html', icon: 'user', name: 'Author Impact Dashboard' },
-    { href: 'bibliometrics.html', icon: 'chart', name: 'Bibliometric Analysis' },
-    { href: 'journal-metrics.html', icon: 'book', name: 'Journal Metrics & Finder' },
-    { href: 'journal-rankings.html', icon: 'grad', name: 'Journal Rankings & Comparison' },
-    { href: 'citation-integrity.html', icon: 'check', name: 'Citation Integrity Checker' },
-    { href: 'journal.html', icon: 'book', name: 'JBMS Journal — submit & review' },
+  // Tools grouped by the seven steps of the research process — the same structure
+  // as the home page stepper. Group index i deep-links to index.html#step-i.
+  const STEP_GROUPS = [
+    { n: 'I', name: 'Define the problem', tools: [
+      { href: 'research-gap-identifier.html', icon: 'gap', name: 'Research Gap Identifier' },
+      { href: 'bibliometrics.html', icon: 'chart', name: 'Bibliometric Analysis' },
+    ]},
+    { n: 'II', name: 'Review the literature', tools: [
+      { href: 'smart-literature-finder.html', icon: 'search', name: 'Smart Literature Finder' },
+      { href: 'doi-finder.html', icon: 'doi', name: 'DOI Finder & Lookup' },
+      { href: 'citation-graph.html', icon: 'graph', name: 'Citation Graph Explorer' },
+      { href: 'literature-matrix.html', icon: 'grid', name: 'Literature Synthesis Matrix' },
+      { href: 'scholar-profiles.html', icon: 'user', name: 'Author & Institution Profiles' },
+      { href: 'author-impact.html', icon: 'user', name: 'Author Impact Dashboard' },
+    ]},
+    { n: 'III', name: 'Formulate hypotheses', tools: [
+      { href: 'research-question-generator.html', icon: 'flask', name: 'Research Question Generator' },
+    ]},
+    { n: 'IV', name: 'Design the research', tools: [
+      { href: 'instrument-designer.html', icon: 'clipboard', name: 'Survey & Interview Designer' },
+      { href: 'stats-advisor.html', icon: 'sigma', name: 'Statistical Test Advisor' },
+    ]},
+    { n: 'V', name: 'Collect the data', tools: [
+      { href: 'data-explorer.html', icon: 'chart', name: 'Statistical Data Explorer' },
+      { href: 'data-sources.html', icon: 'globe', name: 'Data Source Directory' },
+    ]},
+    { n: 'VI', name: 'Analyse the data', tools: [
+      { href: 'statpls.html', icon: 'sigma', name: 'StatPLS' },
+      { href: 'qualitative-coding-assistant.html', icon: 'dna', name: 'Qualitative Coding Assistant' },
+    ]},
+    { n: 'VII', name: 'Interpret, write & report', tools: [
+      { href: 'paper-generator.html', icon: 'doc', name: 'Research Paper Generator' },
+      { href: 'abstract-generator.html', icon: 'doc', name: 'Abstract & Summary Studio' },
+      { href: 'writing-polisher.html', icon: 'pen', name: 'Academic Writing Polisher' },
+      { href: 'originality-checker.html', icon: 'shield', name: 'Originality & AI Checker' },
+      { href: 'citation-integrity.html', icon: 'check', name: 'Citation Integrity Checker' },
+      { href: 'rubric-lens.html', icon: 'clipboard', name: 'RubricLens' },
+      { href: 'citation-formatter.html', icon: 'book', name: 'Citation Formatter' },
+      { href: 'apa-formatter.html', icon: 'doc', name: 'Reference Style Generator' },
+      { href: 'ai-peer-review.html', icon: 'grad', name: 'AI Peer Review' },
+      { href: 'journal-metrics.html', icon: 'book', name: 'Journal Metrics & Finder' },
+      { href: 'journal-rankings.html', icon: 'grad', name: 'Journal Rankings & Comparison' },
+      { href: 'journal.html', icon: 'book', name: 'JBMS Journal — submit & review' },
+    ]},
   ];
+  // tool page href -> its step (for the "back to step" breadcrumb)
+  const TOOL_STEP = {};
+  STEP_GROUPS.forEach((g, i) => g.tools.forEach(t => { TOOL_STEP[t.href] = { i, n: g.n, name: g.name }; }));
 
   // ---------- global feedback widget (fixed button + modal, on every page) ----------
   function mountFeedback() {
@@ -350,9 +368,11 @@
       <details class="tool-menu">
         <summary aria-label="Switch tool">Tools ${icon('chevron', 15)}</summary>
         <div class="menu">
-          <a href="index.html" class="${activeHref === 'index.html' ? 'active' : ''}">${icon('home', 17)}Home — all tools</a>
-          <div class="menu-rule"></div>
-          ${TOOLS.map(t => `<a href="${t.href}" class="${t.href === activeHref ? 'active' : ''}">${icon(t.icon, 17)}${esc(t.name)}</a>`).join('')}
+          <a href="index.html" class="${activeHref === 'index.html' ? 'active' : ''}">${icon('home', 17)}Home — the seven steps</a>
+          <a href="research-journey.html" class="${activeHref === 'research-journey.html' ? 'active' : ''}">${icon('compass', 17)}Research Journey (start here)</a>
+          ${STEP_GROUPS.map((g, i) => `
+          <a class="menu-group" href="index.html#step-${i}" title="Open this step on the home page">Step ${g.n} · ${esc(g.name)}</a>
+          ${g.tools.map(t => `<a href="${t.href}" class="${t.href === activeHref ? 'active' : ''}">${icon(t.icon, 17)}${esc(t.name)}</a>`).join('')}`).join('')}
           <div class="menu-rule"></div>
           <a href="library.html" class="${activeHref === 'library.html' ? 'active' : ''}">${icon('library', 17)}My Library</a>
           <a href="#" id="menu-intro">${icon('play', 17)}Platform intro</a>
@@ -361,6 +381,14 @@
       <a id="nav-credits" class="nav-credits" href="pricing.html" hidden title="Your AI run credits — click for plans and how runs are counted"></a>
       <button id="theme-toggle" class="icon-btn" aria-label="Toggle theme"></button>`;
     document.body.prepend(nav);
+    // breadcrumb: from any tool page, one click back to its step on the home page
+    const step = TOOL_STEP[activeHref];
+    if (step) {
+      const crumb = document.createElement('div');
+      crumb.className = 'step-crumb';
+      crumb.innerHTML = `<a href="index.html#step-${step.i}" title="Back to this step on the home page">${icon('arrow', 13)} Step ${step.n} · ${esc(step.name)}</a>`;
+      nav.insertAdjacentElement('afterend', crumb);
+    }
     mountFeedback();
     // credit transparency: signed-in users always see their balance
     billingStatus().then(b => {
@@ -399,9 +427,17 @@
           user.photo ? `<img src="${esc(user.photo)}" alt="Profile"/>` : esc((user.name || user.email)[0].toUpperCase())}</a>`;
         // menu shows only granted tools when the account is restricted
         if (user.tool_access && user.tool_access.length) {
+          const allToolHrefs = new Set(STEP_GROUPS.flatMap(g => g.tools.map(t => t.href)));
           nav.querySelectorAll('.tool-menu .menu a').forEach(a => {
-            const id = (a.getAttribute('href') || '').replace('.html', '');
-            if (id !== 'index' && !user.tool_access.includes(id)) a.remove();
+            const href = a.getAttribute('href') || '';
+            if (!allToolHrefs.has(href)) return; // keep home, step headers, journey, library, intro
+            if (!user.tool_access.includes(href.replace('.html', ''))) a.remove();
+          });
+          // drop step headers whose tools were all removed (next sibling is another
+          // header, a rule, or nothing → the group is empty)
+          nav.querySelectorAll('.tool-menu .menu .menu-group').forEach(h => {
+            const sib = h.nextElementSibling;
+            if (!sib || sib.classList.contains('menu-group') || sib.classList.contains('menu-rule')) h.remove();
           });
         }
       } else if (r.status === 401) {

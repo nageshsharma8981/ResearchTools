@@ -265,7 +265,24 @@ expandBtn.onclick = () => {
 const hashStep = (location.hash.match(/^#step-(\d)$/) || [])[1];
 const openIdx = hashStep !== undefined ? +hashStep : 1;
 const first = document.querySelector(`.rstep[data-step="${openIdx}"]`) || document.querySelector('.rstep');
-if (first) { first.classList.add('open'); first.querySelector('.step-btn').setAttribute('aria-expanded', 'true'); if (hashStep !== undefined) first.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+if (first) {
+  first.classList.add('open');
+  first.querySelector('.step-btn').setAttribute('aria-expanded', 'true');
+  if (hashStep !== undefined) {
+    // The cinematic intro (if it plays) appears asynchronously, locks page scroll,
+    // and resets scroll position — so: give it ~1.2s to appear; if it does, wait for
+    // it to be dismissed before scrolling to the step.
+    let overlaySeen = false;
+    const t0 = performance.now();
+    const iv = setInterval(() => {
+      if (document.querySelector('.intro-overlay')) { overlaySeen = true; return; }
+      if (!overlaySeen && performance.now() - t0 < 1200) return; // intro may still be coming
+      clearInterval(iv);
+      first.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
+    setTimeout(() => clearInterval(iv), 120_000);
+  }
+}
 syncExpandAll();
 </script>
 </body>
