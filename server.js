@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS access_allow (
 for (const col of ["terms_version TEXT NOT NULL DEFAULT ''", 'terms_accepted_at INTEGER NOT NULL DEFAULT 0', "tool_access TEXT NOT NULL DEFAULT ''", 'seen_intro INTEGER NOT NULL DEFAULT 0',
   // billing
   "plan TEXT NOT NULL DEFAULT 'free'", "plan_status TEXT NOT NULL DEFAULT ''", 'credits INTEGER NOT NULL DEFAULT 0', 'credits_reset_at INTEGER NOT NULL DEFAULT 0',
-  'free_run_used INTEGER NOT NULL DEFAULT 0', "rzp_customer_id TEXT NOT NULL DEFAULT ''", "rzp_subscription_id TEXT NOT NULL DEFAULT ''"]) {
+  'free_run_used INTEGER NOT NULL DEFAULT 0', 'free_reset_at INTEGER NOT NULL DEFAULT 0', "rzp_customer_id TEXT NOT NULL DEFAULT ''", "rzp_subscription_id TEXT NOT NULL DEFAULT ''"]) {
   try { db.exec(`ALTER TABLE users ADD COLUMN ${col}`); } catch { /* already present */ }
 }
 db.exec(`CREATE TABLE IF NOT EXISTS payments (
@@ -304,7 +304,26 @@ const RZP_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
 const RZP_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
 const BILLING_CONFIGURED = !!(RZP_KEY_ID && RZP_KEY_SECRET);
 const BILLING_ENFORCED = BILLING_CONFIGURED && process.env.BILLING_ENFORCED === 'on';
-const MONTHLY_CREDITS = 60;          // ₹499/month
+const MONTHLY_CREDITS = 150;         // ₹499/month (Pro must beat the free educator allowance)
+// Free monthly AI-run credits by account level. A floor that refreshes every 30
+// days: if the balance is below the allowance at rollover it is topped UP TO the
+// allowance (never stacked), so paid credits above it are untouched and free
+// credits can't be hoarded. Basic gets a one-time signup taste, no refresh.
+const FREE_ALLOWANCE = { basic: 0, student: 25, educator: 50 };
+const SIGNUP_CREDITS = { basic: 5, student: 25, educator: 50 };
+function refreshFreeCredits(u) {
+  if (!u || !FREE_ALLOWANCE[u.role]) return u;
+  const allowance = FREE_ALLOWANCE[u.role];
+  if (now() < (u.free_reset_at || 0) + 30 * 24 * 3600_000) return u;
+  if (u.credits < allowance) {
+    db.prepare('UPDATE users SET credits = ?, free_reset_at = ? WHERE id = ?').run(allowance, now(), u.id);
+    u.credits = allowance;
+  } else {
+    db.prepare('UPDATE users SET free_reset_at = ? WHERE id = ?').run(now(), u.id);
+  }
+  u.free_reset_at = now();
+  return u;
+}
 const TOPUP_CREDITS = 25;            // ₹199 one-time
 const CREDIT_CAP = 300;              // rollover ceiling — stops infinite hoarding
 const PLAN_AMOUNT_PAISE = 49900;
@@ -531,8 +550,8 @@ app.post('/api/auth/signup', async (req, res) => {
   // institutional emails (edu/ac/rewiseed/allow-listed) get the student essentials;
   // everyone else may join but starts on the limited 'basic' tier (2 tools)
   const role = SUPERADMINS.includes(em) ? 'superadmin' : accessAllowed(em) ? 'student' : 'basic';
-  const info = db.prepare('INSERT INTO users (email, name, pass_hash, salt, role, created_at, terms_version, terms_accepted_at) VALUES (?,?,?,?,?,?,?,?)')
-    .run(em, displayName, hashPassword(password, salt), salt, role, now(), TERMS_VERSION, now());
+  const info = db.prepare('INSERT INTO users (email, name, pass_hash, salt, role, created_at, terms_version, terms_accepted_at, credits, free_reset_at) VALUES (?,?,?,?,?,?,?,?,?,?)')
+    .run(em, displayName, hashPassword(password, salt), salt, role, now(), TERMS_VERSION, now(), SIGNUP_CREDITS[role] || 0, now());
   const confirmToken = rand(32);
   db.prepare('INSERT INTO tokens (token, user_id, kind, expires) VALUES (?,?,?,?)')
     .run(sha(confirmToken), info.lastInsertRowid, 'confirm', now() + 24 * 3600_000);
@@ -815,6 +834,7 @@ app.put('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
     const allowedRoles = req.user.role === 'superadmin' ? ['basic', 'student', 'educator', 'admin'] : ['basic', 'student', 'educator'];
     if (!allowedRoles.includes(role)) return res.status(400).json({ error: `Role must be one of: ${allowedRoles.join(', ')}.` });
     updates.role = role;
+    updates.free_reset_at = 0; // the new level's free allowance applies immediately
   }
   if (toolAccess !== undefined) {
     if (!Array.isArray(toolAccess) || !toolAccess.length || toolAccess.some(t => !TOOL_IDS.has(String(t)))) {
@@ -1170,8 +1190,11 @@ app.get('/api/billing/status', (req, res) => {
     paperUnlockCredits: PAPER_UNLOCK_CREDITS,
   };
   if (!u) return res.json(base);
+  refreshFreeCredits(u);
   const staff = ['admin', 'superadmin'].includes(u.role);
-  res.json({ ...base, plan: u.plan, planStatus: u.plan_status, credits: u.credits, freeRunUsed: !!u.free_run_used, staff, unlimited: staff });
+  res.json({ ...base, plan: u.plan, planStatus: u.plan_status, credits: u.credits, freeRunUsed: !!u.free_run_used, staff, unlimited: staff,
+    role: u.role, freeMonthly: FREE_ALLOWANCE[u.role] || 0,
+    nextFreeRefresh: FREE_ALLOWANCE[u.role] ? (u.free_reset_at || 0) + 30 * 24 * 3600_000 : null });
 });
 
 app.post('/api/billing/subscribe', requireAuth, async (req, res) => {
@@ -1268,6 +1291,7 @@ app.post('/api/run-credit', (req, res) => {
   if (!u) return res.status(401).json({ error: 'Sign in to run AI tools — your first run is free.', reason: 'signin' });
   // staff run the platform — never metered
   if (['admin', 'superadmin'].includes(u.role)) return res.json({ ok: true, metered: false, staff: true });
+  refreshFreeCredits(u); // apply the monthly free allowance before charging
   if (!rateLimit('runc:' + u.id, 60, 15 * 60_000)) return res.status(429).json({ error: 'Too many runs — wait a few minutes.' });
   const chars = Math.max(0, Math.min(10_000_000, Number((req.body || {}).chars) || 0));
   const w = runWeight(chars);
@@ -1358,9 +1382,16 @@ app.use((req, res, next) => {
   if (!u) return next();
   const eff = effectiveTools(u); // null = all tools
   if (eff === null || eff.has(name)) return next();
-  res.status(403).send(`<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Tool not enabled — ItsMyResearch</title><link rel="stylesheet" href="/shared.css"/></head>
-<body><div class="hero"><h1>Tool not enabled</h1><p class="lede">Your administrator hasn't enabled this tool for your account. If you think that's a mistake, contact your institution's admin.</p></div>
-<main style="max-width:480px;text-align:center"><div class="card"><a href="/index.html"><button type="button">Back to home</button></a></div></main>
+  const inStudent = STUDENT_TOOLS.has(name), inBasic = BASIC_TOOLS.has(name);
+  const includedIn = inBasic ? 'every account level' : inStudent ? 'the Student level and above' : 'the Educator / Researcher level';
+  res.status(403).send(`<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Tool not in your plan — ItsMyResearch</title><link rel="stylesheet" href="/shared.css"/></head>
+<body><div class="hero"><h1>This tool isn't in your plan yet</h1>
+<p class="lede">You're signed in as <b>${esc(u.role)}</b>. This tool is included in <b>${includedIn}</b>. Two ways to get it: ask an administrator to raise your level or grant this tool, or see what each level includes.</p></div>
+<main style="max-width:520px;text-align:center"><div class="card">
+<div class="btn-row" style="justify-content:center"><a href="/pricing.html"><button type="button">See plans &amp; what's included</button></a>
+<a href="/index.html"><button type="button" class="ghost">Back to home</button></a></div>
+<p class="hint" style="margin:12px 0 0">Institutional users: your admin can enable tools per account from the Admin console. You keep full access to everything already in your level.</p>
+</div></main>
 <script src="/shared.js"></script><script>Rewiseed.renderNav('');</script></body></html>`);
 });
 

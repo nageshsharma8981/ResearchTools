@@ -11,7 +11,7 @@
 <meta property="og:type" content="website"/>
 <meta property="og:site_name" content="ItsMyResearch"/>
 <meta property="og:title" content="Pricing — ItsMyResearch"/>
-<meta property="og:description" content="Keyless research tools free forever. AI runs: first one free, then Pro at ₹499/month for 60 run credits."/>
+<meta property="og:description" content="Keyless research tools free forever. Free monthly AI credits for students and educators; Pro at ₹499/month for 150 run credits."/>
 <meta property="og:url" content="https://www.itsmyresearch.com/pricing"/>
 <meta property="og:image" content="https://www.itsmyresearch.com/og-card.png"/>
 <meta property="og:image:width" content="1200"/>
@@ -38,7 +38,7 @@
 <div class="hero">
   <span class="tool-icon" id="hero-icon"></span>
   <h1>Simple, honest pricing</h1>
-  <p class="lede">The keyless tools — literature search, citation graphs, scholar profiles, statistics, PLS modeling — are <b>free forever</b>. AI-powered runs: your <b>first run is free</b>, then Pro covers you. You always bring your own AI (your key, or the free built-in model) — we never mark up model costs.</p>
+  <p class="lede">The keyless tools — literature search, citation graphs, scholar profiles, statistics, PLS modeling — are <b>free forever</b>. AI-powered runs come with a <b>free monthly credit allowance</b> — 25 for Students, 50 for Educators — and Pro covers heavy use. You always bring your own AI (your key, or the free built-in model) — we never mark up model costs.</p>
 </div>
 <main style="max-width:900px">
   <div id="status"></div>
@@ -48,7 +48,7 @@
       <div class="price">₹0<small> forever</small></div>
       <ul>
         <li>Every keyless tool, unlimited — search, DOIs, citation graphs, profiles, statistics, StatPLS modeling</li>
-        <li>One free AI run (standard or large document)</li>
+        <li><b>Free AI credits every month</b> — Students 25, Educators 50 (institutional email); other accounts get a 5-credit welcome</li>
         <li>My Library, recommendations, the Research Journey</li>
         <li>Built-in browser AI &amp; your own keys supported</li>
       </ul>
@@ -58,9 +58,9 @@
       <span class="overline">Pro · most popular</span>
       <div class="price">₹499<small> / month</small></div>
       <ul>
-        <li><b>60 run credits</b> every month (≈ 2 standard runs a day)</li>
+        <li><b>150 run credits</b> every month (≈ 5 standard runs a day)</li>
         <li>Heavy documents supported (up to 200k characters)</li>
-        <li>All 12 AI-powered tools: gap analysis, questions, instruments, coding, reviews, RubricLens, summaries…</li>
+        <li>Stacks on top of your free monthly allowance</li>
         <li>Credits roll over (up to 300) · cancel anytime</li>
       </ul>
       <button id="subscribe" style="width:100%;justify-content:center"></button>
@@ -75,6 +75,27 @@
       </ul>
       <button id="topup" class="ghost" style="width:100%;justify-content:center"></button>
     </div>
+  </div>
+
+  <div class="card" style="margin-top:22px">
+    <span class="overline">Who gets what</span>
+    <h2>Account levels at a glance</h2>
+    <p class="hint">Your email decides your starting level (institutional emails start as Student); admins can raise levels or grant individual tools. Locked tools show a 🔒 on the home page and explain which level includes them.</p>
+    <div class="tbl-wrap" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13.5px">
+      <thead><tr>
+        <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border-strong)">Level</th>
+        <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border-strong)">Who</th>
+        <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border-strong)">Tools included</th>
+        <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border-strong)">Free AI credits</th>
+      </tr></thead>
+      <tbody>
+        <tr><td style="padding:8px 10px;border-bottom:1px solid var(--border)"><b>Basic</b></td><td style="padding:8px 10px;border-bottom:1px solid var(--border)">Personal email (Gmail etc.)</td><td style="padding:8px 10px;border-bottom:1px solid var(--border)">Literature Finder + DOI Finder</td><td style="padding:8px 10px;border-bottom:1px solid var(--border)">5 at signup (one-time)</td></tr>
+        <tr><td style="padding:8px 10px;border-bottom:1px solid var(--border)"><b>Student</b></td><td style="padding:8px 10px;border-bottom:1px solid var(--border)">Institutional email (.edu, .ac.in…)</td><td style="padding:8px 10px;border-bottom:1px solid var(--border)">10 essentials — finding, citing, writing, checking</td><td style="padding:8px 10px;border-bottom:1px solid var(--border)"><b>25 / month</b></td></tr>
+        <tr><td style="padding:8px 10px;border-bottom:1px solid var(--border)"><b>Educator / Researcher</b></td><td style="padding:8px 10px;border-bottom:1px solid var(--border)">Granted by an admin</td><td style="padding:8px 10px;border-bottom:1px solid var(--border)">All 26 tools</td><td style="padding:8px 10px;border-bottom:1px solid var(--border)"><b>50 / month</b></td></tr>
+        <tr><td style="padding:8px 10px"><b>+ Pro</b> (any level)</td><td style="padding:8px 10px">₹499 / month</td><td style="padding:8px 10px">Your level's tools, heavy documents</td><td style="padding:8px 10px"><b>+150 / month</b>, rollover to 300</td></tr>
+      </tbody>
+    </table></div>
+    <p class="hint" style="margin-top:10px">Free allowances refresh every 30 days (topped up to your allowance, never stacked — paid credits above it are untouched). Keyless tools never use credits; AI runs cost 1 credit (≤20k characters), 2 (≤80k) or 4 (≤200k).</p>
   </div>
 
   <div class="card" style="margin-top:22px">
@@ -161,7 +182,7 @@ $('subscribe').onclick = async () => {
     await loadCheckout();
     new Razorpay({
       key: d.keyId, subscription_id: d.subscriptionId, name: 'ItsMyResearch',
-      description: 'Pro — 60 AI run credits / month',
+      description: 'Pro — 150 AI run credits / month',
       prefill: { email: d.email },
       theme: { color: '#a16207' },
       handler: async (resp) => {

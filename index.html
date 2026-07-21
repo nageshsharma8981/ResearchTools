@@ -147,6 +147,22 @@ Rewiseed.renderNav('index.html');
 const esc = Rewiseed.esc;
 // cinematic intro on first sign-in; replayable from the footer
 fetch('/api/me', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).then(d => {
+  // access visibility: mark tools outside this account's plan with a lock badge
+  // (tile stays clickable — the tool page explains which level includes it)
+  if (d && d.user && d.user.tool_access && d.user.tool_access.length) {
+    const granted = new Set(d.user.tool_access.map(t => t + '.html'));
+    document.querySelectorAll('.rp-tile').forEach(tile => {
+      const href = tile.getAttribute('href');
+      if (href === 'library.html' || href === 'journal.html') return; // not plan-gated
+      if (!granted.has(href)) {
+        tile.style.opacity = '0.62';
+        tile.setAttribute('title', 'Not in your plan — click to see which level includes it');
+        tile.querySelector('.ti').insertAdjacentHTML('beforeend',
+          '<span style="margin-left:auto;font-size:10.5px;font-weight:800;letter-spacing:.04em;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:999px;padding:2px 8px;color:var(--muted);white-space:nowrap">🔒 LOCKED</span>');
+        const go = tile.querySelector('.go'); if (go) go.innerHTML = 'See how to unlock →';
+      }
+    });
+  }
   if (d && d.user && !d.user.seen_intro) {
     RewiseedIntro.play(d.user.name).then(() => {
       fetch('/api/me', { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ introSeen: true }) }).catch(() => {});
