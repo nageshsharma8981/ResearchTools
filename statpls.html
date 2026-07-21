@@ -1159,7 +1159,7 @@ function drawDiagram(est) {
       <text x="0" y="${s ? -4 : 4}" text-anchor="middle" font-size="12" font-weight="700" fill="var(--ink)" style="pointer-events:none">${esc(c.name.length > 16 ? c.name.slice(0, 15) + '…' : c.name)}</text>
       ${s ? `<text x="0" y="13" text-anchor="middle" font-size="12" font-weight="700" fill="var(--accent-strong)" style="pointer-events:none">${f3(s.r2)}</text>` : ''}</g>`;
   }).join('');
-  return { svg: `<svg id="pls-diagram" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Structural model diagram — drag constructs to rearrange" style="display:block;margin:0 auto;max-width:none">
+  return { svg: `<svg id="pls-diagram" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Structural model diagram — drag constructs to rearrange" style="display:block;margin:0 auto;max-width:100%;height:auto">
     <defs>
       <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ink-2)"/></marker>
       <marker id="arr-s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ink-2)"/></marker>

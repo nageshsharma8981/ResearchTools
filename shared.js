@@ -1120,7 +1120,9 @@
       table{border-collapse:collapse;width:100%;font-size:11.5px;margin:8px 0} th,td{border:1px solid #999;padding:4px 8px;text-align:left;vertical-align:top}
       .hint{color:#555;font-size:11px} .overline{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#777}
       .badge{border:1px solid #999;border-radius:8px;padding:0 6px;font-size:10.5px}
-      svg{max-width:100%;height:auto} .card{margin:0 0 18px;page-break-inside:avoid}
+      svg{max-width:100% !important;height:auto !important} img{max-width:100% !important;height:auto !important}
+      td,th{word-break:break-word} .tbl-wrap{overflow:visible !important}
+      .card{margin:0 0 18px;page-break-inside:avoid}
       del{color:#a33} ins{color:#166534;text-decoration:none} a{color:#1a1a1a}
       .pdf-foot{margin-top:28px;border-top:1px solid #999;padding-top:8px;font-size:10px;color:#666}
       @page{margin:16mm}
