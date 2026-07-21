@@ -96,7 +96,7 @@ const TOOL_IDS = new Set([
   'qualitative-coding-assistant', 'peer-review-simulator', 'citation-formatter', 'apa-formatter',
   'stats-advisor', 'literature-matrix', 'writing-polisher', 'citation-graph',
   'data-explorer', 'data-sources', 'scholar-profiles', 'ai-pls', 'rubric-lens',
-  'abstract-generator', 'paper-generator',
+  'abstract-generator', 'paper-generator', 'bibliometrics', 'journal-metrics',
 ]);
 // things that report usage but are not grantable/gateable pages
 const TRACKABLE = new Set([...TOOL_IDS, 'assistant', 'library']);

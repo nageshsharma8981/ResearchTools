@@ -1,6 +1,6 @@
 # ItsMyResearch
 
-Twenty research tools spanning the full research lifecycle — discovery, design, analysis, writing, and review — that run **in your browser**. Seven are fully keyless (literature search, DOI lookup, citation graphs, scholar profiles, statistics, citation formatting); the AI tools use the free built-in browser model, your own OpenAI-compatible key, or a local model for fully offline use. Optional accounts add a saved-paper library, recommendations, and admin-managed tool access.
+Twenty-three research tools spanning the full research lifecycle — discovery, design, analysis, writing, and review — that run **in your browser**. Nine are fully keyless (literature search, DOI lookup, citation graphs, scholar profiles, bibliometrics, journal metrics, statistics, citation formatting); the AI tools use the free built-in browser model, your own OpenAI-compatible key, or a local model for fully offline use. Optional accounts add a saved-paper library, recommendations, and admin-managed tool access.
 
 ## The tools
 
@@ -16,6 +16,8 @@ New researchers: start at **/research-journey** — the whole workflow as eight 
 | Data Source Directory | `data-sources.html` | Curated guide to official statistics (World Bank, IMF, Eurostat, OECD, UN, StatCan, ADB, JETRO, globalEDGE, US federal) with coverage and access notes. |
 | Citation Graph Explorer | `citation-graph.html` | Walk a paper's citation network — references and citing works — as a clickable graph. Keyless via OpenAlex. |
 | Author & Institution Profiles | `scholar-profiles.html` | Look up any researcher or institution — works, citations, h-index, affiliations, top papers. Keyless via OpenAlex. |
+| Bibliometric Analysis | `bibliometrics.html` | Map a whole field from one query: publications-per-year trend, top authors/journals/institutions/countries, open-access share, most-cited anchor papers. CSV export, methods sentence with APA references, optional AI reading of the aggregates. Keyless via OpenAlex. |
+| Journal Metrics & Finder | `journal-metrics.html` | Decide where to submit: journals ranked by how much of your topic they actually publish, full metric profiles (2-yr mean citedness, h-index, trend, publisher, OA/DOAJ, APC), side-by-side comparison of up to four, Scimago links for verification, predatory-journal cautions. Keyless via OpenAlex. |
 | Academic Writing Polisher | `writing-polisher.html` | Polish tone, tighten clarity, generate abstracts or title options — with every substantive edit explained. |
 | My Library | `library.html` | Signed-in users save papers from any finder tool, add notes, export BibTeX, and send the set into the pipeline. |
 | Literature Synthesis Matrix | `literature-matrix.html` | Papers side by side — aims, methods, samples, findings, limitations — plus a written synthesis of agreements, conflicts, and trends. |

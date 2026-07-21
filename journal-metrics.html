@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Journal Metrics &amp; Finder — ItsMyResearch</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ItsMyResearch"/>
+<meta property="og:title" content="Journal Metrics &amp; Finder — ItsMyResearch"/>
+<meta property="og:description" content="Find journals for your paper and check their metrics — h-index, citation impact, open-access status, APC — free and keyless via OpenAlex. Compare up to four side by side."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/journal-metrics"/>
+<meta name="twitter:card" content="summary"/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.mode-tabs { display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+.mode-tab { background: var(--surface); color: var(--ink-2); border: 1px solid var(--border-strong); border-radius: 999px; padding: 9px 20px; min-height: 44px; font-size: 14px; font-weight: 600; cursor: pointer; }
+button.mode-tab:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); box-shadow: none; transform: none; }
+button.mode-tab.active { background: var(--accent-soft); color: var(--accent-strong); border-color: var(--accent); }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin: 12px 0; }
+.stat-grid .s { background: var(--surface-2); border-radius: var(--radius); padding: 12px 14px; }
+.stat-grid b { display: block; font-family: var(--font-serif); font-size: 24px; font-variant-numeric: tabular-nums; }
+.stat-grid span { font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.result-pick { display:block; width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--border); padding:12px; min-height:0; border-radius:0; font-size:14px; color:var(--ink); }
+button.result-pick:hover:not(:disabled){ background:var(--surface-2); box-shadow:none; transform:none; }
+.result-pick small { display:block; color:var(--muted); font-size:12px; margin-top:2px; }
+.jm-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.jm-table th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--border-strong); white-space: nowrap; }
+.jm-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--ink-2); vertical-align: top; }
+.jm-table td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tbl-wrap { overflow-x: auto; }
+#spark svg { width: 100%; height: auto; display: block; }
+.cmp-bar { position: sticky; bottom: 12px; display: flex; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 999px; padding: 8px 14px; box-shadow: var(--shadow); width: fit-content; margin: 14px auto 0; z-index: 5; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Journal Metrics &amp; Finder</h1>
+  <p class="lede">Decide where to submit — find journals that actually publish your topic, check their impact and open-access terms, and compare candidates side by side. Free and keyless via OpenAlex.</p>
+</div>
+<main style="max-width:900px">
+  <div class="mode-tabs" role="tablist">
+    <button class="mode-tab active" id="tab-topic" role="tab">Find journals for my paper</button>
+    <button class="mode-tab" id="tab-lookup" role="tab">Look up a journal</button>
+  </div>
+  <div class="card">
+    <h2 id="search-h">Find journals publishing your topic</h2>
+    <p class="hint" id="search-hint">Describe your paper's topic in a few words — we rank the journals that publish the most matching work, with their metrics.</p>
+    <div class="search-row">
+      <input id="q" type="search" autocomplete="off" placeholder="e.g. mobile banking adoption emerging markets" aria-label="Search"/>
+      <button id="go"></button>
+    </div>
+    <div class="field-foot"><span class="chip-row" id="examples"></span></div>
+  </div>
+  <div id="out"></div>
+  <div id="cmp"></div>
+  <div class="card">
+    <span class="overline">Read the numbers honestly</span>
+    <h2 style="font-size:17px">What these metrics are — and aren't</h2>
+    <ul class="hint" style="max-width:100%;margin:0;padding-left:20px;line-height:1.7">
+      <li><b>2-yr mean citedness</b> is OpenAlex's open equivalent of an impact factor: average citations this year to papers from the previous two. It is <b>not</b> the official Journal Impact Factor (Clarivate) or SJR (Scimago) — those are proprietary and can differ; we link each journal's Scimago page so you can check.</li>
+      <li><b>h-index</b> here is the journal's, computed over its whole history — older journals score higher by longevity alone (Hirsch, 2005).</li>
+      <li><b>Impact ≠ fit.</b> Editors desk-reject good papers sent to the wrong journal. Weigh the "works on your topic" column — evidence the journal actually publishes your conversation — at least as heavily as any metric.</li>
+      <li><b>Beware predatory journals.</b> An APC alone is normal (many legitimate OA journals charge one); pressure tactics, fake metrics, and no real peer review are not. DOAJ listing is a good sign for OA journals. Checklist: <a class="link" href="https://thinkchecksubmit.org/" target="_blank" rel="noopener noreferrer">Think. Check. Submit.</a></li>
+      <li>Reference: Hirsch, J. E. (2005). An index to quantify an individual's scientific research output. <i>PNAS, 102</i>(46), 16569–16572. https://doi.org/10.1073/pnas.0507655102 · Priem, J., Piwowar, H., &amp; Orr, R. (2022). <i>OpenAlex</i>. arXiv. https://doi.org/10.48550/arXiv.2205.01833</li>
+    </ul>
+  </div>
+</main>
+<script src="shared.js"></script>
+<script>
+const { esc, icon, toast } = Rewiseed;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('journal-metrics.html');
+$('hero-icon').innerHTML = icon('book', 26);
+$('go').innerHTML = `${icon('search', 16)} Search`;
+
+const OA = 'https://api.openalex.org';
+const T = (u) => Rewiseed.fetchWithTimeout(u, { timeout: 25000 });
+const num = (n) => (n || 0).toLocaleString();
+const shortId = (id) => String(id || '').replace('https://openalex.org/', '');
+const SRC_SELECT = 'id,display_name,issn_l,host_organization_name,works_count,cited_by_count,summary_stats,is_oa,is_in_doaj,apc_usd,homepage_url,counts_by_year,type';
+const ifLike = (s) => s?.summary_stats?.['2yr_mean_citedness'];
+const compare = new Map(); // id -> source
+
+let mode = 'topic';
+function setMode(m) {
+  mode = m;
+  $('tab-topic').classList.toggle('active', m === 'topic');
+  $('tab-lookup').classList.toggle('active', m === 'lookup');
+  $('search-h').textContent = m === 'topic' ? 'Find journals publishing your topic' : 'Look up a journal by name or ISSN';
+  $('search-hint').textContent = m === 'topic'
+    ? "Describe your paper's topic in a few words — we rank the journals that publish the most matching work, with their metrics."
+    : 'Type the journal name (or an ISSN like 0148-2963) for its full metrics profile.';
+  $('q').placeholder = m === 'topic' ? 'e.g. mobile banking adoption emerging markets' : 'e.g. Journal of Business Research';
+  $('examples').innerHTML = (m === 'topic'
+    ? ['technology acceptance in education', 'sustainable supply chains', 'nurse burnout interventions']
+    : ['Journal of Business Research', 'MIS Quarterly', '0148-2963'])
+    .map(x => `<button type="button" class="chip" data-ex="${esc(x)}">${esc(x)}</button>`).join('');
+  $('examples').querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { $('q').value = b.dataset.ex; run(); });
+  $('out').innerHTML = '';
+}
+$('tab-topic').onclick = () => setMode('topic');
+$('tab-lookup').onclick = () => setMode('lookup');
+
+const oaBadges = (s) => [
+  s.is_oa ? '<span class="badge ok">open access</span>' : '<span class="badge">subscription / hybrid</span>',
+  s.is_in_doaj ? '<span class="badge ok" title="Listed in the Directory of Open Access Journals — a curated whitelist">DOAJ ✓</span>' : '',
+  s.apc_usd != null ? `<span class="badge" title="Article processing charge listed by the journal">APC ~$${num(s.apc_usd)}</span>` : '',
+].filter(Boolean).join(' ');
+
+const scimagoLink = (s) => s.issn_l
+  ? `<a class="link" href="https://www.scimagojr.com/journalsearch.php?q=${encodeURIComponent(s.issn_l)}&tip=issn" target="_blank" rel="noopener noreferrer">Scimago (SJR) ${icon('external', 11)}</a>` : '';
+
+async function run() {
+  const q = $('q').value.trim();
+  if (!q) { toast('Type something to search', 'error'); $('q').focus(); return; }
+  const btn = $('go'); btn.disabled = true;
+  $('out').innerHTML = `<div class="card"><div class="stream-status"><span class="spinner"></span>${mode === 'topic' ? 'Finding the journals that publish this conversation…' : 'Searching journals…'}</div></div>`;
+  try {
+    if (mode === 'topic') await topicSearch(q); else await lookupSearch(q);
+    Rewiseed.track('run');
+  } catch (e) {
+    $('out').innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>${esc(e.message)}</span></div></div>`;
+  } finally { btn.disabled = false; }
+}
+
+// --- topic mode: which venues publish the most matching work, hydrated with metrics ---
+async function topicSearch(q) {
+  const g = await T(`${OA}/works?search=${encodeURIComponent(q)}&filter=type:article|review&group_by=primary_location.source.id&per_page=200`);
+  if (!g.ok) throw new Error(`OpenAlex returned ${g.status}`);
+  const gj = await g.json();
+  const groups = (gj.group_by || []).filter(x => /openalex\.org\/S/.test(x.key)).slice(0, 15);
+  if (!groups.length) { $('out').innerHTML = `<div class="card"><div class="empty-state">${icon('search', 30)}<br/>No journals found for “${esc(q)}”. Try broader wording.</div></div>`; return; }
+  const onTopic = new Map(groups.map(x => [shortId(x.key), x.count]));
+  const r = await T(`${OA}/sources?filter=openalex:${groups.map(x => shortId(x.key)).join('|')}&per_page=${groups.length}&select=${SRC_SELECT}`);
+  if (!r.ok) throw new Error(`OpenAlex returned ${r.status}`);
+  const sources = ((await r.json()).results || [])
+    .filter(s => s.type === 'journal' || s.type === 'conference' || !s.type)
+    .sort((a, b) => (onTopic.get(shortId(b.id)) || 0) - (onTopic.get(shortId(a.id)) || 0));
+  $('out').innerHTML = `<div class="card">
+    <span class="overline">${sources.length} candidate venues · total matching works: ${num(gj.meta?.count)}</span>
+    <h2 style="font-size:17px">Journals ranked by how much of “${esc(q)}” they publish</h2>
+    <div class="tbl-wrap"><table class="jm-table">
+      <thead><tr><th>Journal</th><th style="text-align:right" title="Articles and reviews matching your topic">On your topic</th><th style="text-align:right" title="OpenAlex 2-year mean citedness — an impact-factor-like signal">2-yr impact</th><th style="text-align:right">h-index</th><th>Access</th><th></th></tr></thead>
+      <tbody>${sources.map(s => `<tr>
+        <td><b>${esc(s.display_name)}</b><br/><small style="color:var(--muted)">${esc(s.host_organization_name || '')}</small></td>
+        <td class="n">${num(onTopic.get(shortId(s.id)))}</td>
+        <td class="n">${ifLike(s) != null ? ifLike(s).toFixed(1) : '—'}</td>
+        <td class="n">${s.summary_stats?.h_index ?? '—'}</td>
+        <td>${oaBadges(s)}</td>
+        <td style="white-space:nowrap"><button class="ghost" style="min-height:30px;padding:3px 11px;font-size:12px" data-prof="${esc(shortId(s.id))}">Profile</button>
+            <button class="ghost" style="min-height:30px;padding:3px 11px;font-size:12px" data-cmp="${esc(shortId(s.id))}">+ Compare</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div>
+    <p class="hint" style="margin:10px 0 0;max-width:100%">"On your topic" counts articles + reviews matching your query — the strongest fit signal here. Sorted by fit, not impact, on purpose.</p>
+  </div>`;
+  cacheAndWire(sources);
+}
+
+// --- lookup mode ---
+async function lookupSearch(q) {
+  const isIssn = /^\d{4}-\d{3}[\dXx]$/.test(q);
+  const u = isIssn
+    ? `${OA}/sources?filter=issn:${q}&per_page=5&select=${SRC_SELECT}`
+    : `${OA}/sources?search=${encodeURIComponent(q)}&per_page=7&select=${SRC_SELECT}`;
+  const r = await T(u);
+  if (!r.ok) throw new Error(`OpenAlex returned ${r.status}`);
+  const results = ((await r.json()).results || []);
+  if (!results.length) { $('out').innerHTML = `<div class="card"><div class="empty-state">${icon('search', 30)}<br/>No journal matched “${esc(q)}”.</div></div>`; return; }
+  if (results.length === 1) { cacheAndWire(results); return showProfile(results[0]); }
+  $('out').innerHTML = `<div class="card"><span class="overline">${results.length} matches — pick one</span>${
+    results.map((s, i) => `<button type="button" class="result-pick" data-i="${i}">
+      <b>${esc(s.display_name)}</b>
+      <small>${esc(s.host_organization_name || 'Unknown publisher')} · ${num(s.works_count)} works · 2-yr impact ${ifLike(s) != null ? ifLike(s).toFixed(1) : '—'}${s.issn_l ? ' · ISSN ' + esc(s.issn_l) : ''}</small>
+    </button>`).join('')}</div>`;
+  $('out').querySelectorAll('.result-pick').forEach(b => b.onclick = () => { cacheAndWire(results); showProfile(results[+b.dataset.i]); });
+}
+
+const srcCache = new Map();
+function cacheAndWire(sources) {
+  sources.forEach(s => srcCache.set(shortId(s.id), s));
+  wireRowButtons($('out'));
+}
+function wireRowButtons(root) {
+  root.querySelectorAll('[data-prof]').forEach(b => b.onclick = () => showProfile(srcCache.get(b.dataset.prof)));
+  root.querySelectorAll('[data-cmp]').forEach(b => b.onclick = () => addCompare(srcCache.get(b.dataset.cmp)));
+}
+
+function sparkSVG(counts) {
+  const pts = (counts || []).filter(c => c.year).sort((a, b) => a.year - b.year).slice(-10);
+  if (pts.length < 2) return '';
+  const W = 820, H = 150, padL = 46, padB = 24, padT = 10, padR = 10;
+  const max = Math.max(...pts.map(p => p.works_count)) || 1;
+  const x = (i) => padL + i * (W - padL - padR) / (pts.length - 1);
+  const y = (c) => padT + (H - padT - padB) * (1 - c / max);
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.works_count).toFixed(1)}`).join(' ');
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Articles per year">
+    <text x="${padL - 8}" y="${(y(max) + 4).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--muted)">${max.toLocaleString()}</text>
+    <line x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}" stroke="var(--border)"/>
+    <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>
+    ${pts.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.works_count).toFixed(1)}" r="3" fill="var(--accent)"><title>${p.year}: ${p.works_count.toLocaleString()} works</title></circle>`).join('')}
+    ${pts.map((p, i) => `<text x="${x(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" font-size="11" fill="var(--muted)">${p.year}</text>`).join('')}
+  </svg>`;
+}
+
+function showProfile(s) {
+  if (!s) return;
+  const st = s.summary_stats || {};
+  $('out').innerHTML = `
+    <div class="card">
+      <span class="overline">Journal profile · OpenAlex</span>
+      <h2>${esc(s.display_name)}</h2>
+      <p class="hint" style="margin:2px 0 0">${esc(s.host_organization_name || 'Unknown publisher')}${s.issn_l ? ' · ISSN ' + esc(s.issn_l) : ''} · ${oaBadges(s)}</p>
+      <div class="stat-grid">
+        <div class="s"><b>${ifLike(s) != null ? ifLike(s).toFixed(1) : '—'}</b><span>2-yr mean citedness</span></div>
+        <div class="s"><b>${st.h_index ?? '—'}</b><span>h-index</span></div>
+        <div class="s"><b>${num(s.works_count)}</b><span>works (all time)</span></div>
+        <div class="s"><b>${num(s.cited_by_count)}</b><span>citations</span></div>
+      </div>
+      <div id="spark">${sparkSVG(s.counts_by_year)}</div>
+      <div class="btn-row" style="margin-top:10px">
+        <button class="ghost" data-cmp="${esc(shortId(s.id))}">+ Add to comparison</button>
+      </div>
+      <p class="hint" style="margin:10px 0 0">
+        ${s.homepage_url ? `<a class="link" href="${esc(s.homepage_url)}" target="_blank" rel="noopener noreferrer">Journal website ${icon('external', 11)}</a> · ` : ''}
+        ${scimagoLink(s)}${s.issn_l ? ' · ' : ''}
+        <a class="link" href="${esc(s.id)}" target="_blank" rel="noopener noreferrer">OpenAlex ${icon('external', 11)}</a> ·
+        <a class="link" href="smart-literature-finder.html?q=${encodeURIComponent(s.display_name)}">Browse its papers ${icon('arrow', 11)}</a>
+      </p>
+      <p class="hint" style="margin:8px 0 0;max-width:100%">Before submitting: read the journal's own aims &amp; scope page, check 2–3 recent issues for papers like yours, and verify any metric that matters to your institution on the official source (Clarivate JCR or Scimago).</p>
+    </div>`;
+  wireRowButtons($('out'));
+}
+
+function addCompare(s) {
+  if (!s) return;
+  if (compare.has(shortId(s.id))) { toast('Already in the comparison'); return; }
+  if (compare.size >= 4) { toast('Comparison holds 4 journals — remove one first', 'error'); return; }
+  compare.set(shortId(s.id), s);
+  renderCompare();
+  toast(`${s.display_name} added to comparison`);
+}
+
+function renderCompare() {
+  if (!compare.size) { $('cmp').innerHTML = ''; return; }
+  const list = [...compare.values()];
+  const row = (label, fn) => `<tr><th style="text-align:left">${label}</th>${list.map(s => `<td>${fn(s)}</td>`).join('')}</tr>`;
+  $('cmp').innerHTML = `<div class="card">
+    <span class="overline">Side by side</span>
+    <h2 style="font-size:17px">Comparing ${compare.size} journal${compare.size > 1 ? 's' : ''}</h2>
+    <div class="tbl-wrap"><table class="jm-table">
+      <thead><tr><th></th>${list.map(s => `<th>${esc(s.display_name)}<br/><button class="ghost" style="min-height:26px;padding:2px 9px;font-size:11.5px;margin-top:4px" data-rm="${esc(shortId(s.id))}">Remove</button></th>`).join('')}</tr></thead>
+      <tbody>
+        ${row('2-yr mean citedness', s => `<b>${ifLike(s) != null ? ifLike(s).toFixed(1) : '—'}</b>`)}
+        ${row('h-index', s => s.summary_stats?.h_index ?? '—')}
+        ${row('Works (all time)', s => num(s.works_count))}
+        ${row('Citations', s => num(s.cited_by_count))}
+        ${row('Publisher', s => esc(s.host_organization_name || '—'))}
+        ${row('Access', s => oaBadges(s) || '—')}
+        ${row('ISSN', s => esc(s.issn_l || '—'))}
+        ${row('Links', s => [s.homepage_url ? `<a class="link" href="${esc(s.homepage_url)}" target="_blank" rel="noopener noreferrer">Website</a>` : '', scimagoLink(s)].filter(Boolean).join(' · ') || '—')}
+      </tbody>
+    </table></div>
+  </div>`;
+  $('cmp').querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { compare.delete(b.dataset.rm); renderCompare(); });
+  $('cmp').querySelectorAll('[data-cmp]').forEach(b => b.onclick = () => addCompare(srcCache.get(b.dataset.cmp)));
+}
+
+$('go').onclick = run;
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+setMode('topic');
+const initial = new URLSearchParams(location.search).get('q');
+if (initial) { $('q').value = initial; run(); }
+</script>
+</body>
+</html>

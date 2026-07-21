@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Bibliometric Analysis — ItsMyResearch</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ItsMyResearch"/>
+<meta property="og:title" content="Bibliometric Analysis — ItsMyResearch"/>
+<meta property="og:description" content="Map any research field in seconds — publication trends, top authors, journals, institutions and countries, most-cited papers. Keyless via OpenAlex, with CSV export and proper citations."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/bibliometrics"/>
+<meta name="twitter:card" content="summary"/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin: 12px 0; }
+.stat-grid .s { background: var(--surface-2); border-radius: var(--radius); padding: 12px 14px; }
+.stat-grid b { display: block; font-family: var(--font-serif); font-size: 24px; font-variant-numeric: tabular-nums; }
+.stat-grid span { font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.filters { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; align-items: end; }
+.filters label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 3px; }
+.filters input[type=number], .filters select { width: 110px; }
+.bib-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.bib-table th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--border-strong); }
+.bib-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); color: var(--ink-2); }
+.bib-table td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bib-table .bar { display: inline-block; height: 8px; border-radius: 4px; background: var(--accent); opacity: .55; vertical-align: middle; margin-right: 8px; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 760px) { .two-col { grid-template-columns: 1fr; } }
+.tbl-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.tbl-head h2 { font-size: 16px; margin: 0 0 6px; }
+.tbl-wrap { overflow-x: auto; }
+#trend svg { width: 100%; height: auto; display: block; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Bibliometric Analysis</h1>
+  <p class="lede">Map an entire research field in seconds — how publication activity has grown, who publishes most, where, and which papers anchor the conversation. Free and keyless via OpenAlex; AI reading of the results is optional.</p>
+</div>
+<main style="max-width:900px">
+  <div class="card">
+    <h2>Define the field</h2>
+    <p class="hint">Enter a topic the way you'd search for papers — the analysis covers every OpenAlex work matching it. Narrow queries give sharper maps ("technology acceptance model" beats "technology").</p>
+    <div class="search-row">
+      <input id="q" type="search" autocomplete="off" placeholder='e.g. technology acceptance model' aria-label="Field or topic"/>
+      <button id="go"></button>
+    </div>
+    <div class="filters">
+      <div><label for="y0">From year</label><input id="y0" type="number" min="1900" max="2100" placeholder="2010"/></div>
+      <div><label for="y1">To year</label><input id="y1" type="number" min="1900" max="2100" placeholder="2026"/></div>
+      <div><label for="wtype">Document type</label><select id="wtype">
+        <option value="">All types</option>
+        <option value="article">Journal articles only</option>
+        <option value="article|review">Articles + reviews</option>
+        <option value="book|book-chapter">Books & chapters</option>
+      </select></div>
+    </div>
+    <div class="field-foot"><span class="chip-row" id="examples"></span></div>
+  </div>
+  <div id="out"></div>
+</main>
+<script src="shared.js"></script>
+<script src="discovery.js"></script>
+<script>
+const { esc, icon, toast, md } = Rewiseed;
+const D = RewiseedDiscovery;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('bibliometrics.html');
+$('hero-icon').innerHTML = icon('chart', 26);
+$('go').innerHTML = `${icon('sparkle', 16)} Analyze`;
+$('examples').innerHTML = ['technology acceptance model', 'microplastics health effects', 'teacher burnout']
+  .map(x => `<button type="button" class="chip" data-ex="${esc(x)}">${esc(x)}</button>`).join('');
+$('examples').querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { $('q').value = b.dataset.ex; run(); });
+
+const OA = 'https://api.openalex.org';
+const num = (n) => (n || 0).toLocaleString();
+const THIS_YEAR = new Date().getFullYear();
+// OpenAlex has stray metadata years (e.g. 2050, 1800s reprints) — clamp charts and stats to plausible ones
+const cleanYears = (groups) => groups.map(g => ({ y: +g.key, c: g.count })).filter(p => p.y >= 1900 && p.y <= THIS_YEAR + 1).sort((a, b) => a.y - b.y);
+const T = (u) => Rewiseed.fetchWithTimeout(u, { timeout: 25000 });
+let last = null; // { query, filter, meta, years, authors, sources, insts, countries, oa, works }
+
+function filterString() {
+  const parts = [];
+  const y0 = parseInt($('y0').value, 10), y1 = parseInt($('y1').value, 10);
+  if (y0) parts.push(`from_publication_date:${y0}-01-01`);
+  if (y1) parts.push(`to_publication_date:${y1}-12-31`);
+  if ($('wtype').value) parts.push(`type:${$('wtype').value}`);
+  return parts.join(',');
+}
+
+async function groupBy(query, filter, key) {
+  const u = `${OA}/works?search=${encodeURIComponent(query)}${filter ? `&filter=${encodeURIComponent(filter)}` : ''}&group_by=${key}&per_page=200`;
+  const r = await T(u);
+  if (!r.ok) throw new Error(`OpenAlex returned ${r.status} for ${key}`);
+  const j = await r.json();
+  return { meta: j.meta, groups: (j.group_by || []).filter(g => g.key && g.key !== 'unknown') };
+}
+
+async function run() {
+  const query = $('q').value.trim();
+  if (!query) { toast('Enter a field or topic to analyze', 'error'); $('q').focus(); return; }
+  const y0 = parseInt($('y0').value, 10), y1 = parseInt($('y1').value, 10);
+  if (y0 && y1 && y0 > y1) { toast('"From year" is after "To year"', 'error'); return; }
+  const btn = $('go'); btn.disabled = true;
+  $('out').innerHTML = `<div class="card"><div class="stream-status"><span class="spinner"></span>Counting the field — publications, authors, venues, institutions…</div></div>`;
+  const filter = filterString();
+  try {
+    const [years, authors, sources, insts, countries, oa, worksR] = await Promise.all([
+      groupBy(query, filter, 'publication_year'),
+      groupBy(query, filter, 'authorships.author.id'),
+      groupBy(query, filter, 'primary_location.source.id'),
+      groupBy(query, filter, 'authorships.institutions.id'),
+      groupBy(query, filter, 'authorships.countries'),
+      groupBy(query, filter, 'open_access.is_oa'),
+      T(`${OA}/works?search=${encodeURIComponent(query)}${filter ? `&filter=${encodeURIComponent(filter)}` : ''}&sort=cited_by_count:desc&per_page=8&select=id,doi,title,publication_year,authorships,cited_by_count,primary_location,open_access`),
+    ]);
+    const total = years.meta?.count || 0;
+    if (!total) {
+      $('out').innerHTML = `<div class="card"><div class="empty-state">${icon('search', 30)}<br/>No works matched “${esc(query)}”${filter ? ' with those filters' : ''}. Try broader phrasing or removing the year filter.</div></div>`;
+      return;
+    }
+    const works = worksR.ok ? ((await worksR.json()).results || []) : [];
+    last = { query, filter, total, years, authors, sources, insts, countries, oa, works };
+    render(last);
+    Rewiseed.track('run');
+  } catch (e) {
+    $('out').innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>${esc(e.message)}</span></div></div>`;
+  } finally { btn.disabled = false; }
+}
+
+function trendSVG(groups) {
+  const pts = cleanYears(groups);
+  if (pts.length < 2) return '<p class="hint" style="margin:0">Not enough yearly data to chart.</p>';
+  const W = 820, H = 240, padL = 52, padB = 30, padT = 14, padR = 12;
+  const max = Math.max(...pts.map(p => p.c));
+  const x = (i) => padL + i * (W - padL - padR) / Math.max(1, pts.length - 1);
+  const y = (c) => padT + (H - padT - padB) * (1 - c / max);
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.c).toFixed(1)}`).join(' ');
+  const area = `${line} L${x(pts.length - 1).toFixed(1)},${H - padB} L${padL},${H - padB} Z`;
+  const step = Math.max(1, Math.ceil(pts.length / 12));
+  const ticks = pts.map((p, i) => i % step === 0 || i === pts.length - 1
+    ? `<text x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${p.y}</text>` : '').join('');
+  const gridN = 4;
+  const grid = Array.from({ length: gridN + 1 }, (_, i) => {
+    const v = Math.round(max * i / gridN), yy = y(v);
+    return `<line x1="${padL}" y1="${yy.toFixed(1)}" x2="${W - padR}" y2="${yy.toFixed(1)}" stroke="var(--border)" stroke-width="1"/><text x="${padL - 8}" y="${(yy + 4).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--muted)">${v.toLocaleString()}</text>`;
+  }).join('');
+  const dots = pts.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.c).toFixed(1)}" r="3" fill="var(--accent)"><title>${p.y}: ${p.c.toLocaleString()} works</title></circle>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Publications per year">${grid}<path d="${area}" fill="var(--accent)" opacity="0.12"/><path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>${dots}${ticks}</svg>`;
+}
+
+function rankTable(title, groups, n, unitLabel) {
+  const top = groups.slice(0, n);
+  if (!top.length) return `<div><div class="tbl-head"><h2>${esc(title)}</h2></div><p class="hint" style="margin:0">No data.</p></div>`;
+  const max = top[0].count || 1;
+  return `<div><div class="tbl-head"><h2>${esc(title)}</h2></div><div class="tbl-wrap"><table class="bib-table">
+    <thead><tr><th>#</th><th>${esc(unitLabel)}</th><th style="text-align:right">Works</th></tr></thead>
+    <tbody>${top.map((g, i) => `<tr><td class="n">${i + 1}</td><td><span class="bar" style="width:${Math.max(4, 56 * g.count / max)}px"></span>${esc(g.key_display_name || g.key)}</td><td class="n">${num(g.count)}</td></tr>`).join('')}</tbody>
+  </table></div></div>`;
+}
+
+function render(d) {
+  const pts = cleanYears(d.years.groups);
+  const span = pts.length ? `${pts[0].y}–${pts[pts.length - 1].y}` : '—';
+  const peak = pts.length ? pts.reduce((a, b) => (b.c > a.c ? b : a)) : null;
+  // OpenAlex encodes is_oa groups as key "1"/"0" with display_name "true"/"false"
+  const oaTrue = d.oa.groups.find(g => String(g.key) === '1' || String(g.key_display_name) === 'true')?.count || 0;
+  const oaPct = d.total ? Math.round(100 * oaTrue / d.total) : 0;
+  // simple momentum: share of output from the most recent 5 charted years
+  const recentCut = (pts.length ? pts[pts.length - 1].y : THIS_YEAR) - 4;
+  const recent = pts.filter(p => p.y >= recentCut).reduce((s, p) => s + p.c, 0);
+  const recentPct = d.total ? Math.round(100 * recent / d.total) : 0;
+  $('out').innerHTML = `
+    <div class="card">
+      <span class="overline">Field snapshot · OpenAlex</span>
+      <h2 style="margin-bottom:2px">“${esc(d.query)}”</h2>
+      ${d.filter ? `<p class="hint" style="margin:2px 0 0">Filters: ${esc(d.filter.replace(/,/g, ' · '))}</p>` : ''}
+      <div class="stat-grid">
+        <div class="s"><b>${num(d.total)}</b><span>works</span></div>
+        <div class="s"><b>${esc(span)}</b><span>years active</span></div>
+        <div class="s"><b>${peak ? peak.y : '—'}</b><span>peak year</span></div>
+        <div class="s"><b>${oaPct}%</b><span>open access</span></div>
+        <div class="s"><b>${recentPct}%</b><span>from last 5 yrs</span></div>
+      </div>
+      <div class="btn-row" style="margin-top:4px">
+        <button class="ghost" id="csv-all">${icon('download', 15)} Download all tables (CSV)</button>
+        <button id="ai-read">${icon('sparkle', 15)} AI reading of the field</button>
+        <button class="ghost" id="copy-cite">${icon('copy', 15)} Cite this analysis</button>
+      </div>
+      <div id="ai-out"></div>
+    </div>
+    <div class="card">
+      <span class="overline">Growth</span>
+      <h2 style="font-size:17px">Publications per year</h2>
+      <div id="trend">${trendSVG(d.years.groups)}</div>
+    </div>
+    <div class="card">
+      <div class="two-col">
+        ${rankTable('Most prolific authors', d.authors.groups, 10, 'Author')}
+        ${rankTable('Top journals & venues', d.sources.groups, 10, 'Venue')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="two-col">
+        ${rankTable('Leading institutions', d.insts.groups, 10, 'Institution')}
+        ${rankTable('Output by country', d.countries.groups, 10, 'Country')}
+      </div>
+    </div>
+    <div class="card">
+      <span class="overline">Anchors</span>
+      <h2 style="font-size:17px">Most-cited works in this field</h2>
+      ${d.works.length ? `<div id="topw">${d.works.map(w => D.paperCard(w)).join('')}</div>` : '<p class="hint" style="margin:0">Could not load the top-cited list.</p>'}
+    </div>
+    <div class="card">
+      <span class="overline">Methods &amp; sources</span>
+      <h2 style="font-size:17px">How this analysis works — and its limits</h2>
+      <p class="hint" style="max-width:100%;margin:0 0 8px">Counts are computed live from OpenAlex's index of 240M+ scholarly works using faceted aggregation over your query. Read them as a map, not a census: OpenAlex coverage favors English-language, DOI-bearing, journal-published work; author counts depend on automated name disambiguation (common names can merge or split); very recent years undercount because indexing and citations lag. "Authors" is the number of distinct author records on matching works.</p>
+      <p class="hint" style="max-width:100%;margin:0">Method &amp; data references (APA 7):</p>
+      <ul class="hint" style="max-width:100%;margin:4px 0 0;padding-left:20px">
+        <li>Donthu, N., Kumar, S., Mukherjee, D., Pandey, N., &amp; Lim, W. M. (2021). How to conduct a bibliometric analysis: An overview and guidelines. <i>Journal of Business Research, 133</i>, 285–296. https://doi.org/10.1016/j.jbusres.2021.04.070</li>
+        <li>Priem, J., Piwowar, H., &amp; Orr, R. (2022). <i>OpenAlex: A fully-open index of scholarly works, authors, venues, institutions, and concepts</i>. arXiv. https://doi.org/10.48550/arXiv.2205.01833</li>
+      </ul>
+    </div>`;
+  const tw = $('topw'); if (tw) D.wireSaveButtons(tw);
+  $('csv-all').onclick = exportCSV;
+  $('copy-cite').onclick = copyCite;
+  $('ai-read').onclick = aiRead;
+}
+
+function exportCSV() {
+  if (!last) return;
+  const q = (s) => `"${String(s ?? '').replace(/"/g, '""')}"`;
+  const rows = [['section', 'rank', 'name', 'works'].join(',')];
+  const add = (section, groups, n) => groups.slice(0, n).forEach((g, i) =>
+    rows.push([q(section), i + 1, q(g.key_display_name || g.key), g.count].join(',')));
+  cleanYears(last.years.groups).forEach((p, i) => rows.push([q('publications_by_year'), i + 1, p.y, p.c].join(',')));
+  add('top_authors', last.authors.groups, 25);
+  add('top_venues', last.sources.groups, 25);
+  add('top_institutions', last.insts.groups, 25);
+  add('countries', last.countries.groups, 50);
+  last.works.forEach((w, i) => rows.push([q('most_cited_works'), i + 1, q(`${w.title} (${w.publication_year}) — ${(w.doi || w.id)}`), w.cited_by_count || 0].join(',')));
+  Rewiseed.downloadText(`bibliometrics-${last.query.replace(/\W+/g, '-').slice(0, 40)}.csv`, rows.join('\n'));
+}
+
+function copyCite() {
+  const today = new Date();
+  const iso = today.toISOString().slice(0, 10);
+  const txt = `Bibliometric indicators were computed from OpenAlex (Priem et al., 2022) on ${iso} for the query "${last.query}"${last.filter ? ` (filters: ${last.filter})` : ''}, following the workflow guidelines of Donthu et al. (2021).\n\nDonthu, N., Kumar, S., Mukherjee, D., Pandey, N., & Lim, W. M. (2021). How to conduct a bibliometric analysis: An overview and guidelines. Journal of Business Research, 133, 285–296. https://doi.org/10.1016/j.jbusres.2021.04.070\nPriem, J., Piwowar, H., & Orr, R. (2022). OpenAlex: A fully-open index of scholarly works, authors, venues, institutions, and concepts. arXiv. https://doi.org/10.48550/arXiv.2205.01833`;
+  navigator.clipboard.writeText(txt).then(() => toast('Methods sentence + references copied'));
+}
+
+// AI reading — aggregates only ever leave the browser, never raw records.
+async function aiRead(e) {
+  const btn = e.currentTarget; btn.disabled = true;
+  const box = $('ai-out');
+  box.innerHTML = `<div class="result" id="ai-stream" style="margin-top:14px" aria-live="polite"><div class="stream-status"><span class="spinner"></span>Reading the field like a review author…</div></div>`;
+  const d = last;
+  const summary = {
+    query: d.query, filters: d.filter || 'none', totalWorks: d.total,
+    byYear: cleanYears(d.years.groups).map(p => [p.y, p.c]),
+    topAuthors: d.authors.groups.slice(0, 10).map(g => [g.key_display_name, g.count]),
+    topVenues: d.sources.groups.slice(0, 10).map(g => [g.key_display_name, g.count]),
+    topInstitutions: d.insts.groups.slice(0, 10).map(g => [g.key_display_name, g.count]),
+    topCountries: d.countries.groups.slice(0, 10).map(g => [g.key_display_name || g.key, g.count]),
+    mostCited: d.works.map(w => [w.title, w.publication_year, w.cited_by_count]),
+  };
+  try {
+    let raf = 0, pending = '';
+    const paint = () => { $('ai-stream').innerHTML = `<div class="cursor-blink">${md(pending)}</div>`; raf = 0; };
+    const out = await Rewiseed.callLLM({
+      system: `You are a bibliometrics advisor helping a researcher understand a field snapshot. You receive aggregate counts only. Write in Markdown:
+## The shape of the field
+Growth trajectory (emerging / growing / mature / declining, with the year evidence), size, and geographic spread.
+## Who and where
+The dominant authors, venues, and institutions — and what that concentration (or dispersion) implies for a newcomer.
+## Reading list logic
+What the most-cited works suggest as the intellectual anchors to read first.
+## Openings
+2-4 concrete angles a new researcher could take, inferred cautiously from the aggregates (e.g. under-represented regions, cooling subtopics, venue gaps). Flag every inference as an inference.
+Be precise with the numbers given; never invent statistics; under 400 words.`,
+      user: JSON.stringify(summary), temperature: 0.3,
+      onStream: (t) => { pending = t; if (!raf) raf = requestAnimationFrame(paint); },
+    });
+    if (raf) cancelAnimationFrame(raf);
+    $('ai-stream').innerHTML = md(out) + `<p class="hint" style="margin:10px 0 0">AI reading of the aggregate counts above — verify against the tables; only summary numbers were sent to your model. ${Rewiseed.aiDisclaimer ? Rewiseed.aiDisclaimer() : ''}</p>`;
+    Rewiseed.track('run');
+  } catch (err) {
+    $('ai-stream').innerHTML = `<div class="error-box">${icon('alert', 16)}<span>${esc(err.message)}</span></div>`;
+  } finally { btn.disabled = false; }
+}
+
+$('go').onclick = run;
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+const initial = new URLSearchParams(location.search).get('q');
+if (initial) { $('q').value = initial; run(); }
+</script>
+</body>
+</html>

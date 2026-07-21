@@ -234,6 +234,8 @@
     { href: 'apa-formatter.html', icon: 'doc', name: 'Reference Style Generator' },
     { href: 'citation-graph.html', icon: 'graph', name: 'Citation Graph Explorer' },
     { href: 'scholar-profiles.html', icon: 'user', name: 'Author & Institution Profiles' },
+    { href: 'bibliometrics.html', icon: 'chart', name: 'Bibliometric Analysis' },
+    { href: 'journal-metrics.html', icon: 'book', name: 'Journal Metrics & Finder' },
   ];
 
   function renderNav(activeHref) {

@@ -27,7 +27,7 @@
   <h1>Research, done <span class="accent-word">systematically.</span></h1>
   <div class="stat-row">
     <div class="stat"><b>240M+</b><span>papers searchable</span></div>
-    <div class="stat"><b>21</b><span>research tools</span></div>
+    <div class="stat"><b>23</b><span>research tools</span></div>
     <div class="stat"><b>100%</b><span>private &amp; local</span></div>
     <div class="stat"><b>$0</b><span>with built-in AI</span></div>
   </div>
@@ -83,6 +83,8 @@
         <li><a href="data-explorer.html">Statistical Data Explorer</a></li>
         <li><a href="data-sources.html">Data Source Directory</a></li>
         <li><a href="scholar-profiles.html">Author &amp; Institution Profiles</a></li>
+        <li><a href="bibliometrics.html">Bibliometric Analysis</a></li>
+        <li><a href="journal-metrics.html">Journal Metrics &amp; Finder</a></li>
         <li><a href="literature-matrix.html">Synthesis Matrix</a></li>
         <li><a href="research-gap-identifier.html">Gap Identifier</a></li>
         <li><a href="research-question-generator.html">Question Generator</a></li>
@@ -143,6 +145,8 @@ const PHASES = [
       desc: 'Walk any paper’s citation network — the work it builds on and the newer research citing it. Keyless.' },
     { href: 'scholar-profiles.html', icon: 'user', name: 'Author & Institution Profiles',
       desc: 'Look up any researcher or institution — works, citations, h-index, affiliations, and top papers. Keyless.' },
+    { href: 'bibliometrics.html', icon: 'chart', name: 'Bibliometric Analysis',
+      desc: 'Map a whole field in seconds — publication trends, top authors, journals, institutions, countries, and anchor papers. Keyless, CSV export, optional AI reading.' },
     { href: 'literature-matrix.html', icon: 'grid', name: 'Literature Synthesis Matrix',
       desc: 'Papers side by side — aims, methods, samples, findings, limitations — with a synthesis of agreements and contradictions.' },
     { href: 'research-gap-identifier.html', icon: 'gap', name: 'Research Gap Identifier',
@@ -181,6 +185,8 @@ const PHASES = [
       desc: 'Turn messy references into clean APA, MLA, Chicago, Harvard, IEEE, or Vancouver bibliographies.' },
     { href: 'apa-formatter.html', icon: 'doc', name: 'Reference Style Generator',
       desc: 'Upload a .docx or paste your paper — download it back formatted in APA 7, MLA 9, Chicago, Harvard, Vancouver, or IEEE, with style-true citations and references.' },
+    { href: 'journal-metrics.html', icon: 'book', name: 'Journal Metrics & Finder',
+      desc: 'Decide where to submit — journals ranked by how much of your topic they publish, with impact metrics, open-access terms, and side-by-side comparison. Keyless.' },
   ]},
 ];
 document.getElementById('foot-brand').innerHTML = `<img src="logo.png" alt="ItsMyResearch" class="brand-logo" style="height:22px"/>`;
