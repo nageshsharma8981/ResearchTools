@@ -20,10 +20,46 @@
 
   const $ = (id) => document.getElementById(id);
 
+  // The API key is session-only by default: it lives in sessionStorage, which the
+  // browser wipes when the tab closes. It is written to persistent localStorage
+  // ONLY when the user ticks "Remember my key on this device".
+  const SS_KEY = 'rewiseed_apikey_session';
   function getCfg() {
-    try { return JSON.parse(localStorage.getItem(LS_CFG) || '{}'); } catch { return {}; }
+    let cfg = {};
+    try { cfg = JSON.parse(localStorage.getItem(LS_CFG) || '{}'); } catch { return {}; }
+    if (!cfg.rememberKey) {
+      let ss = '';
+      try { ss = sessionStorage.getItem(SS_KEY) || ''; } catch { /* storage blocked */ }
+      if (cfg.apiKey) {
+        // migrate keys persisted before the session-only default existed
+        try { sessionStorage.setItem(SS_KEY, cfg.apiKey); ss = cfg.apiKey; } catch { /* storage blocked */ }
+        delete cfg.apiKey;
+        try { localStorage.setItem(LS_CFG, JSON.stringify(cfg)); } catch { /* storage blocked */ }
+      }
+      cfg.apiKey = ss;
+    }
+    return cfg;
   }
-  function setCfg(cfg) { localStorage.setItem(LS_CFG, JSON.stringify(cfg)); }
+  function setCfg(cfg) {
+    const { apiKey = '', rememberKey = false, ...rest } = cfg;
+    try {
+      if (rememberKey) {
+        sessionStorage.removeItem(SS_KEY);
+        localStorage.setItem(LS_CFG, JSON.stringify({ ...rest, rememberKey: true, apiKey }));
+      } else {
+        sessionStorage.setItem(SS_KEY, apiKey);
+        localStorage.setItem(LS_CFG, JSON.stringify({ ...rest, rememberKey: false }));
+      }
+    } catch { /* storage blocked (private mode) — key works for this page only */ }
+  }
+  function clearApiKey() {
+    try { sessionStorage.removeItem(SS_KEY); } catch { /* ignore */ }
+    try {
+      const cfg = JSON.parse(localStorage.getItem(LS_CFG) || '{}');
+      delete cfg.apiKey;
+      localStorage.setItem(LS_CFG, JSON.stringify(cfg));
+    } catch { /* ignore */ }
+  }
 
   function isLocalUrl(u) {
     return /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:|\/|$)/i.test(u || '') || isBuiltin(u);
@@ -386,15 +422,20 @@
                 <input id="cfg-apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-… (stays in this browser)" value="${esc(cfg.apiKey || '')}"/>
                 <button type="button" class="icon-btn" id="cfg-eye" aria-label="Show or hide API key">${icon('eye', 16)}</button>
               </span>
-              <span class="hint" style="display:block;margin-top:5px;font-weight:500">${icon('shield', 11)} Stored only in this browser, sent only to your provider — never to us, and other sites can't read it. <a class="link" href="security.html">How this is protected</a></span>
+              <span class="hint" style="display:block;margin-top:5px;font-weight:500">${icon('shield', 11)} Session-only by default: your key is wiped when you close this tab, is sent only to your provider — never to us — and other sites can't read it. <a class="link" href="security.html">How this is protected</a></span>
             </label>
             <label>Model
               <input id="cfg-model" autocomplete="off" spellcheck="false" placeholder="gpt-4o-mini" value="${esc(cfg.model || '')}"/>
+            </label>
+            <label class="full" style="display:flex;align-items:center;gap:8px;flex-direction:row;cursor:pointer">
+              <input type="checkbox" id="cfg-remember" ${cfg.rememberKey ? 'checked' : ''} style="width:auto;min-height:0;margin:0"/>
+              <span style="font-weight:500">Remember my key on this device<span class="hint" style="display:block;font-weight:400">Off (default): the key is forgotten when this tab closes — each new visit asks for it again. On: it stays in this browser until you clear it. Leave off on shared computers.</span></span>
             </label>
           </div>
           <div class="settings-actions">
             <button id="cfg-save">${icon('check', 15)} Save settings</button>
             <button id="cfg-test" class="ghost">Test connection</button>
+            <button id="cfg-clear" class="ghost" title="Remove the API key from this browser immediately — both session and remembered copies">Clear key</button>
             <span id="cfg-test-result" role="status"></span>
           </div>
           <p class="hint" style="margin:12px 0 0">Your key never leaves this browser except in requests to the endpoint above. The built-in browser model and local endpoints (Ollama, LM Studio) need no key — the built-in option downloads a ~2 GB model once (needs Chrome/Edge with WebGPU), then runs entirely on your device.</p>
@@ -414,15 +455,23 @@
       $('cfg-eye').innerHTML = icon(show ? 'eyeOff' : 'eye', 16);
     };
     $('cfg-save').onclick = () => {
+      const remember = $('cfg-remember').checked;
       setCfg({
         baseUrl: $('cfg-baseUrl').value.trim().replace(/\/+$/, ''),
         apiKey: $('cfg-apiKey').value.trim(),
         model: $('cfg-model').value.trim(),
+        rememberKey: remember,
       });
-      toast('Settings saved');
+      toast(remember ? 'Settings saved — key remembered on this device' : 'Settings saved — key will be forgotten when this tab closes');
       renderSettingsBar(containerId);
       $('settings-details')?.removeAttribute('open');
       document.dispatchEvent(new CustomEvent('rewiseed:cfg-saved'));
+    };
+    $('cfg-clear').onclick = () => {
+      clearApiKey();
+      $('cfg-apiKey').value = '';
+      toast('API key removed from this browser');
+      renderSettingsBar(containerId);
     };
     $('cfg-test').onclick = async () => {
       const out = $('cfg-test-result');
@@ -1031,7 +1080,7 @@
   window.Rewiseed = {
     renderNav, renderSettingsBar, openSettings, billingStatus, checkText, assertTextAllowed, aiDisclaimer,
     callLLM, md, esc, icon, toast, track,
-    downloadText, copyText, getCfg, isLocalUrl,
+    downloadText, copyText, getCfg, clearApiKey, isLocalUrl,
     mountStreamingTool, playIntro, saveToLibrary, fetchWithTimeout,
   };
 })();

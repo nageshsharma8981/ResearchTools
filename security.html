@@ -44,7 +44,7 @@
 <main style="max-width:760px">
   <div class="card legal">
     <h2>Where your key lives, and where it goes</h2>
-    <p>When you paste an AI provider key into API settings, it is saved <b>only in your own browser's local storage</b> on this one device. When you run an AI tool, your browser sends the request — with that key — <b>directly to the provider you chose</b> (OpenAI, Anthropic, Google, etc.). It goes nowhere else.</p>
+    <p>When you paste an AI provider key into API settings, it is kept <b>only in your own browser</b> on this one device — and by default only <b>for the current session</b>: the key lives in session storage, which the browser itself erases the moment you close the tab. Nothing about your key survives your visit unless you explicitly tick <b>“Remember my key on this device”</b>, which keeps it in this browser's local storage until you remove it. Either way, a <b>Clear key</b> button in API settings wipes it instantly. When you run an AI tool, your browser sends the request — with that key — <b>directly to the provider you chose</b> (OpenAI, Anthropic, Google, etc.). It goes nowhere else.</p>
     <div class="flow" aria-label="Data flow">
       <span class="node you">Your browser</span>
       <span class="arr">— key + your text, over HTTPS →</span>
@@ -68,7 +68,7 @@
     <ul>
       <li><b class="warn2">Malicious browser extensions.</b> An extension you install can, by design, read the contents of pages and storage you visit — any site, not just ours. Only install extensions you trust, and review their permissions.</li>
       <li><b class="warn2">Malware or another user on your computer.</b> Software running on your machine, or someone with access to your unlocked device, can read browser storage. Keep your device secure and locked.</li>
-      <li><b class="warn2">Shared or public computers.</b> Your key persists in that browser until cleared. On a shared machine, remove it when you're done (API settings → clear the key, or your browser's "clear site data").</li>
+      <li><b class="warn2">Shared or public computers.</b> By default your key is already forgotten when the tab closes — so on a shared machine, simply don't tick "Remember my key on this device", and close the tab when you're done (or press <b>Clear key</b> in API settings for immediate removal).</li>
     </ul>
     <p><b>The zero-key option.</b> If any of the above worries you, use the <b>free built-in browser model</b> or a <b>local model</b> (Ollama / LM Studio). Then there is <b>no key at all</b>, and your research text is processed entirely on your own device — nothing, not even to your AI provider, ever leaves your machine.</p>
 

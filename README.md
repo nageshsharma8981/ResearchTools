@@ -63,6 +63,7 @@ The Literature Finder works **without any key** — search is powered directly b
 - No analytics, no telemetry, no external assets, no backend.
 - Your API key and drafts live only in this browser's `localStorage`.
 - The only network traffic is to the LLM endpoint you configure and, for the keyless tools, the free `api.openalex.org` and `api.crossref.org` scholarly indexes.
+- Your API key is **session-only by default** — it lives in sessionStorage and the browser erases it when the tab closes. Tick 'Remember my key on this device' to keep it; press **Clear key** in API settings to remove it instantly either way.
 - Clear everything any time via **API settings** or devtools → Application → Local Storage.
 
 ## Offline / air-gapped use
