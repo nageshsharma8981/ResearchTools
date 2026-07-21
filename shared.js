@@ -393,7 +393,7 @@
     // credit-cost transparency: every tool page states what a run costs
     // 'data' = flat 1 credit per run/search/comparison; 'ai' = 1-4 by input size; 'both' = data run + optional AI
     const RUN_COSTS = {
-      'journal-rankings.html': ['data', '1 credit per comparison'],
+      'journal-rankings.html': ['free', 'Free \u2014 unlimited comparisons'],
       'doi-finder.html': ['data', '1 credit per lookup'],
       'citation-graph.html': ['data', '1 credit per graph'],
       'journal-metrics.html': ['data', '1 credit per search'],
@@ -426,7 +426,9 @@
         const chip = document.createElement('div');
         chip.className = 'step-crumb run-cost-chip';
         const bal = b.unlimited ? 'staff \u00b7 unlimited' : (b.signedIn && typeof b.credits === 'number' ? `balance ${b.credits}` : 'sign in to run');
-        chip.innerHTML = `<a href="pricing.html" title="How run credits work \u2014 costs, allowances and plans">\u2726 ${esc(rc[1])} \u00b7 ${esc(bal)}</a>`;
+        chip.innerHTML = rc[0] === 'free'
+          ? `<a href="pricing.html" title="How run credits work \u2014 costs, allowances and plans">\u2726 ${esc(rc[1])}</a>`
+          : `<a href="pricing.html" title="How run credits work \u2014 costs, allowances and plans">\u2726 ${esc(rc[1])} \u00b7 ${esc(bal)}</a>`;
         (document.querySelector('.step-crumb') || nav).insertAdjacentElement('afterend', chip);
       });
     }

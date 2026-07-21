@@ -65,7 +65,7 @@
 <div class="hero">
   <span class="tool-icon" id="hero-icon"></span>
   <h1>Journal Rankings &amp; Comparison</h1>
-  <p class="lede">Where does a journal stand? FT50 membership, ABS/AJG 2024, ABDC 2025, and Scopus-based quartiles (SJR, SCImago 2025) for 3,000+ business &amp; management journals — search, filter by rating, and compare up to five side by side. Keyless and instant — 1 credit per comparison.</p>
+  <p class="lede">Where does a journal stand? FT50 membership, ABS/AJG 2024, ABDC 2025, and Scopus-based quartiles (SJR, SCImago 2025) for 3,000+ business &amp; management journals — search, filter by rating, and compare up to five side by side. Free, unlimited, and instant.</p>
 </div>
 <main style="max-width:960px">
   <div class="card">
@@ -195,7 +195,7 @@ function renderCmpBar() {
     <button style="min-height:34px;padding:5px 16px" id="do-cmp">Compare ${icon('arrow', 13)}</button>
     <button class="ghost" style="min-height:34px;padding:5px 12px" id="clear-cmp">Clear</button>
   </div>`;
-  $('do-cmp').onclick = async () => { if (!await Rewiseed.meterDataRun('journal-rankings')) return; renderCompare(); };
+  $('do-cmp').onclick = renderCompare; // free & unlimited — no metering on this tool
   $('clear-cmp').onclick = () => { compare.clear(); renderCmpBar(); render(); };
 }
 
