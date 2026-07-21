@@ -34,6 +34,11 @@ button.ind-chip.on { background:var(--accent-soft); border-color:var(--accent); 
 .data-table th, .data-table td { padding:7px 10px; border-bottom:1px solid var(--border); text-align:right; font-variant-numeric:tabular-nums; }
 .data-table th:first-child, .data-table td:first-child { text-align:left; }
 .data-table th { color:var(--muted); font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; }
+/* publication measurement-model table: keep Greek symbols (α, ρA, ρc) readable — no uppercasing, centered stats */
+.mm-table th { text-transform:none; font-size:12px; text-align:center; }
+.mm-table th:first-child, .mm-table th:nth-child(2) { text-align:left; }
+.mm-table td { text-align:center; }
+.mm-table td:nth-child(1), .mm-table td:nth-child(2) { text-align:left; }
 .tbl-wrap { overflow-x:auto; }
 .sig { color:var(--accent-strong); font-weight:700; }
 .fail { color:#b3402a; font-weight:600; }
@@ -878,15 +883,8 @@ function render(est, boot, meta) {
     <div class="diag-wrap">${diagram.svg}</div>
     <p class="hint" style="margin:6px 0 0">${icon('grid', 12)} Drag any construct to rearrange — arrows and β labels follow. Right-click the diagram to export it as an image.</p>
 
-    <div class="result-section"><h3>Outer loadings</h3><p class="hint">Reflective indicators should load ≥ 0.708 on their construct (≥ 0.5 acceptable in exploratory work).</p>
-    <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Construct</th><th>Indicator</th><th>Loading</th></tr></thead><tbody>
-      ${C.map((c, k) => c.inds.map((ind, i) => `<tr><td>${i === 0 ? `<b>${esc(c.name)}</b>` : ''}</td><td>${esc(ind)}</td><td class="${est.loadings[k][i] < 0.5 ? 'fail' : est.loadings[k][i] < 0.708 ? '' : 'pass'}">${f3(est.loadings[k][i])}</td></tr>`).join('')).join('')}
-    </tbody></table></div></div>
-
-    <div class="result-section"><h3>Construct reliability and validity</h3><p class="hint">Targets: α, ρA, and CR ≥ 0.70; AVE ≥ 0.50. ρA (Dijkstra–Henseler) usually sits between α and CR. Single-indicator constructs show 1 by definition.</p>
-    <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Construct</th><th>Items</th><th>Cronbach's α</th><th>ρA</th><th>CR (ρc)</th><th>AVE</th></tr></thead><tbody>
-      ${relRows.map(r => `<tr><td><b>${esc(r.name)}</b></td><td>${r.m}</td><td class="${r.m === 1 ? '' : r.alpha >= 0.7 ? 'pass' : 'fail'}">${r.m === 1 ? '—' : f3(r.alpha)}</td><td class="${Number.isNaN(r.rhoA) ? '' : r.rhoA >= 0.7 ? 'pass' : 'fail'}">${Number.isNaN(r.rhoA) ? '—' : f3(r.rhoA)}</td><td class="${r.cr >= 0.7 ? 'pass' : 'fail'}">${f3(r.cr)}</td><td class="${r.ave >= 0.5 ? 'pass' : 'fail'}">${f3(r.ave)}</td></tr>`).join('')}
-    </tbody></table></div></div>
+    <div class="result-section"><h3>Measurement model</h3><p class="hint">The publication-ready assessment of the reflective measurement model, laid out as it appears in journals: per-indicator loadings (target ≥ 0.708) with construct-level reliability and validity spanning each construct's items. Targets: α, ρA, CR ≥ 0.70; AVE ≥ 0.50. <span class="pass" style="font-weight:600">green</span> = meets threshold, <span class="fail" style="font-weight:600">amber</span> = below. Copy or export it straight into your results chapter.</p>
+    <div class="tbl-wrap">${measurementModelTable(C, est, relRows)}</div></div>
 
     <div class="result-section"><h3>Outer weights</h3><p class="hint">The standardized weight each indicator contributes to its construct score.</p>
     <div class="tbl-wrap"><table class="data-table"><thead><tr><th>Construct</th><th>Indicator</th><th>Weight</th><th>Loading</th></tr></thead><tbody>
@@ -999,6 +997,35 @@ Be precise with the numbers given; never invent statistics not provided; keep it
   };
 }
 
+// Combined measurement-model table in the journal layout: construct name and its
+// α / ρA / CR / AVE each span the construct's indicator rows (rowspan merge), with
+// per-indicator loadings alongside. Threshold colouring: pass (≥ target) vs fail.
+function measurementModelTable(C, est, relRows) {
+  const mc = 'style="text-align:center;vertical-align:middle;background:var(--surface-2)"';
+  const rows = C.map((c, k) => {
+    const r = relRows[k], n = c.inds.length;
+    const aCls = r.m === 1 ? '' : r.alpha >= 0.7 ? 'pass' : 'fail';
+    const rhoCls = Number.isNaN(r.rhoA) ? '' : r.rhoA >= 0.7 ? 'pass' : 'fail';
+    const crCls = r.cr >= 0.7 ? 'pass' : 'fail';
+    const aveCls = r.ave >= 0.5 ? 'pass' : 'fail';
+    return c.inds.map((ind, i) => {
+      const load = est.loadings[k][i];
+      const loadCls = load < 0.5 ? 'fail' : load < 0.708 ? '' : 'pass';
+      let tr = '<tr>';
+      if (i === 0) tr += `<td rowspan="${n}" ${mc}><b>${esc(c.name)}</b></td>`;
+      tr += `<td>${esc(ind)}</td><td class="${loadCls}">${f3(load)}</td>`;
+      if (i === 0) {
+        tr += `<td rowspan="${n}" class="${aCls}" ${mc}>${r.m === 1 ? '—' : f3(r.alpha)}</td>`;
+        tr += `<td rowspan="${n}" class="${rhoCls}" ${mc}>${Number.isNaN(r.rhoA) ? '—' : f3(r.rhoA)}</td>`;
+        tr += `<td rowspan="${n}" class="${crCls}" ${mc}>${f3(r.cr)}</td>`;
+        tr += `<td rowspan="${n}" class="${aveCls}" ${mc}>${f3(r.ave)}</td>`;
+      }
+      return tr + '</tr>';
+    }).join('');
+  }).join('');
+  return `<table class="data-table mm-table"><thead><tr><th>Construct</th><th>Indicator</th><th>Loading</th><th>Cronbach's α</th><th>ρA</th><th>CR (ρc)</th><th>AVE</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
 // Publication-style results narrative: per-path interpretive paragraphs in the
 // register of a journal results section, generated deterministically from the
 // estimates (no LLM). Returns Markdown; the copy button copies the Markdown so
@@ -1061,10 +1088,12 @@ function buildAPA(est, pathRows, relRows, meta, boot) {
 function buildReport(est, pathRows, relRows, htmt, meta, boot, apaHtml) {
   const C = spec.constructs;
   const L = [`# PLS-SEM report`, ``, `n = ${meta.n} · scheme = ${meta.scheme} · ${boot ? boot.B + ' bootstrap samples' : 'no bootstrap'} · generated by ItsMyResearch (itsmyresearch.com)`, ``];
-  L.push(`## Outer loadings`, ``, `| Construct | Indicator | Loading |`, `|---|---|---|`);
-  C.forEach((c, k) => c.inds.forEach((ind, i) => L.push(`| ${c.name} | ${ind} | ${f3(est.loadings[k][i])} |`)));
-  L.push(``, `## Reliability & convergent validity`, ``, `| Construct | Items | alpha | rho_A | CR | AVE |`, `|---|---|---|---|---|---|`);
-  relRows.forEach(r => L.push(`| ${r.name} | ${r.m} | ${r.m === 1 ? '—' : f3(r.alpha)} | ${Number.isNaN(r.rhoA) ? '—' : f3(r.rhoA)} | ${f3(r.cr)} | ${f3(r.ave)} |`));
+  // Combined measurement model (construct + reliability repeat on the first indicator row, blank after — the journal layout).
+  L.push(`## Measurement model`, ``, `| Construct | Indicator | Loading | Cronbach's α | ρA | CR (ρc) | AVE |`, `|---|---|---|---|---|---|---|`);
+  C.forEach((c, k) => { const r = relRows[k]; c.inds.forEach((ind, i) => {
+    const rel = i === 0 ? `${r.m === 1 ? '—' : f3(r.alpha)} | ${Number.isNaN(r.rhoA) ? '—' : f3(r.rhoA)} | ${f3(r.cr)} | ${f3(r.ave)}` : ` |  |  | `;
+    L.push(`| ${i === 0 ? c.name : ''} | ${ind} | ${f3(est.loadings[k][i])} | ${rel} |`);
+  }); });
   L.push(``, `## Outer weights`, ``, `| Construct | Indicator | Weight | Loading |`, `|---|---|---|---|`);
   C.forEach((c, k) => c.inds.forEach((ind, i) => L.push(`| ${c.name} | ${ind} | ${f3(est.blockStats[k].wEff[i])} | ${f3(est.loadings[k][i])} |`)));
   L.push(``, `## Fornell–Larcker (diagonal = √AVE)`, ``, `| | ${C.map(c => c.name).join(' | ')} |`, `|---|${C.map(() => '---').join('|')}|`);
@@ -1203,6 +1232,11 @@ function buildXlsx(est, pathRows, relRows, htmt, meta, boot) {
   const sheets = []; // {name, rows, links}
   const add = (name, header, rows) => sheets.push({ name, rows: [['← Contents'], [], [name], header, ...rows], links: [back] });
 
+  // Measurement model: the merged journal table, filled down (construct + reliability
+  // values repeat on each indicator row so it's usable in Excel/analysis).
+  add('Measurement model', ['Construct', 'Indicator', 'Loading', "Cronbach's alpha", 'rho_A', 'CR (rho_c)', 'AVE'],
+    C.flatMap((c, k) => { const r = relRows[k]; return c.inds.map((ind, i) => [c.name, ind, n4(est.loadings[k][i]),
+      r.m === 1 ? '' : n4(r.alpha), Number.isNaN(r.rhoA) ? '' : n4(r.rhoA), n4(r.cr), n4(r.ave)]); }));
   add('Loadings', ['Construct', 'Indicator', 'Loading'],
     C.flatMap((c, k) => c.inds.map((ind, i) => [c.name, ind, n4(est.loadings[k][i])])));
   add('Reliability', ['Construct', 'Items', "Cronbach's alpha", 'rho_A', 'CR (rho_c)', 'AVE'],
@@ -1240,7 +1274,7 @@ function buildXlsx(est, pathRows, relRows, htmt, meta, boot) {
       [],
       ['Sheet', 'What it contains'],
       ...sheets.map(s => [s.name, {
-        'Loadings': 'Outer loadings (target ≥ 0.708)', 'Reliability': "Cronbach's alpha, rho_A, CR, AVE",
+        'Measurement model': 'Publication table: loadings + α/ρA/CR/AVE per construct', 'Loadings': 'Outer loadings (target ≥ 0.708)', 'Reliability': "Cronbach's alpha, rho_A, CR, AVE",
         'Outer weights': 'Indicator weights and loadings', 'Cross-loadings': 'Item-level discriminant validity',
         'Fornell-Larcker': 'sqrt(AVE) diagonal vs construct correlations', 'HTMT': 'Heterotrait-monotrait ratios (< 0.90)',
         'Paths': 'Structural coefficients with bootstrap inference', 'Effects': 'Direct, indirect, and total effects',
@@ -1263,7 +1297,23 @@ function buildXlsx(est, pathRows, relRows, htmt, meta, boot) {
 }
 
 // ---------- exports: every table to CSV/Word, the diagram to PNG/SVG (buttons + right-click) ----------
-function tableToRows(tbl) { return [...tbl.querySelectorAll('tr')].map(tr => [...tr.querySelectorAll('th,td')].map(c => c.textContent.trim().replace(/\s+/g, ' '))); }
+// span-aware: a rowspan/colspan cell is written into every grid position it
+// covers, so merged measurement-model cells export as filled-down rows.
+function tableToRows(tbl) {
+  const grid = [];
+  [...tbl.querySelectorAll('tr')].forEach((tr, r) => {
+    grid[r] = grid[r] || [];
+    let c = 0;
+    [...tr.children].forEach(cell => {
+      while (grid[r][c] !== undefined) c++;
+      const txt = cell.textContent.trim().replace(/\s+/g, ' ');
+      const rs = +(cell.getAttribute('rowspan') || 1), cs = +(cell.getAttribute('colspan') || 1);
+      for (let dr = 0; dr < rs; dr++) for (let dc = 0; dc < cs; dc++) { grid[r + dr] = grid[r + dr] || []; grid[r + dr][c + dc] = txt; }
+      c += cs;
+    });
+  });
+  return grid.map(row => Array.from(row, v => v ?? ''));
+}
 function tableCSV(tbl) { const q = (s) => `"${String(s).replace(/"/g, '""')}"`; return tableToRows(tbl).map(r => r.map(q).join(',')).join('\n'); }
 function tableTSV(tbl) { return tableToRows(tbl).map(r => r.join('\t')).join('\n'); }
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) || 'table';
