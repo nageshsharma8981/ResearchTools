@@ -300,10 +300,11 @@
       const el = document.getElementById('nav-credits');
       if (!el || !b.enforced || !b.signedIn) return;
       el.hidden = false;
-      el.innerHTML = !b.freeRunUsed
-        ? `${icon('sparkle', 13)} free run ready`
-        : `${icon('sparkle', 13)} ${b.credits ?? 0} credit${b.credits === 1 ? '' : 's'}`;
-      if (b.freeRunUsed && (b.credits ?? 0) === 0) el.classList.add('empty');
+      el.innerHTML = b.unlimited ? `${icon('sparkle', 13)} unlimited`
+        : !b.freeRunUsed
+          ? `${icon('sparkle', 13)} free run ready`
+          : `${icon('sparkle', 13)} ${b.credits ?? 0} credit${b.credits === 1 ? '' : 's'}`;
+      if (!b.unlimited && b.freeRunUsed && (b.credits ?? 0) === 0) el.classList.add('empty');
     });
     applyTheme(document.documentElement.getAttribute('data-theme'));
     $('theme-toggle').onclick = () => {
@@ -404,7 +405,7 @@
             ? `<span class="badge ok">${icon('check', 12)} configured</span>`
             : `<span class="badge warn">${icon('alert', 12)} not set</span>`}
           <span class="badge" id="credit-badge" hidden></span>
-        ${(() => { billingStatus().then(b => { const el = document.getElementById('credit-badge'); if (el && b.enforced && b.signedIn && typeof b.credits === 'number') { el.hidden = false; el.textContent = `${b.credits} credits`; } }); return ''; })()}
+        ${(() => { billingStatus().then(b => { const el = document.getElementById('credit-badge'); if (!el || !b.enforced || !b.signedIn) return; if (b.unlimited) { el.hidden = false; el.textContent = 'staff · unlimited'; } else if (typeof b.credits === 'number') { el.hidden = false; el.textContent = `${b.credits} credits`; } }); return ''; })()}
         </summary>
         <div class="settings-body">
           <div class="settings-grid">
@@ -611,10 +612,16 @@
     throw new Error(d.error || 'This run needs an active plan — see Pricing.');
   }
   function updateCreditBadge() {
-    if (!_billing || typeof _billing.credits !== 'number') return;
+    if (!_billing) return;
     const el = document.getElementById('credit-badge');
-    if (el) { el.hidden = false; el.textContent = `${_billing.credits} credits`; }
     const nav = document.getElementById('nav-credits');
+    if (_billing.unlimited) {
+      if (el) { el.hidden = false; el.textContent = 'staff · unlimited'; }
+      if (nav) { nav.hidden = false; nav.innerHTML = `${icon('sparkle', 13)} unlimited`; nav.classList.remove('empty'); }
+      return;
+    }
+    if (typeof _billing.credits !== 'number') return;
+    if (el) { el.hidden = false; el.textContent = `${_billing.credits} credits`; }
     if (nav) {
       nav.hidden = false;
       nav.innerHTML = `${icon('sparkle', 13)} ${_billing.credits} credit${_billing.credits === 1 ? '' : 's'}`;

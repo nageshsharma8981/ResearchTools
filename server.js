@@ -772,7 +772,8 @@ app.get('/api/billing/status', (req, res) => {
     paperUnlockCredits: PAPER_UNLOCK_CREDITS,
   };
   if (!u) return res.json(base);
-  res.json({ ...base, plan: u.plan, planStatus: u.plan_status, credits: u.credits, freeRunUsed: !!u.free_run_used });
+  const staff = ['admin', 'superadmin'].includes(u.role);
+  res.json({ ...base, plan: u.plan, planStatus: u.plan_status, credits: u.credits, freeRunUsed: !!u.free_run_used, staff, unlimited: staff });
 });
 
 app.post('/api/billing/subscribe', requireAuth, async (req, res) => {
@@ -825,6 +826,7 @@ app.post('/api/billing/cancel', requireAuth, async (req, res) => {
 const PAPER_UNLOCK_CREDITS = 6;
 app.post('/api/paper-unlock', requireAuth, (req, res) => {
   if (!BILLING_ENFORCED) return res.json({ ok: true, metered: false });
+  if (['admin', 'superadmin'].includes(req.user.role)) return res.json({ ok: true, metered: false, staff: true });
   if (!rateLimit('paperu:' + req.user.id, 20, 15 * 60_000)) return res.status(429).json({ error: 'Too many attempts — wait a few minutes.' });
   const cost = PAPER_UNLOCK_CREDITS;
   const result = db.transaction(() => {
@@ -866,6 +868,8 @@ app.post('/api/run-credit', (req, res) => {
   if (!BILLING_ENFORCED) return res.json({ ok: true, metered: false });
   const u = currentUser(req);
   if (!u) return res.status(401).json({ error: 'Sign in to run AI tools — your first run is free.', reason: 'signin' });
+  // staff run the platform — never metered
+  if (['admin', 'superadmin'].includes(u.role)) return res.json({ ok: true, metered: false, staff: true });
   if (!rateLimit('runc:' + u.id, 60, 15 * 60_000)) return res.status(429).json({ error: 'Too many runs — wait a few minutes.' });
   const chars = Math.max(0, Math.min(10_000_000, Number((req.body || {}).chars) || 0));
   const w = runWeight(chars);

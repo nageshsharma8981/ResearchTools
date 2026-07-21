@@ -930,7 +930,7 @@ function render(est, boot, meta) {
       ${Object.entries(est.structural).map(([nm, s]) => `<tr><td><b>${esc(nm)}</b></td><td>${f3(s.r2)}</td><td>${f3(s.adjR2)}</td></tr>`).join('')}
     </tbody></table></div></div>
 
-    <div class="result-section"><h3>Write-up</h3><div class="result" style="font-size:14px">${apa}</div></div>
+    <div class="result-section"><h3>Write-up</h3><p class="hint">A results-section narrative in journal register, generated from the numbers above. Copy pastes as Markdown (headings and bolding survive). Replace “4.X” with your section number and add your study's context to each interpretation.</p><div class="result" style="font-size:14px">${md(apa)}</div></div>
 
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px">
       <button id="ai-interpret">${icon('sparkle', 15)} AI interpretation</button>
@@ -950,7 +950,7 @@ function render(est, boot, meta) {
     for (let r = 0; r < est.n; r++) lines.push([r + 1, ...C.map((_, k) => est.Y[k][r].toFixed(5))].join(','));
     Rewiseed.downloadText('latent-scores.csv', lines.join('\n'));
   };
-  $('copy-apa').onclick = (e) => { navigator.clipboard.writeText($('out').querySelector('.result').innerText).then(() => toast('Write-up copied')); };
+  $('copy-apa').onclick = () => { navigator.clipboard.writeText(apa).then(() => toast('Write-up copied as Markdown — headings and bolding survive the paste')); };
   // the "AI" in StatPLS: an interpretation of the numbers, using the user's model.
   // Only aggregate statistics leave the browser — never the raw data.
   $('ai-interpret').onclick = async (e) => {
@@ -989,15 +989,63 @@ Be precise with the numbers given; never invent statistics not provided; keep it
   };
 }
 
+// Publication-style results narrative: per-path interpretive paragraphs in the
+// register of a journal results section, generated deterministically from the
+// estimates (no LLM). Returns Markdown; the copy button copies the Markdown so
+// headings and bolding survive the paste into a manuscript.
 function buildAPA(est, pathRows, relRows, meta, boot) {
-  const relOk = relRows.every(r => r.cr >= 0.7 && r.ave >= 0.5);
-  const p1 = `A partial least squares structural equation model (PLS-SEM, ${meta.scheme} weighting scheme, Mode A) was estimated on ${meta.n} complete observations${boot ? ` with ${boot.B} bootstrap resamples` : ''}. ${relOk ? `All constructs met conventional reliability and convergent-validity thresholds (composite reliability ≥ .70; AVE ≥ .50).` : `Some constructs fell short of conventional reliability or convergent-validity thresholds — see the tables above before interpreting paths.`}`;
-  const p2 = pathRows.map(r => {
-    const sig = r.bs ? (r.bs.p < 0.05 ? `β = ${f3(r.b)}, t = ${r.bs.t.toFixed(2)}, p ${r.bs.p < 0.001 ? '< .001' : '= ' + r.bs.p.toFixed(3).slice(1)}, 95% CI [${f3(r.bs.lo)}, ${f3(r.bs.hi)}] — significant` : `β = ${f3(r.b)}, t = ${r.bs.t.toFixed(2)}, p = ${r.bs.p.toFixed(3).slice(1)} — not significant`) : `β = ${f3(r.b)}`;
-    return `${r.f} → ${r.t}: ${sig}.`;
-  }).join(' ');
-  const p3 = Object.entries(est.structural).map(([nm, s]) => `The model explained ${(s.r2 * 100).toFixed(1)}% of the variance in ${nm} (R² = ${f3(s.r2)}).`).join(' ');
-  return `<p>${p1}</p><p>${p2}</p><p>${p3}</p>`;
+  const pv = (p) => p < 0.001 ? 'p < .001' : `p = ${p.toFixed(3).slice(1)}`;
+  const stat = (r) => r.bs
+    ? `β = ${f3(r.b)}, t = ${r.bs.t.toFixed(2)}, ${pv(r.bs.p)}, 95% CI [${f3(r.bs.lo)}, ${f3(r.bs.hi)}]`
+    : `β = ${f3(r.b)}`;
+  const strength = (b) => { const a = Math.abs(b); return a >= 0.5 ? 'strong' : a >= 0.3 ? 'moderate' : a >= 0.1 ? 'modest' : 'weak'; };
+  const f2word = (v) => v >= 0.35 ? 'large' : v >= 0.15 ? 'medium' : v >= 0.02 ? 'small' : 'negligible';
+  const r2word = (v) => v >= 0.67 ? 'substantial' : v >= 0.33 ? 'moderate' : v >= 0.19 ? 'weak-to-moderate' : 'weak';
+  const L = [];
+
+  // measurement model
+  const allLoads = est.loadings.flatMap((row, k) => row.slice(0, spec.constructs[k].inds.length));
+  const loMin = Math.min(...allLoads), loMax = Math.max(...allLoads);
+  const multi = relRows.filter(r => r.m > 1);
+  const relOk = multi.every(r => r.cr >= 0.7 && r.ave >= 0.5);
+  const alphaOk = multi.every(r => r.alpha >= 0.7);
+  L.push('### 4.X Measurement Model Results', '');
+  L.push(`The measurement model was assessed for indicator reliability, internal consistency, convergent validity, and discriminant validity. Standardized outer loadings ranged from ${f3(loMin)} to ${f3(loMax)}${loMin >= 0.708 ? ', all exceeding the recommended threshold of 0.708 (Hair et al., 2022)' : loMin >= 0.5 ? ', with all indicators above the 0.50 minimum considered acceptable in exploratory research' : '; indicators loading below 0.50 should be reviewed for removal'}. ${relOk ? `Internal consistency was established for every construct: ${alphaOk ? "Cronbach's α, " : ''}Dijkstra–Henseler's ρA, and composite reliability (ρc) ${alphaOk ? 'all ' : ''}exceeded 0.70, and average variance extracted (AVE) exceeded 0.50, supporting convergent validity (${multi.map(r => `${r.name}: α = ${f3(r.alpha)}, ρA = ${Number.isNaN(r.rhoA) ? '—' : f3(r.rhoA)}, ρc = ${f3(r.cr)}, AVE = ${f3(r.ave)}`).join('; ')}).` : `Some constructs fell short of conventional reliability or convergent-validity thresholds (ρc ≥ 0.70; AVE ≥ 0.50) — the affected constructs are flagged in the tables above and should be revised before the structural results are interpreted.`} Discriminant validity was examined using the Fornell–Larcker criterion and the heterotrait–monotrait (HTMT) ratio, as reported in the corresponding tables.`, '');
+
+  // structural model
+  const withBoot = pathRows.filter(r => r.bs);
+  const sig = withBoot.filter(r => r.bs.p < 0.05);
+  const allPos = pathRows.every(r => r.b > 0);
+  L.push('### 4.X Structural Model Results', '');
+  L.push(boot
+    ? `The structural model was evaluated by examining the standardized path coefficients (β), their statistical significance based on ${boot.B.toLocaleString()} bootstrap resamples, t-values, p-values, and 95% percentile confidence intervals. ${sig.length === withBoot.length
+        ? `The results indicate that all hypothesized relationships were ${allPos ? 'positive and ' : ''}statistically significant, thereby providing support for all proposed hypotheses.`
+        : `Of the ${withBoot.length} hypothesized relationships, ${sig.length} ${sig.length === 1 ? 'was' : 'were'} statistically significant at the .05 level.`}`
+    : `The structural model was evaluated by examining the standardized path coefficients (β). Bootstrapping was not run for this estimation; re-run with bootstrap resamples to obtain t-values, p-values, and confidence intervals before reporting these paths inferentially.`);
+  L.push('');
+  const openers = ['The analysis revealed that', 'Further,', 'The results also demonstrate that', 'In addition,', 'Moreover,'];
+  pathRows.forEach((r, i) => {
+    const opener = i === pathRows.length - 1 && pathRows.length > 1 ? 'Finally,' : openers[i % openers.length];
+    const isSig = r.bs ? r.bs.p < 0.05 : null;
+    if (isSig === false) {
+      L.push(`${opener} the effect of **${r.f}** on **${r.t}** was not statistically significant (${stat(r)}); the confidence interval includes zero, so the corresponding hypothesis was not supported. This path should be interpreted as absent in these data rather than merely weak.`, '');
+      return;
+    }
+    const dir = r.b > 0 ? 'positive' : 'negative';
+    const assoc = r.b > 0 ? 'higher' : 'lower';
+    const verb = ['had', 'exerted', 'showed'][i % 3];
+    L.push(`${opener} **${r.f}** ${verb} a ${strength(r.b)} ${dir} effect on **${r.t}** (${stat(r)}). This finding indicates that respondents with higher levels of ${r.f} tended to report ${assoc} levels of ${r.t}${r.f2 >= 0.02 ? `; the effect size was ${f2word(r.f2)} (f² = ${f3(r.f2)})` : ''}.${Math.abs(r.b) >= 0.5 ? ` The magnitude of this coefficient marks ${r.f} as a key determinant of ${r.t} in the model.` : ''}`, '');
+  });
+  // explained variance
+  const r2s = Object.entries(est.structural);
+  L.push(`The model accounted for ${r2s.map(([nm, s]) => `${(s.r2 * 100).toFixed(1)}% of the variance in **${nm}** (R² = ${f3(s.r2)}, adjusted R² = ${f3(s.adjR2 ?? s.r2)}${r2s.length <= 4 ? `, ${r2word(s.r2)}` : ''})`).join(', ')}.`, '');
+  // closing
+  if (boot && withBoot.length) {
+    L.push(sig.length === withBoot.length
+      ? `Overall, all estimated path coefficients were ${allPos ? 'positive, ' : ''}statistically significant${withBoot.every(r => r.bs.p < 0.001) ? ' at the .001 level' : ''}, and supported by confidence intervals that did not include zero, providing strong empirical support for the proposed structural relationships. The estimates were obtained with StatPLS (ItsMyResearch) using the ${meta.scheme} weighting scheme with Mode A measurement on ${meta.n} complete observations.`
+      : `Overall, ${sig.length} of ${withBoot.length} hypothesized paths received empirical support. The estimates were obtained with StatPLS (ItsMyResearch) using the ${meta.scheme} weighting scheme with Mode A measurement on ${meta.n} complete observations; non-significant paths are candidates for theoretical re-examination rather than silent omission.`);
+  }
+  return L.join('\n');
 }
 
 function buildReport(est, pathRows, relRows, htmt, meta, boot, apaHtml) {
@@ -1022,8 +1070,7 @@ function buildReport(est, pathRows, relRows, htmt, meta, boot, apaHtml) {
   }));
   L.push(``, `## R²`, ``);
   Object.entries(est.structural).forEach(([nm, s]) => L.push(`- ${nm}: R² = ${f3(s.r2)} (adj. ${f3(s.adjR2)})`));
-  const tmp = document.createElement('div'); tmp.innerHTML = apaHtml;
-  L.push(``, `## Write-up`, ``, tmp.innerText, ``, `---`, `Method: Lohmöller PLS algorithm, Mode A reflective measurement, ${meta.scheme} inner weighting; bootstrap percentile CIs with construct-level sign alignment; p-values via normal approximation. Independent implementation — not affiliated with SmartPLS GmbH.`);
+  L.push(``, `## Write-up`, ``, apaHtml, ``, `---`, `Method: Lohmöller PLS algorithm, Mode A reflective measurement, ${meta.scheme} inner weighting; bootstrap percentile CIs with construct-level sign alignment; p-values via normal approximation. Independent implementation — not affiliated with SmartPLS GmbH.`);
   return L.join('\n');
 }
 
