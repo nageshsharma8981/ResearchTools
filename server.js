@@ -47,6 +47,10 @@ CREATE TABLE IF NOT EXISTS tokens (
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS access_allow (
+  value TEXT PRIMARY KEY, kind TEXT NOT NULL, note TEXT NOT NULL DEFAULT '',
+  added_by TEXT NOT NULL DEFAULT '', added_at INTEGER NOT NULL
+);
 `);
 // migrations for pre-existing databases
 for (const col of ["terms_version TEXT NOT NULL DEFAULT ''", 'terms_accepted_at INTEGER NOT NULL DEFAULT 0', "tool_access TEXT NOT NULL DEFAULT ''", 'seen_intro INTEGER NOT NULL DEFAULT 0',
@@ -118,6 +122,27 @@ function verifyPassword(password, salt, expected) {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+// ---------- account access gate ----------
+// Only educational emails (.edu / .edu.<cc> / .ac.<cc>), rewiseed.com admins,
+// and addresses the operator has explicitly allow-listed may hold accounts.
+// Consumer mail (gmail, yahoo, outlook…) is refused. Superadmins always pass.
+const ADMIN_ORG_DOMAIN = 'rewiseed.com';
+const ACADEMIC_RE = /\.(edu|ac)(\.[a-z]{2,})?$/i; // mit.edu · iitb.ac.in · ox.ac.uk · unimelb.edu.au
+const ENV_ALLOW = (process.env.ACCESS_ALLOW || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+function emailDomain(em) { const i = String(em || '').lastIndexOf('@'); return i < 0 ? '' : em.slice(i + 1).toLowerCase(); }
+function accessAllowed(email) {
+  const em = String(email || '').toLowerCase().trim();
+  const domain = emailDomain(em);
+  if (!domain) return false;
+  if (SUPERADMINS.includes(em)) return true;                 // hard-coded operators
+  if (domain === ADMIN_ORG_DOMAIN) return true;              // rewiseed.com admins
+  if (ACADEMIC_RE.test(domain)) return true;                 // educational institutions
+  if (ENV_ALLOW.includes(em) || ENV_ALLOW.includes(domain)) return true; // env bootstrap allowlist
+  try { return !!db.prepare('SELECT 1 FROM access_allow WHERE value = ? OR value = ?').get(em, domain); }
+  catch { return false; }                                    // DB-managed allowlist (admin-granted)
+}
+const ACCESS_DENIED_MSG = 'Access is limited to institutional accounts. Use your university email (ending in .edu, .ac.in, .ac.uk, and similar) or a rewiseed.com address. If you need access with another email, ask an administrator to add you to the allowlist.';
 // cap: length-limit AND strip characters used in unicode spoofing attacks —
 // C0 controls (keep \n \t), zero-width chars, and bidi override marks.
 const cap = (s, n) => String(s ?? '')
@@ -407,6 +432,7 @@ app.post('/api/auth/signup', async (req, res) => {
   if (!consumeCaptcha(captchaToken)) return res.status(400).json({ error: 'Please complete the puzzle first.' });
   const em = cap(email, 254).toLowerCase();
   if (!EMAIL_RE.test(em)) return res.status(400).json({ error: 'Enter a valid email address.' });
+  if (!accessAllowed(em)) return res.status(403).json({ error: ACCESS_DENIED_MSG, reason: 'restricted' });
   if (typeof password !== 'string' || password.length < 8 || password.length > 200) {
     return res.status(400).json({ error: 'Password must be at least 8 characters.' });
   }
@@ -501,6 +527,11 @@ app.post('/api/auth/signin', (req, res) => {
   }
   if (!u.confirmed) return res.status(403).json({ error: 'Please confirm your email first — check your inbox (and spam).', unconfirmed: true });
   if (u.disabled) return res.status(403).json({ error: 'This account has been disabled. Contact your administrator.' });
+  // access gate also enforced at login, so accounts predating the policy (or later
+  // restricted) are caught — superadmins, rewiseed.com, educational, and allow-listed pass
+  if (!accessAllowed(em) && u.role !== 'admin' && u.role !== 'superadmin') {
+    return res.status(403).json({ error: ACCESS_DENIED_MSG, reason: 'restricted' });
+  }
   const token = rand(32);
   db.prepare('INSERT INTO sessions (token, user_id, expires) VALUES (?,?,?)').run(sha(token), u.id, now() + 30 * 24 * 3600_000);
   setSession(res, token, 30 * 24 * 3600_000);
@@ -640,6 +671,31 @@ app.delete('/api/me', requireAuth, (req, res) => {
 });
 
 // ---------- admin ----------
+// ---------- access allowlist management (superadmin only) ----------
+const requireSuperadmin = (req, res, next) => {
+  if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Only a superadmin can manage the access allowlist.' });
+  next();
+};
+app.get('/api/admin/access', requireAuth, requireSuperadmin, (_req, res) => {
+  const rows = db.prepare('SELECT value, kind, note, added_by, added_at FROM access_allow ORDER BY added_at DESC').all();
+  res.json({ allow: rows, policy: { academic: '.edu, .edu.<cc>, .ac.<cc>', adminDomain: ADMIN_ORG_DOMAIN, env: ENV_ALLOW } });
+});
+app.post('/api/admin/access', requireAuth, requireSuperadmin, (req, res) => {
+  const raw = cap((req.body || {}).value, 254).toLowerCase().trim();
+  const note = cap((req.body || {}).note, 200);
+  if (!raw) return res.status(400).json({ error: 'Enter an email or domain to allow.' });
+  const isEmail = raw.includes('@');
+  if (isEmail && !EMAIL_RE.test(raw)) return res.status(400).json({ error: 'That is not a valid email address.' });
+  if (!isEmail && !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(raw)) return res.status(400).json({ error: 'That is not a valid domain (e.g. example.org).' });
+  db.prepare('INSERT INTO access_allow (value, kind, note, added_by, added_at) VALUES (?,?,?,?,?) ON CONFLICT(value) DO UPDATE SET note = excluded.note')
+    .run(raw, isEmail ? 'email' : 'domain', note, req.user.email, now());
+  res.json({ ok: true, value: raw, kind: isEmail ? 'email' : 'domain' });
+});
+app.delete('/api/admin/access/:value', requireAuth, requireSuperadmin, (req, res) => {
+  db.prepare('DELETE FROM access_allow WHERE value = ?').run(String(req.params.value || '').toLowerCase());
+  res.json({ ok: true });
+});
+
 app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
   let rows;
   if (req.user.role === 'superadmin') {
