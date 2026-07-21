@@ -160,23 +160,37 @@ button.step-btn:hover { background:var(--surface-2); border-color:var(--accent);
 Rewiseed.renderNav('index.html');
 const esc = Rewiseed.esc;
 // cinematic intro on first sign-in; replayable from the footer
+// short cost label per tile, from the shared per-tool cost map
+function costLabel(href) {
+  const rc = Rewiseed.RUN_COSTS && Rewiseed.RUN_COSTS[href];
+  if (!rc) return 'Free';                       // browsing pages: library, journal, data sources
+  if (rc[0] === 'free') return 'Free';
+  if (rc[0] === 'ai') return href === 'paper-generator.html' ? '1–6 credits' : '1–4 credits/run';
+  if (rc[0] === 'both') return '1+ credits/run';
+  return '1 credit/run';
+}
 fetch('/api/me', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).then(d => {
   // access visibility: mark tools outside this account's plan with a lock badge
   // (tile stays clickable — the tool page explains which level includes it)
-  if (d && d.user && d.user.tool_access && d.user.tool_access.length) {
-    const granted = new Set(d.user.tool_access.map(t => t + '.html'));
-    document.querySelectorAll('.rp-tile').forEach(tile => {
-      const href = tile.getAttribute('href');
-      if (href === 'library.html' || href === 'journal.html') return; // not plan-gated
-      if (!granted.has(href)) {
-        tile.style.opacity = '0.62';
-        tile.setAttribute('title', 'Not in your plan — click to see which level includes it');
-        tile.querySelector('.ti').insertAdjacentHTML('beforeend',
-          '<span style="margin-left:auto;font-size:10.5px;font-weight:800;letter-spacing:.04em;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:999px;padding:2px 8px;color:var(--muted);white-space:nowrap">🔒 LOCKED</span>');
-        const go = tile.querySelector('.go'); if (go) go.innerHTML = 'See how to unlock →';
-      }
-    });
-  }
+  const granted = (d && d.user && d.user.tool_access && d.user.tool_access.length)
+    ? new Set(d.user.tool_access.map(t => t + '.html')) : null; // null = everything in plan
+  document.querySelectorAll('.rp-tile').forEach(tile => {
+    const href = tile.getAttribute('href');
+    const gated = href !== 'library.html' && href !== 'journal.html';
+    if (granted && gated && !granted.has(href)) {
+      tile.style.opacity = '0.62';
+      tile.setAttribute('title', 'Not in your plan — click to see which level includes it');
+      tile.querySelector('.ti').insertAdjacentHTML('beforeend',
+        '<span style="margin-left:auto;font-size:10.5px;font-weight:800;letter-spacing:.04em;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:999px;padding:2px 8px;color:var(--muted);white-space:nowrap">🔒 LOCKED</span>');
+      const go = tile.querySelector('.go'); if (go) go.innerHTML = 'See how to unlock →';
+      return;
+    }
+    // accessible tool — show what a run costs, so usage can be planned before opening it
+    const lbl = costLabel(href);
+    const free = lbl === 'Free';
+    tile.querySelector('.ti').insertAdjacentHTML('beforeend',
+      `<span style="margin-left:auto;font-size:10.5px;font-weight:700;letter-spacing:.02em;background:${free ? 'var(--accent-soft)' : 'var(--surface-2)'};border:1px solid ${free ? 'var(--accent)' : 'var(--border)'};border-radius:999px;padding:2px 8px;color:${free ? 'var(--accent-strong)' : 'var(--muted)'};white-space:nowrap" title="What a run of this tool costs">${esc(lbl)}</span>`);
+  });
   if (d && d.user && !d.user.seen_intro) {
     RewiseedIntro.play(d.user.name).then(() => {
       fetch('/api/me', { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ introSeen: true }) }).catch(() => {});

@@ -138,6 +138,22 @@ try { const rq = localStorage.getItem('rewiseed_draft_stats') || localStorage.ge
 const FREE_SECTIONS = 2; // Abstract + Introduction shown free; rest locked
 let plan = null, sections = {}, meta = null, generating = false;
 
+// ---------- generation progress (drives the input-card bar and the in-output bar) ----------
+let prog = null; // { done, total } — done may be fractional while a section streams
+function setProg(done, total, label) {
+  prog = total ? { done, total } : null;
+  const track = $('prog'), fill = $('prog-fill'), st = $('status');
+  const uzFill = document.getElementById('uz-fill'), uzLabel = document.getElementById('uz-label');
+  if (!prog) { if (track) { track.hidden = true; fill.style.width = '0%'; } return; }
+  const pct = Math.max(3, Math.min(100, Math.round((done / total) * 100)));
+  if (track) { track.hidden = false; fill.style.width = pct + '%'; }
+  if (uzFill) uzFill.style.width = pct + '%';
+  if (label != null) {
+    if (st) st.textContent = label;
+    if (uzLabel) uzLabel.textContent = label;
+  }
+}
+
 function sectionSystem(title, words, ctx) {
   const prismaNote = (paperType === 'litreview' && $('prisma').checked && /methodolog/i.test(title))
     ? ' Follow PRISMA 2020: state the search strategy (databases, keywords, date range), explicit inclusion/exclusion criteria, and describe the flow as identification → screening → eligibility → inclusion with indicative counts (mark counts as [example — replace with your screening numbers]).' : '';
@@ -275,6 +291,15 @@ async function renderUnlock() {
   const remaining = later.filter(s => sections[s.title] == null);   // never generated
   const failed = later.filter(s => sections[s.title] === false);    // tried, failed
   const zone = $('unlock-zone');
+  if (generating) {
+    // generation in flight — show progress here (next to where the user clicked), never the Unlock button
+    const pct = prog ? Math.max(3, Math.min(100, Math.round((prog.done / prog.total) * 100))) : 3;
+    zone.innerHTML = `<div class="card" style="text-align:center;padding:16px 18px">
+      <b id="uz-label" style="font-size:14px">Writing your paper…</b>
+      <div class="progress-track" style="margin:10px auto 0;max-width:420px"><div class="progress-fill" id="uz-fill" style="width:${pct}%"></div></div>
+    </div>`;
+    return;
+  }
   if (!remaining.length && !failed.length) { zone.innerHTML = `<div class="card" style="background:var(--accent-soft);border-color:var(--accent);text-align:center;padding:16px"><b>${icon('check', 15)} Full paper unlocked — all ${plan.length} sections drafted.</b></div>`; return; }
   if (!remaining.length && failed.length) { zone.innerHTML = `<div class="card" style="text-align:center;padding:14px"><p class="hint" style="margin:0">${failed.length} section${failed.length > 1 ? 's' : ''} didn’t generate — use “Regenerate” above (no extra credits).</p></div>`; return; }
   const b = await Rewiseed.billingStatus();
@@ -295,24 +320,28 @@ $('run').onclick = async () => {
   const total = +$('length').value;
   plan = TYPES[paperType].sections.map(([title, w]) => ({ title, words: Math.round(total * w) }));
   sections = {};
-  generating = true; $('run').disabled = true; $('status').textContent = 'Drafting the abstract and introduction…';
+  generating = true; $('run').disabled = true;
   renderPaper();
   try {
     for (let i = 0; i < FREE_SECTIONS; i++) {
       const s = plan[i];
+      setProg(i + 0.2, FREE_SECTIONS, `Drafting ${s.title}… (${i + 1} of ${FREE_SECTIONS})`);
       sections[s.title] = await genSection(s.title, s.words, meta, i === 0); // charge once, on the first
+      setProg(i + 1, FREE_SECTIONS, null);
       renderPaper();
     }
     Rewiseed.track('run');
-    $('status').textContent = 'Preview ready — unlock below for the full paper.';
+    setProg(FREE_SECTIONS, FREE_SECTIONS, 'Preview ready — unlock below for the full paper.');
+    setTimeout(() => setProg(0, 0, null), 1500);
   } catch (e) {
-    $('status').textContent = '';
+    setProg(0, 0, null); $('status').textContent = '';
     if (!/free run|credits|Pro/i.test(e.message)) toast(e.message, 'error', 6000);
     else $('out').insertAdjacentHTML('afterbegin', `<div class="card"><div class="error-box">${icon('alert', 16)}<span>${esc(e.message)}</span></div></div>`);
-  } finally { generating = false; $('run').disabled = false; }
+  } finally { generating = false; $('run').disabled = false; renderPaper(); }
 };
 
 async function unlock() {
+  if (generating) return; // double-click / double-charge guard
   const btn = $('unlock-btn'); btn.disabled = true;
   const b = await Rewiseed.billingStatus();
   if (b.enforced) {
@@ -327,16 +356,18 @@ async function unlock() {
   }
   generating = true;
   const remaining = plan.map((s, i) => ({ ...s, i })).filter(s => sections[s.title] == null && s.i >= FREE_SECTIONS);
-  $('prog').hidden = false;
+  renderPaper(); // swaps the Unlock card for the progress card (renderUnlock's generating branch)
   for (let j = 0; j < remaining.length; j++) {
-    $('status').textContent = `Writing ${remaining[j].title}… (${j + 1}/${remaining.length})`;
-    $('prog-fill').style.width = `${Math.round((j / remaining.length) * 100)}%`;
+    setProg(j + 0.2, remaining.length, `Writing ${remaining[j].title}… (${j + 1} of ${remaining.length})`);
     try { sections[remaining[j].title] = await genSection(remaining[j].title, remaining[j].words, meta, false); }
     catch { sections[remaining[j].title] = false; } // mark failed → per-section Regenerate, no re-charge
+    setProg(j + 1, remaining.length, null);
     renderPaper();
   }
-  $('prog').hidden = true; $('status').textContent = 'Full paper drafted. Review every section and verify all citations before use.';
+  setProg(remaining.length, remaining.length, 'Full paper drafted. Review every section and verify all citations before use.');
   generating = false;
+  renderPaper(); // now renders the "Full paper unlocked" card
+  setTimeout(() => setProg(0, 0, null), 1800);
   Rewiseed.track('export', assemble().length);
 }
 </script>

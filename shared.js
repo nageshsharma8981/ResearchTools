@@ -249,6 +249,34 @@
 
   // Tools grouped by the seven steps of the research process — the same structure
   // as the home page stepper. Group index i deep-links to index.html#step-i.
+  const RUN_COSTS = {
+    'journal-rankings.html': ['free', 'Free \u2014 unlimited comparisons'],
+    'doi-finder.html': ['data', '1 credit per lookup'],
+    'citation-graph.html': ['data', '1 credit per graph'],
+    'journal-metrics.html': ['data', '1 credit per search'],
+    'author-impact.html': ['data', '1 credit per author analysis'],
+    'scholar-profiles.html': ['data', '1 credit per profile search'],
+    'data-explorer.html': ['data', '1 credit per data query'],
+    'citation-integrity.html': ['data', '1 credit per manuscript scan'],
+    'statpls.html': ['both', '1 credit per model run · AI write-up 1\u20134 more'],
+    'smart-literature-finder.html': ['both', '1 credit per search · AI insights 1\u20134 more'],
+    'bibliometrics.html': ['both', '1 credit per analysis · AI reading 1\u20134 more'],
+    'citation-formatter.html': ['both', '1 credit per batch · AI mode 1\u20134'],
+    'originality-checker.html': ['ai', '1\u20134 credits per check, by document size'],
+    'research-gap-identifier.html': ['ai', '1\u20134 credits per run, by input size'],
+    'research-question-generator.html': ['ai', '1\u20134 credits per run, by input size'],
+    'instrument-designer.html': ['ai', '1\u20134 credits per run, by input size'],
+    'qualitative-coding-assistant.html': ['ai', '1\u20134 credits per run, by document size'],
+    'ai-peer-review.html': ['ai', '1\u20134 credits per review, by document size'],
+    'apa-formatter.html': ['ai', '1\u20134 credits per run, by input size'],
+    'stats-advisor.html': ['ai', '1\u20134 credits per run, by input size'],
+    'literature-matrix.html': ['ai', '1\u20134 credits per run, by input size'],
+    'writing-polisher.html': ['ai', '1\u20134 credits per run, by document size'],
+    'rubric-lens.html': ['ai', '1\u20134 credits per run, by document size'],
+    'abstract-generator.html': ['ai', '1\u20134 credits per run, by document size'],
+    'paper-generator.html': ['ai', '1 credit preview \u00b7 6 credits full-paper unlock'],
+  };
+
   const STEP_GROUPS = [
     { n: 'I', name: 'Define the problem', tools: [
       { href: 'research-gap-identifier.html', icon: 'gap', name: 'Research Gap Identifier' },
@@ -392,33 +420,6 @@
     mountFeedback();
     // credit-cost transparency: every tool page states what a run costs
     // 'data' = flat 1 credit per run/search/comparison; 'ai' = 1-4 by input size; 'both' = data run + optional AI
-    const RUN_COSTS = {
-      'journal-rankings.html': ['free', 'Free \u2014 unlimited comparisons'],
-      'doi-finder.html': ['data', '1 credit per lookup'],
-      'citation-graph.html': ['data', '1 credit per graph'],
-      'journal-metrics.html': ['data', '1 credit per search'],
-      'author-impact.html': ['data', '1 credit per author analysis'],
-      'scholar-profiles.html': ['data', '1 credit per profile search'],
-      'data-explorer.html': ['data', '1 credit per data query'],
-      'citation-integrity.html': ['data', '1 credit per manuscript scan'],
-      'statpls.html': ['both', '1 credit per model run · AI write-up 1\u20134 more'],
-      'smart-literature-finder.html': ['both', '1 credit per search · AI insights 1\u20134 more'],
-      'bibliometrics.html': ['both', '1 credit per analysis · AI reading 1\u20134 more'],
-      'citation-formatter.html': ['both', '1 credit per batch · AI mode 1\u20134'],
-      'originality-checker.html': ['ai', '1\u20134 credits per check, by document size'],
-      'research-gap-identifier.html': ['ai', '1\u20134 credits per run, by input size'],
-      'research-question-generator.html': ['ai', '1\u20134 credits per run, by input size'],
-      'instrument-designer.html': ['ai', '1\u20134 credits per run, by input size'],
-      'qualitative-coding-assistant.html': ['ai', '1\u20134 credits per run, by document size'],
-      'ai-peer-review.html': ['ai', '1\u20134 credits per review, by document size'],
-      'apa-formatter.html': ['ai', '1\u20134 credits per run, by input size'],
-      'stats-advisor.html': ['ai', '1\u20134 credits per run, by input size'],
-      'literature-matrix.html': ['ai', '1\u20134 credits per run, by input size'],
-      'writing-polisher.html': ['ai', '1\u20134 credits per run, by document size'],
-      'rubric-lens.html': ['ai', '1\u20134 credits per run, by document size'],
-      'abstract-generator.html': ['ai', '1\u20134 credits per run, by document size'],
-      'paper-generator.html': ['ai', '1 credit preview \u00b7 6 credits full-paper unlock'],
-    };
     const rc = RUN_COSTS[activeHref];
     if (rc) {
       billingStatus().then(b => {
@@ -1442,7 +1443,7 @@
 
   window.Rewiseed = {
     renderNav, renderSettingsBar, openSettings, billingStatus, checkText, assertTextAllowed, aiDisclaimer,
-    verifyCitations, renderCitationCheck, exportPDF, meterDataRun,
+    verifyCitations, renderCitationCheck, exportPDF, meterDataRun, RUN_COSTS, STEP_GROUPS,
     callLLM, md, esc, icon, toast, track,
     downloadText, copyText, getCfg, clearApiKey, isLocalUrl,
     mountStreamingTool, playIntro, saveToLibrary, fetchWithTimeout,

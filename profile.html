@@ -188,9 +188,26 @@ async function renderPlan() {
     <p class="hint" style="margin:0 0 10px">${b.credits ?? 0} of your monthly ${b.monthlyCredits} (top-ups and rollover can take you above ${b.monthlyCredits} — up to 300).</p>` : `
     <p class="hint" style="margin:0 0 10px">${b.freeRunUsed ? 'Your free run is used.' : 'Your first AI run is free (standard or large documents).'} Pro is ₹${b.priceInr}/month for ${b.monthlyCredits} run credits.</p>`}
     <p class="hint" style="margin:0 0 12px">How runs are counted: standard runs (search, lookup, comparison, model run) = 1 credit · AI runs: up to 20k characters = 1, up to 80k = 2, up to 200k = 4. Browsing and reading are free.</p>
+    ${myToolCosts()}
     <div class="chip-row">
       <a href="pricing.html"><button type="button" class="${pro ? 'ghost' : ''}">${pro ? 'Top up credits' : 'See plans & pricing'}</button></a>
     </div>`;
+}
+// per-tool run costs for exactly the tools this account can open — for planning usage
+function myToolCosts() {
+  const RC = Rewiseed.RUN_COSTS || {}, SG = Rewiseed.STEP_GROUPS || [];
+  const granted = (me.tool_access && me.tool_access.length) ? new Set(me.tool_access.map(t => t + '.html')) : null;
+  const rows = [];
+  SG.forEach(g => g.tools.forEach(t => {
+    if (granted && !granted.has(t.href)) return; // outside this account's plan
+    const rc = RC[t.href];
+    const cost = !rc ? 'Free' : esc(rc[1]);
+    rows.push(`<tr><td style="padding:5px 10px 5px 0;border-bottom:1px solid var(--border)"><a class="link" href="${t.href}">${esc(t.name)}</a></td><td style="padding:5px 0;border-bottom:1px solid var(--border);color:var(--ink-2)">${cost}</td></tr>`);
+  }));
+  if (!rows.length) return '';
+  return `<details style="margin:0 0 12px"><summary style="cursor:pointer;font-size:13.5px;font-weight:600">What each of your ${rows.length} tools costs per run</summary>
+    <div style="overflow-x:auto;margin-top:8px"><table style="border-collapse:collapse;font-size:13px;width:100%;max-width:560px"><thead><tr><th style="text-align:left;padding:0 10px 6px 0;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Tool</th><th style="text-align:left;padding:0 0 6px;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Cost per run</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>
+  </details>`;
 }
 api('/api/me').then(r => { me = r.user; render(); renderPlan(); }).catch(() => {
   document.getElementById('out').innerHTML = `
