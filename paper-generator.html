@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Research Paper Generator — ItsMyResearch</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ItsMyResearch"/>
+<meta property="og:title" content="Research Paper Generator — ItsMyResearch"/>
+<meta property="og:description" content="Draft a full structured research paper — literature review, qualitative, quantitative, experimental, or theoretical — with PRISMA support. Preview free, unlock the full ~8,000-word draft."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/paper-generator"/>
+<meta name="twitter:card" content="summary"/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.type-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:6px 0 4px; }
+.type-card { border:1px solid var(--border-strong); background:var(--surface); border-radius:var(--radius); padding:11px 13px; cursor:pointer; }
+.type-card.on { border-color:var(--accent); background:var(--accent-soft); }
+.type-card b { display:block; font-size:13.5px; color:var(--ink); }
+.type-card span { font-size:11.5px; color:var(--muted); }
+.sec { border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; margin-bottom:14px; }
+.sec h3 { font-size:16px; margin:0 0 2px; }
+.sec .wc { font-size:11.5px; color:var(--muted); }
+.sec .body { margin-top:10px; font-size:14.5px; line-height:1.7; }
+.locked { position:relative; }
+.locked .body { filter:blur(5px); user-select:none; pointer-events:none; opacity:.65; max-height:220px; overflow:hidden; }
+.lock-overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; text-align:center; padding:16px; }
+.lock-overlay .lk { font-size:24px; }
+.paper-title { font-family:var(--font-serif); font-size:24px; font-weight:700; text-align:center; margin:0 0 4px; }
+.progress-track { height:8px; border-radius:99px; background:var(--surface-2); overflow:hidden; margin-top:10px; }
+.progress-fill { height:100%; background:var(--accent); border-radius:99px; transition:width .3s; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Research Paper Generator</h1>
+  <p class="lede">Draft a complete, structured research paper — pick the type, set the topic, and get a full academic manuscript with the right sections, headings, and flow. <b>Preview the abstract and introduction free</b>; unlock the full ~8,000-word draft with credits.</p>
+</div>
+<main style="max-width:900px">
+  <div id="settings"></div>
+  <div class="card">
+    <span class="overline">Step 1 · Paper type</span>
+    <h2>What kind of paper?</h2>
+    <div class="type-grid" id="types"></div>
+    <div id="prisma-wrap" style="margin-top:10px" hidden>
+      <label style="display:flex;align-items:flex-start;gap:8px;font-size:13.5px;font-weight:600;color:var(--ink-2)">
+        <input type="checkbox" id="prisma" checked style="width:auto;margin-top:2px"/>
+        <span>Use the PRISMA 2020 approach — structured search strategy, inclusion/exclusion criteria, and a flow-diagram description (identification → screening → eligibility → inclusion). Standard for systematic reviews.</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="overline">Step 2 · Your topic</span>
+    <h2>Tell the writer what it's about</h2>
+    <label class="field-label" for="topic">Working title or topic</label>
+    <input id="topic" maxlength="300" placeholder="e.g. The impact of AI tutoring systems on undergraduate learning outcomes"/>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+      <label style="font-size:12.5px;font-weight:600;color:var(--ink-2)">Discipline / field
+        <input id="field" maxlength="120" placeholder="e.g. Education technology" style="margin-top:4px"/></label>
+      <label style="font-size:12.5px;font-weight:600;color:var(--ink-2)">Target length
+        <select id="length" style="margin-top:4px">
+          <option value="3000">Short article — ~3,000 words</option>
+          <option value="8000" selected>Full paper — ~8,000 words (incl. references)</option>
+          <option value="12000">Extended — ~12,000 words</option>
+        </select></label>
+    </div>
+    <label class="field-label" for="rq" style="margin-top:12px">Research question(s) or aim <span style="font-weight:400;color:var(--muted)">— optional; the Question Generator's output drops in</span></label>
+    <textarea id="rq" rows="2" placeholder="e.g. RQ1: Does AI tutoring improve exam performance vs. traditional tutoring?"></textarea>
+    <label class="field-label" for="refs" style="margin-top:12px">Key references to build on <span style="font-weight:400;color:var(--muted)">— optional; one per line</span></label>
+    <textarea id="refs" rows="3" placeholder="Paste titles or citations of papers you want the draft to engage with…"></textarea>
+    <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button id="run"></button>
+      <span class="hint" style="margin:0">Preview = the abstract + introduction, free (uses 1 run / your free run)</span>
+    </div>
+    <div class="progress-track" id="prog" hidden><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+    <span id="status" class="hint" style="display:block;margin-top:6px"></span>
+  </div>
+
+  <div id="out"></div>
+
+  <p class="hint" id="ai-disc" style="max-width:100%"></p>
+</main>
+<script src="shared.js"></script>
+<script src="account.js"></script>
+<script>
+const { esc, icon, toast, md } = Rewiseed;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('paper-generator.html');
+Rewiseed.renderSettingsBar('settings');
+$('hero-icon').innerHTML = icon('doc', 26);
+$('run').innerHTML = `${icon('play', 15)} Preview the paper (free)`;
+$('ai-disc').innerHTML = Rewiseed.aiDisclaimer() + '<br/><b style="color:var(--accent-strong)">On citations especially:</b> AI-suggested references may not be real. Verify every one with the DOI Finder and replace any that don’t resolve before you cite them.';
+
+// ---------- paper structures (section word-weights sum ~= 1) ----------
+const TYPES = {
+  litreview: { name: 'Literature Review', desc: 'synthesize a body of work', prisma: true,
+    sections: [['Abstract', .05], ['Introduction', .12], ['Review Methodology', .09], ['Thematic Synthesis', .34], ['Discussion', .20], ['Conclusion', .08], ['References', .12]] },
+  quant: { name: 'Quantitative', desc: 'hypotheses, data, statistics',
+    sections: [['Abstract', .04], ['Introduction', .12], ['Literature Review', .18], ['Methods', .16], ['Results', .16], ['Discussion', .18], ['Conclusion', .06], ['References', .10]] },
+  qual: { name: 'Qualitative', desc: 'meaning, themes, interviews',
+    sections: [['Abstract', .04], ['Introduction', .12], ['Literature Review', .17], ['Methodology', .16], ['Findings', .22], ['Discussion', .17], ['Conclusion', .06], ['References', .06]] },
+  experimental: { name: 'Experimental', desc: 'design, manipulation, effects',
+    sections: [['Abstract', .04], ['Introduction', .12], ['Theoretical Framework & Hypotheses', .10], ['Method', .18], ['Results', .18], ['Discussion', .20], ['Conclusion', .06], ['References', .12]] },
+  theoretical: { name: 'Theoretical', desc: 'build a framework or model',
+    sections: [['Abstract', .04], ['Introduction', .13], ['Theoretical Background', .22], ['Proposed Framework & Propositions', .26], ['Discussion & Implications', .21], ['Conclusion', .07], ['References', .07]] },
+};
+let paperType = 'litreview';
+$('types').innerHTML = Object.entries(TYPES).map(([k, t]) =>
+  `<div class="type-card ${k === paperType ? 'on' : ''}" data-t="${k}"><b>${esc(t.name)}</b><span>${esc(t.desc)}</span></div>`).join('');
+function selectType(k) {
+  paperType = k;
+  document.querySelectorAll('.type-card').forEach(c => c.classList.toggle('on', c.dataset.t === k));
+  $('prisma-wrap').hidden = !TYPES[k].prisma;
+}
+$('types').querySelectorAll('[data-t]').forEach(c => c.onclick = () => selectType(c.dataset.t));
+selectType('litreview');
+try { const rq = localStorage.getItem('rewiseed_draft_stats') || localStorage.getItem('rewiseed_draft_instrument'); if (rq && !$('rq').value) $('rq').value = rq.slice(0, 1200); } catch {}
+
+// ---------- generation ----------
+const FREE_SECTIONS = 2; // Abstract + Introduction shown free; rest locked
+let plan = null, sections = {}, meta = null, generating = false;
+
+function sectionSystem(title, words, ctx) {
+  const prismaNote = (paperType === 'litreview' && $('prisma').checked && /methodolog/i.test(title))
+    ? ' Follow PRISMA 2020: state the search strategy (databases, keywords, date range), explicit inclusion/exclusion criteria, and describe the flow as identification → screening → eligibility → inclusion with indicative counts (mark counts as [example — replace with your screening numbers]).' : '';
+  return `You are an academic author writing ONE section of a ${TYPES[paperType].name.toLowerCase()} research paper for the field of "${ctx.field || 'the stated discipline'}". Write the "${title}" section only, in scholarly prose, targeting about ${words} words.${prismaNote}
+Rules: use formal academic register and APA 7 in-text citation style (Author, Year). Where you cite, the references must be plausible and consistent with any provided key references, but mark the whole paper's citations as requiring verification — never claim a specific DOI. Do not repeat the section heading. Do not write other sections. Use Markdown; use ### subheadings within the section only if it genuinely helps. If this is the References section, produce an alphabetical APA 7 reference list of the works you cited, and begin it with the line: "> AI-suggested references — verify each with the DOI Finder before citing; replace any that do not resolve."`;
+}
+function sectionUser(title, ctx) {
+  return `Paper working title: ${ctx.topic}
+${ctx.rq ? 'Research question(s)/aim: ' + ctx.rq + '\n' : ''}${ctx.refs ? 'Key references to engage with:\n' + ctx.refs + '\n' : ''}
+Sections already written (for continuity — do not repeat them):
+${Object.entries(sections).map(([k, v]) => `## ${k}\n${(v || '').slice(0, 700)}`).join('\n\n') || '(none yet)'}
+
+Now write the "${title}" section.`;
+}
+
+async function genSection(title, words, ctx, metered) {
+  // metered=true uses the normal run credit (preview); false skips per-call metering
+  // (unlock is charged once, flat) by passing the user's own config as cfgOverride
+  const cfg = metered ? undefined : Rewiseed.getCfg();
+  return Rewiseed.callLLM({ system: sectionSystem(title, words, ctx), user: sectionUser(title, ctx), temperature: 0.35, maxTokens: Math.min(4096, Math.round(words * 2.2)), cfgOverride: cfg });
+}
+
+function renderPaper() {
+  const total = plan.reduce((s, x) => s + (sections[x.title] ? (sections[x.title].split(/\s+/).length) : 0), 0);
+  $('out').innerHTML = `<div class="card">
+    <p class="paper-title">${esc(meta.topic)}</p>
+    <p class="hint" style="text-align:center;margin:0 0 14px">${TYPES[paperType].name} paper · target ~${(+$('length').value).toLocaleString()} words · <span id="livewc">${total.toLocaleString()}</span> words drafted so far</p>
+    <div id="secs"></div>
+    <div id="unlock-zone" style="margin-top:6px"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+      <button class="ghost" id="dl-md">${icon('download', 15)} Download draft (.md)</button>
+      <button class="ghost" id="copy-md">${icon('copy', 15)} Copy</button>
+      <a class="link" href="apa-formatter.html" style="align-self:center">Format it as a .docx ${icon('arrow', 13)}</a>
+    </div>
+  </div>`;
+  const secWrap = $('secs');
+  plan.forEach((sec, i) => {
+    const failed = sections[sec.title] === false;
+    const done = sections[sec.title] != null && !failed;
+    const locked = !done && !failed && i >= FREE_SECTIONS;
+    const div = document.createElement('div');
+    div.className = 'sec' + (locked ? ' locked' : '');
+    div.innerHTML = `<h3>${esc(sec.title)}</h3><span class="wc">target ~${sec.words} words</span>
+      <div class="body">${done ? md(sections[sec.title])
+        : failed ? `<div class="error-box">${icon('alert', 15)}<span>This section didn’t generate — no extra credits needed to retry.</span></div><button class="ghost" style="margin-top:8px" data-retry="${esc(sec.title)}">${icon('play', 14)} Regenerate this section</button>`
+        : locked ? sampleBlur(sec.title) : '<div class="stream-status"><span class="spinner"></span>writing…</div>'}</div>
+      ${locked ? `<div class="lock-overlay"><span class="lk">🔒</span><b>${esc(sec.title)} — locked</b><span class="hint" style="margin:0">Unlock the full paper below</span></div>` : ''}`;
+    secWrap.appendChild(div);
+  });
+  secWrap.querySelectorAll('[data-retry]').forEach(b => b.onclick = async () => {
+    const title = b.dataset.retry, sec = plan.find(s => s.title === title);
+    b.disabled = true; delete sections[title]; renderPaper();
+    try { sections[title] = await genSection(title, sec.words, meta, false); }
+    catch (e) { sections[title] = false; toast(e.message, 'error', 5000); }
+    renderPaper();
+  });
+  renderUnlock();
+  $('dl-md').onclick = () => Rewiseed.downloadText('research-paper-draft.md', assemble());
+  $('copy-md').onclick = () => navigator.clipboard.writeText(assemble()).then(() => toast('Draft copied'));
+}
+const sampleBlur = () => 'This section will develop the argument in full, integrate the literature, and connect back to the research aim with the depth an examiner expects. '.repeat(6);
+function assemble() {
+  return `# ${meta.topic}\n\n*${TYPES[paperType].name} paper — AI-generated draft from ItsMyResearch. Verify all claims and citations before use.*\n\n` +
+    plan.map(s => (sections[s.title] && sections[s.title] !== false) ? `## ${s.title}\n\n${sections[s.title]}` : `## ${s.title}\n\n*(not yet generated — unlock or regenerate this section)*`).join('\n\n');
+}
+
+async function renderUnlock() {
+  const later = plan.slice(FREE_SECTIONS);
+  const remaining = later.filter(s => sections[s.title] == null);   // never generated
+  const failed = later.filter(s => sections[s.title] === false);    // tried, failed
+  const zone = $('unlock-zone');
+  if (!remaining.length && !failed.length) { zone.innerHTML = `<div class="card" style="background:var(--accent-soft);border-color:var(--accent);text-align:center;padding:16px"><b>${icon('check', 15)} Full paper unlocked — all ${plan.length} sections drafted.</b></div>`; return; }
+  if (!remaining.length && failed.length) { zone.innerHTML = `<div class="card" style="text-align:center;padding:14px"><p class="hint" style="margin:0">${failed.length} section${failed.length > 1 ? 's' : ''} didn’t generate — use “Regenerate” above (no extra credits).</p></div>`; return; }
+  const b = await Rewiseed.billingStatus();
+  const cost = b.paperUnlockCredits || 6;
+  zone.innerHTML = `<div class="card" style="background:var(--accent-soft);border-color:var(--accent);text-align:center;padding:18px">
+    <b style="font-size:15px">Unlock the full paper</b>
+    <p class="hint" style="margin:6px auto 12px;max-width:460px">${remaining.length} more sections (${remaining.map(s => s.title).join(', ')}) — the complete ~${(+$('length').value).toLocaleString()}-word draft.${b.enforced ? ` Costs <b>${cost} credits</b>.` : ''}</p>
+    <button id="unlock-btn">${icon('sparkle', 15)} ${b.enforced ? `Unlock — ${cost} credits` : 'Generate the full paper'}</button>
+  </div>`;
+  $('unlock-btn').onclick = unlock;
+}
+
+$('run').onclick = async () => {
+  if (generating) return;
+  const topic = $('topic').value.trim();
+  if (!topic) { toast('Give the paper a topic or working title', 'error'); $('topic').focus(); return; }
+  meta = { topic, field: $('field').value.trim(), rq: $('rq').value.trim(), refs: $('refs').value.trim() };
+  const total = +$('length').value;
+  plan = TYPES[paperType].sections.map(([title, w]) => ({ title, words: Math.round(total * w) }));
+  sections = {};
+  generating = true; $('run').disabled = true; $('status').textContent = 'Drafting the abstract and introduction…';
+  renderPaper();
+  try {
+    for (let i = 0; i < FREE_SECTIONS; i++) {
+      const s = plan[i];
+      sections[s.title] = await genSection(s.title, s.words, meta, i === 0); // charge once, on the first
+      renderPaper();
+    }
+    Rewiseed.track('run');
+    $('status').textContent = 'Preview ready — unlock below for the full paper.';
+  } catch (e) {
+    $('status').textContent = '';
+    if (!/free run|credits|Pro/i.test(e.message)) toast(e.message, 'error', 6000);
+    else $('out').insertAdjacentHTML('afterbegin', `<div class="card"><div class="error-box">${icon('alert', 16)}<span>${esc(e.message)}</span></div></div>`);
+  } finally { generating = false; $('run').disabled = false; }
+};
+
+async function unlock() {
+  const btn = $('unlock-btn'); btn.disabled = true;
+  const b = await Rewiseed.billingStatus();
+  if (b.enforced) {
+    try {
+      await RewiseedAccount.api('/api/paper-unlock', { method: 'POST', body: {} });
+    } catch (e) {
+      btn.disabled = false;
+      toast(e.message, 'error', 6000);
+      if (/credits|Pro|subscribe/i.test(e.message)) setTimeout(() => location.href = 'pricing.html', 2200);
+      return;
+    }
+  }
+  generating = true;
+  const remaining = plan.map((s, i) => ({ ...s, i })).filter(s => sections[s.title] == null && s.i >= FREE_SECTIONS);
+  $('prog').hidden = false;
+  for (let j = 0; j < remaining.length; j++) {
+    $('status').textContent = `Writing ${remaining[j].title}… (${j + 1}/${remaining.length})`;
+    $('prog-fill').style.width = `${Math.round((j / remaining.length) * 100)}%`;
+    try { sections[remaining[j].title] = await genSection(remaining[j].title, remaining[j].words, meta, false); }
+    catch { sections[remaining[j].title] = false; } // mark failed → per-section Regenerate, no re-charge
+    renderPaper();
+  }
+  $('prog').hidden = true; $('status').textContent = 'Full paper drafted. Review every section and verify all citations before use.';
+  generating = false;
+  Rewiseed.track('export', assemble().length);
+}
+</script>
+</body>
+</html>

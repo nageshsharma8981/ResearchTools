@@ -116,10 +116,18 @@ async function refresh() {
   }
   if (B.signedIn) {
     s.innerHTML = `<div class="card" style="padding:14px 20px"><div class="status-strip">
-      <span class="badge ${B.planStatus === 'active' ? 'gold' : ''}">${B.planStatus === 'active' ? 'Pro — active' : 'Free plan'}</span>
+      <span class="badge ${B.planStatus === 'active' ? 'gold' : ''}">${B.planStatus === 'active' ? 'Pro — active' : B.planStatus === 'cancelled' ? 'Pro — cancels at period end' : 'Free plan'}</span>
       <span class="badge">${B.credits ?? 0} credits</span>
       ${B.freeRunUsed ? '' : '<span class="badge ok">free run available</span>'}
+      ${B.planStatus === 'active' ? '<button type="button" class="ghost" id="cancel-sub" style="min-height:32px;padding:4px 14px;font-size:12.5px;margin-left:auto">Cancel subscription</button>' : ''}
     </div></div>`;
+    const cx = document.getElementById('cancel-sub');
+    if (cx) cx.onclick = async () => {
+      if (!confirm('Cancel your Pro subscription? You’ll keep Pro access and your credits until the end of the current billing period, then it won’t renew.')) return;
+      cx.disabled = true;
+      try { const r = await api('/api/billing/cancel', { method: 'POST', body: {} }); toast(r.message, 'ok', 7000); refresh(); }
+      catch (e) { toast(e.message, 'error', 5000); cx.disabled = false; }
+    };
   }
 }
 refresh();

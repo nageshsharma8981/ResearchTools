@@ -96,7 +96,7 @@ const TOOL_IDS = new Set([
   'qualitative-coding-assistant', 'peer-review-simulator', 'citation-formatter', 'apa-formatter',
   'stats-advisor', 'literature-matrix', 'writing-polisher', 'citation-graph',
   'data-explorer', 'data-sources', 'scholar-profiles', 'ai-pls', 'rubric-lens',
-  'abstract-generator',
+  'abstract-generator', 'paper-generator',
 ]);
 // things that report usage but are not grantable/gateable pages
 const TRACKABLE = new Set([...TOOL_IDS, 'assistant', 'library']);
@@ -785,6 +785,7 @@ app.get('/api/billing/status', (req, res) => {
     priceInr: PLAN_AMOUNT_PAISE / 100, monthlyCredits: MONTHLY_CREDITS,
     topupInr: TOPUP_AMOUNT_PAISE / 100, topupCredits: TOPUP_CREDITS,
     weights: { standard: '≤20k chars = 1 credit', large: '≤80k = 2', heavy: '≤200k = 4' },
+    paperUnlockCredits: PAPER_UNLOCK_CREDITS,
   };
   if (!u) return res.json(base);
   res.json({ ...base, plan: u.plan, planStatus: u.plan_status, credits: u.credits, freeRunUsed: !!u.free_run_used });
@@ -818,6 +819,37 @@ app.post('/api/billing/verify-sub', requireAuth, (req, res) => {
   grantCredits(req.user.id, 'sub', cap(paymentId, 100), subscriptionId, PLAN_AMOUNT_PAISE, MONTHLY_CREDITS, true);
   const u = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
   res.json({ ok: true, credits: u.credits, plan: u.plan });
+});
+
+// cancel the subscription — access continues until the period ends (cancel_at_cycle_end)
+app.post('/api/billing/cancel', requireAuth, async (req, res) => {
+  if (!BILLING_CONFIGURED) return res.status(503).json({ error: 'Payments are not configured yet.' });
+  if (!rateLimit('cancel:' + req.user.id, 6, 15 * 60_000)) return res.status(429).json({ error: 'Too many attempts — wait a few minutes.' });
+  const u = db.prepare('SELECT rzp_subscription_id, plan_status FROM users WHERE id = ?').get(req.user.id);
+  if (!u.rzp_subscription_id || u.plan_status !== 'active') return res.status(400).json({ error: 'No active subscription to cancel.' });
+  try {
+    await rzp(`/subscriptions/${u.rzp_subscription_id}/cancel`, 'POST', { cancel_at_cycle_end: 1 });
+    db.prepare("UPDATE users SET plan_status = 'cancelled' WHERE id = ?").run(req.user.id);
+    res.json({ ok: true, message: 'Subscription cancelled — you keep Pro access and your credits until the end of the current billing period, then it won’t renew.' });
+  } catch (e) {
+    console.error('cancel failed:', e.message);
+    res.status(502).json({ error: 'Could not cancel right now — try again shortly, or contact us.' });
+  }
+});
+
+// full-paper unlock: charge a fixed credit amount, then the client generates the rest
+const PAPER_UNLOCK_CREDITS = 6;
+app.post('/api/paper-unlock', requireAuth, (req, res) => {
+  if (!BILLING_ENFORCED) return res.json({ ok: true, metered: false });
+  if (!rateLimit('paperu:' + req.user.id, 20, 15 * 60_000)) return res.status(429).json({ error: 'Too many attempts — wait a few minutes.' });
+  const cost = PAPER_UNLOCK_CREDITS;
+  const result = db.transaction(() => {
+    const cur = db.prepare('SELECT credits FROM users WHERE id = ?').get(req.user.id);
+    if (cur.credits >= cost) { db.prepare('UPDATE users SET credits = credits - ? WHERE id = ?').run(cost, req.user.id); return { ok: true, remaining: cur.credits - cost }; }
+    return { ok: false, have: cur.credits };
+  })();
+  if (result.ok) return res.json({ ok: true, metered: true, cost, remaining: result.remaining });
+  res.status(402).json({ error: `Unlocking the full paper costs ${cost} credits — you have ${result.have}. Top up ₹${TOPUP_AMOUNT_PAISE / 100} for ${TOPUP_CREDITS} credits, or subscribe to Pro.`, reason: 'topup', cost });
 });
 
 app.post('/api/billing/topup', requireAuth, async (req, res) => {
