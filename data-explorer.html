@@ -44,7 +44,7 @@ button.ind-item:hover:not(:disabled) { background: var(--surface-2); box-shadow:
 <div class="hero">
   <span class="tool-icon" id="hero-icon"></span>
   <h1>Statistical Data Explorer</h1>
-  <p class="lede">Search 1,500+ World Bank development indicators, compare countries across years, and take away a table, a trend chart, a CSV, and a properly formatted dataset citation. Free and keyless.</p>
+  <p class="lede">Search 1,500+ World Bank development indicators, compare countries across years, and take away a table, a trend chart, a CSV, and a properly formatted dataset citation. Keyless — 1 credit per query.</p>
 </div>
 <main style="max-width:1000px">
   <div class="card">
@@ -241,6 +241,7 @@ $('run').onclick = async () => {
   if (inFlight) { inFlight.abort(); return; }   // acts as Cancel while running
   if (!indicator) { toast('Choose an indicator first', 'error'); $('ind-q').focus(); return; }
   if (!countries.length) { toast('Add at least one country', 'error'); $('c-add').focus(); return; }
+  if (!await Rewiseed.meterDataRun('data-explorer')) return;
   let from = parseInt($('y-from').value, 10), to = parseInt($('y-to').value, 10);
   if (!from || !to) { toast('Enter both years', 'error'); return; }
   if (from > to) { [from, to] = [to, from]; $('y-from').value = from; $('y-to').value = to; toast('Years swapped to run oldest → newest'); }

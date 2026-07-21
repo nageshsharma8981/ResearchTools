@@ -91,6 +91,7 @@ const num = (n) => (n || 0).toLocaleString();
 async function search() {
   const q = $('q').value.trim();
   if (!q) { toast('Type a name to search', 'error'); $('q').focus(); return; }
+  if (!await Rewiseed.meterDataRun('scholar-profiles')) return;
   const btn = $('go'); btn.disabled = true;
   $('out').innerHTML = `<div class="card"><div class="stream-status"><span class="spinner"></span>Searching…</div></div>`;
   try {

@@ -187,7 +187,7 @@ async function renderPlan() {
     </div>
     <p class="hint" style="margin:0 0 10px">${b.credits ?? 0} of your monthly ${b.monthlyCredits} (top-ups and rollover can take you above ${b.monthlyCredits} — up to 300).</p>` : `
     <p class="hint" style="margin:0 0 10px">${b.freeRunUsed ? 'Your free run is used.' : 'Your first AI run is free (standard or large documents).'} Pro is ₹${b.priceInr}/month for ${b.monthlyCredits} run credits.</p>`}
-    <p class="hint" style="margin:0 0 12px">How runs are counted: up to 20k characters = 1 credit · up to 80k = 2 · up to 200k = 4. Keyless tools never use credits.</p>
+    <p class="hint" style="margin:0 0 12px">How runs are counted: standard runs (search, lookup, comparison, model run) = 1 credit · AI runs: up to 20k characters = 1, up to 80k = 2, up to 200k = 4. Browsing and reading are free.</p>
     <div class="chip-row">
       <a href="pricing.html"><button type="button" class="${pro ? 'ghost' : ''}">${pro ? 'Top up credits' : 'See plans & pricing'}</button></a>
     </div>`;

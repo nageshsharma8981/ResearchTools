@@ -11,7 +11,7 @@
 <meta property="og:type" content="website"/>
 <meta property="og:site_name" content="ItsMyResearch"/>
 <meta property="og:title" content="Author Impact Dashboard — ItsMyResearch"/>
-<meta property="og:description" content="A deep, fair view of any researcher's publication footprint: co-author-normalised metrics, author-position and topic breakdowns, venues, geography, collaborators, retraction signals. Merge duplicate OpenAlex profiles. Free and keyless."/>
+<meta property="og:description" content="A deep, fair view of any researcher's publication footprint: co-author-normalised metrics, author-position and topic breakdowns, venues, geography, collaborators, retraction signals. Merge duplicate OpenAlex profiles. Keyless — no API key needed."/>
 <meta property="og:url" content="https://www.itsmyresearch.com/author-impact"/>
 <meta property="og:image" content="https://www.itsmyresearch.com/og-card.png"/>
 <meta property="og:image:width" content="1200"/>
@@ -64,7 +64,7 @@ button.tab.active { color:var(--accent-strong); border-bottom-color:var(--accent
 <div class="hero">
   <span class="tool-icon" id="hero-icon"></span>
   <h1>Author Impact Dashboard <span class="badge" style="font-size:11px;vertical-align:middle">BETA</span></h1>
-  <p class="lede">A fair, in-depth view of any researcher's publication footprint — <b>normalised for co-authorship</b>, not just raw counts. Free, keyless, no sign-up.</p>
+  <p class="lede">A fair, in-depth view of any researcher's publication footprint — <b>normalised for co-authorship</b>, not just raw counts. Keyless — 1 credit per analysis.</p>
   <div class="uvp-strip">
     <span>Co-author-normalised: fractional works &amp; weighted citations</span>
     <span>Author-position &amp; corresponding-author breakdown</span>
@@ -222,6 +222,7 @@ function yearChart(byYear, key) {
 // ---------- render dashboard ----------
 let M = null, primary = null, ids = [];
 async function analyze(authors) {
+  if (!await Rewiseed.meterDataRun('author-impact')) return;
   primary = authors[0]; ids = authors.map(a => shortId(a.id));
   const idSet = new Set(ids);
   $('cands').innerHTML = '';

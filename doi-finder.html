@@ -44,7 +44,7 @@ button.mode-tab.active { background: var(--accent-soft); color: var(--accent-str
 <div class="hero">
   <span class="tool-icon" id="hero-icon"></span>
   <h1>DOI Finder &amp; Lookup</h1>
-  <p class="lede">Two directions, both free and keyless: paste a DOI to pull up the full paper record, or paste messy references to discover their DOIs via Crossref.</p>
+  <p class="lede">Two directions, both keyless (1 credit per lookup): paste a DOI to pull up the full paper record, or paste messy references to discover their DOIs via Crossref.</p>
 </div>
 <main>
   <div class="mode-tabs" role="tablist">
@@ -169,6 +169,7 @@ document.querySelectorAll('.chip[data-ex]').forEach(c => c.onclick = () => { $('
 $('doi-in').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('lookup').click(); });
 
 $('lookup').onclick = async () => {
+  if (!await Rewiseed.meterDataRun('doi-finder')) return;
   const doi = extractDoi($('doi-in').value);
   const out = $('lookup-out');
   if (!doi) { toast('That does not look like a DOI (expected 10.xxxx/…)', 'error'); $('doi-in').focus(); return; }

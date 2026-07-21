@@ -107,6 +107,7 @@ $id('precise').onclick = async () => {
   if (preciseRunning) return;
   const lines = $id('in').value.split('\n').map(l => l.trim()).filter(Boolean);
   if (!lines.length) { toast('Paste at least one reference', 'error'); $id('in').focus(); return; }
+  if (!await Rewiseed.meterDataRun('citation-formatter')) return;
   if (lines.length > 50) { toast('Limiting to the first 50 references', 'error'); lines.length = 50; }
   preciseRunning = true;
   const btn = $id('precise'); btn.disabled = true;

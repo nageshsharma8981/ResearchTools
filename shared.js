@@ -390,6 +390,46 @@
       nav.insertAdjacentElement('afterend', crumb);
     }
     mountFeedback();
+    // credit-cost transparency: every tool page states what a run costs
+    // 'data' = flat 1 credit per run/search/comparison; 'ai' = 1-4 by input size; 'both' = data run + optional AI
+    const RUN_COSTS = {
+      'journal-rankings.html': ['data', '1 credit per comparison'],
+      'doi-finder.html': ['data', '1 credit per lookup'],
+      'citation-graph.html': ['data', '1 credit per graph'],
+      'journal-metrics.html': ['data', '1 credit per search'],
+      'author-impact.html': ['data', '1 credit per author analysis'],
+      'scholar-profiles.html': ['data', '1 credit per profile search'],
+      'data-explorer.html': ['data', '1 credit per data query'],
+      'citation-integrity.html': ['data', '1 credit per manuscript scan'],
+      'statpls.html': ['both', '1 credit per model run · AI write-up 1\u20134 more'],
+      'smart-literature-finder.html': ['both', '1 credit per search · AI insights 1\u20134 more'],
+      'bibliometrics.html': ['both', '1 credit per analysis · AI reading 1\u20134 more'],
+      'citation-formatter.html': ['both', '1 credit per batch · AI mode 1\u20134'],
+      'originality-checker.html': ['ai', '1\u20134 credits per check, by document size'],
+      'research-gap-identifier.html': ['ai', '1\u20134 credits per run, by input size'],
+      'research-question-generator.html': ['ai', '1\u20134 credits per run, by input size'],
+      'instrument-designer.html': ['ai', '1\u20134 credits per run, by input size'],
+      'qualitative-coding-assistant.html': ['ai', '1\u20134 credits per run, by document size'],
+      'ai-peer-review.html': ['ai', '1\u20134 credits per review, by document size'],
+      'apa-formatter.html': ['ai', '1\u20134 credits per run, by input size'],
+      'stats-advisor.html': ['ai', '1\u20134 credits per run, by input size'],
+      'literature-matrix.html': ['ai', '1\u20134 credits per run, by input size'],
+      'writing-polisher.html': ['ai', '1\u20134 credits per run, by document size'],
+      'rubric-lens.html': ['ai', '1\u20134 credits per run, by document size'],
+      'abstract-generator.html': ['ai', '1\u20134 credits per run, by document size'],
+      'paper-generator.html': ['ai', '1 credit preview \u00b7 6 credits full-paper unlock'],
+    };
+    const rc = RUN_COSTS[activeHref];
+    if (rc) {
+      billingStatus().then(b => {
+        if (!b.enforced) return; // billing off — nothing is charged, say nothing
+        const chip = document.createElement('div');
+        chip.className = 'step-crumb run-cost-chip';
+        const bal = b.unlimited ? 'staff \u00b7 unlimited' : (b.signedIn && typeof b.credits === 'number' ? `balance ${b.credits}` : 'sign in to run');
+        chip.innerHTML = `<a href="pricing.html" title="How run credits work \u2014 costs, allowances and plans">\u2726 ${esc(rc[1])} \u00b7 ${esc(bal)}</a>`;
+        (document.querySelector('.step-crumb') || nav).insertAdjacentElement('afterend', chip);
+      });
+    }
     // credit transparency: signed-in users always see their balance
     billingStatus().then(b => {
       const el = document.getElementById('nav-credits');
@@ -713,6 +753,34 @@
     if (d.reason === 'signin') { setTimeout(() => { location.href = 'signin.html'; }, 1600); }
     else if (d.reason === 'subscribe' || d.reason === 'topup') { setTimeout(() => { location.href = 'pricing.html'; }, 2200); }
     throw new Error(d.error || 'This run needs an active plan — see Pricing.');
+  }
+  // charges a flat 1-credit data run (search / lookup / comparison / model run).
+  // Resolves true when the run may proceed; shows the reason and redirects when not.
+  async function meterDataRun(toolId) {
+    const b = await billingStatus();
+    if (!b.enforced) return true;
+    if (!b.signedIn) {
+      toast('Sign in to run this tool \u2014 runs cost 1 credit, and new accounts get free credits.', 'error', 5000);
+      setTimeout(() => { location.href = 'signin.html'; }, 1600);
+      return false;
+    }
+    let r, d = {};
+    try {
+      r = await fetch('/api/run-credit', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'data', tool: toolId || '' }),
+      });
+      d = await r.json().catch(() => ({}));
+    } catch { return true; } // metering endpoint unreachable → don't strand the user
+    if (r.ok) {
+      if (d.metered && typeof d.remaining === 'number') { _billing.credits = d.remaining; updateCreditBadge(); }
+      return true;
+    }
+    toast(d.error || 'This run needs credits \u2014 see Pricing.', 'error', 6000);
+    if (d.reason === 'signin') setTimeout(() => { location.href = 'signin.html'; }, 1600);
+    else if (d.reason === 'subscribe' || d.reason === 'topup') setTimeout(() => { location.href = 'pricing.html'; }, 2400);
+    return false;
   }
   function updateCreditBadge() {
     if (!_billing) return;
@@ -1372,7 +1440,7 @@
 
   window.Rewiseed = {
     renderNav, renderSettingsBar, openSettings, billingStatus, checkText, assertTextAllowed, aiDisclaimer,
-    verifyCitations, renderCitationCheck, exportPDF,
+    verifyCitations, renderCitationCheck, exportPDF, meterDataRun,
     callLLM, md, esc, icon, toast, track,
     downloadText, copyText, getCfg, clearApiKey, isLocalUrl,
     mountStreamingTool, playIntro, saveToLibrary, fetchWithTimeout,

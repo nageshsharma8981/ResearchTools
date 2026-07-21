@@ -1289,17 +1289,18 @@ app.post('/api/billing/verify-topup', requireAuth, (req, res) => {
 app.post('/api/run-credit', (req, res) => {
   if (!BILLING_ENFORCED) return res.json({ ok: true, metered: false });
   const u = currentUser(req);
-  if (!u) return res.status(401).json({ error: 'Sign in to run AI tools — your first run is free.', reason: 'signin' });
+  if (!u) return res.status(401).json({ error: 'Sign in to run tools — your first AI run is free.', reason: 'signin' });
   // staff run the platform — never metered
   if (['admin', 'superadmin'].includes(u.role)) return res.json({ ok: true, metered: false, staff: true });
   refreshFreeCredits(u); // apply the monthly free allowance before charging
   if (!rateLimit('runc:' + u.id, 60, 15 * 60_000)) return res.status(429).json({ error: 'Too many runs — wait a few minutes.' });
+  const isData = (req.body || {}).mode === 'data'; // non-AI run (search, lookup, comparison, model run) — flat rate
   const chars = Math.max(0, Math.min(10_000_000, Number((req.body || {}).chars) || 0));
-  const w = runWeight(chars);
+  const w = isData ? 1 : runWeight(chars);
   if (w === 0) return res.status(400).json({ error: 'This document is too large for one run (200k character limit) — split it into parts.', reason: 'toolarge' });
   const result = db.transaction(() => {
     const cur = db.prepare('SELECT credits, free_run_used, plan_status FROM users WHERE id = ?').get(u.id);
-    if (!cur.free_run_used && w <= 2) {
+    if (!cur.free_run_used && w <= 2 && !isData) { // the welcome free run covers an AI generation, not data runs
       db.prepare('UPDATE users SET free_run_used = 1 WHERE id = ?').run(u.id);
       return { ok: true, freeRun: true, remaining: cur.credits, weight: w };
     }
@@ -1316,7 +1317,7 @@ app.post('/api/run-credit', (req, res) => {
       ? 'Heavy documents (over 80k characters) need a Pro plan — your free run covers standard and large documents.'
       : result.active
         ? `Not enough credits for this run (needs ${result.weight}). Top up ₹${TOPUP_AMOUNT_PAISE / 100} for ${TOPUP_CREDITS} more, or wait for your monthly renewal.`
-        : 'Your free run is used. ItsMyResearch Pro is ₹499/month for 60 run credits.',
+        : `You're out of credits. Your free allowance refreshes monthly, or ItsMyResearch Pro is ₹499/month for ${MONTHLY_CREDITS} run credits.`,
     reason: result.active ? 'topup' : 'subscribe',
   });
 });

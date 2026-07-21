@@ -121,6 +121,7 @@ const scimagoLink = (s) => s.issn_l
   ? `<a class="link" href="https://www.scimagojr.com/journalsearch.php?q=${encodeURIComponent(s.issn_l)}&tip=issn" target="_blank" rel="noopener noreferrer">Scimago (SJR) ${icon('external', 11)}</a>` : '';
 
 async function run() {
+  if (!await Rewiseed.meterDataRun('journal-metrics')) return;
   const q = $('q').value.trim();
   if (!q) { toast('Type something to search', 'error'); $('q').focus(); return; }
   const btn = $('go'); btn.disabled = true;

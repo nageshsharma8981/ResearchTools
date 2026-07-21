@@ -45,7 +45,7 @@
 <div class="hero">
   <span class="tool-icon" id="hero-icon"></span>
   <h1>Bibliometric Analysis</h1>
-  <p class="lede">Map an entire research field in seconds — how publication activity has grown, who publishes most, where, and which papers anchor the conversation. Built on OpenAlex with a live PubMed cross-check and one-click hand-offs to Google Scholar and ScienceDirect. Free and keyless; AI reading of the results is optional.</p>
+  <p class="lede">Map an entire research field in seconds — how publication activity has grown, who publishes most, where, and which papers anchor the conversation. Built on OpenAlex with a live PubMed cross-check and one-click hand-offs to Google Scholar and ScienceDirect. Keyless — 1 credit per analysis; AI reading of the results is optional.</p>
 </div>
 <main style="max-width:900px">
   <div class="card">
@@ -108,6 +108,7 @@ async function groupBy(query, filter, key) {
 }
 
 async function run() {
+  if (!await Rewiseed.meterDataRun('bibliometrics')) return;
   const query = $('q').value.trim();
   if (!query) { toast('Enter a field or topic to analyze', 'error'); $('q').focus(); return; }
   const y0 = parseInt($('y0').value, 10), y1 = parseInt($('y1').value, 10);

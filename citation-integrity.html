@@ -207,9 +207,10 @@ function styleWarnings(sub, cit, refs) {
 
 // ---------- run ----------
 let lastReport = '';
-$('run').onclick = () => {
+$('run').onclick = async () => {
   const text = $('in').value.trim();
   if (!text) { toast('Upload or paste the paper first', 'error'); return; }
+  if (!await Rewiseed.meterDataRun('citation-integrity')) return;
   const split = splitPaper(text);
   const out = $('out');
   if (!split) { out.innerHTML = `<div class="card"><div class="error-box">${icon('alert', 18)}<span>No “References” section found. Make sure the paper includes its reference list under a heading like “References” or “Bibliography”.</span></div></div>`; return; }
