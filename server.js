@@ -107,6 +107,31 @@ const TOOL_IDS = new Set([
 const TRACKABLE = new Set([...TOOL_IDS, 'assistant', 'library']);
 const parseToolAccess = (s) => String(s || '').split(',').map(x => x.trim()).map(x => (x === 'pls-sem' || x === 'ai-pls') ? 'statpls' : x).filter(x => TOOL_IDS.has(x)); // pls-sem/ai-pls: legacy ids after the StatPLS renames
 
+// ---------- role-based feature access ----------
+// Four levels: superadmin > admin > educator > student. Each role has a default
+// set of enabled tools; an admin can override any single user's set explicitly
+// (stored in tool_access). Educators/admins get everything; students get a
+// curated essentials set until an admin grants more.
+const ROLES = ['student', 'educator', 'admin', 'superadmin'];
+const STUDENT_TOOLS = new Set([
+  'smart-literature-finder', 'doi-finder', 'citation-formatter', 'apa-formatter',
+  'writing-polisher', 'originality-checker', 'citation-integrity', 'rubric-lens',
+  'research-question-generator', 'stats-advisor',
+]);
+// null = unrestricted (all tools); a Set = the exact default for that role
+function roleDefaultTools(role) { return role === 'student' ? STUDENT_TOOLS : null; }
+// effective access for a user: explicit override wins, else the role default
+function effectiveTools(u) {
+  const explicit = parseToolAccess(u.tool_access);
+  if (explicit.length) return new Set(explicit);
+  return roleDefaultTools(u.role); // null = all
+}
+// the resolved list the frontend uses to filter the nav ([] = show everything)
+function effectiveToolList(u) {
+  const eff = effectiveTools(u);
+  return eff ? [...eff] : [];
+}
+
 // ---------- helpers ----------
 const now = () => Date.now();
 const rand = (n = 32) => crypto.randomBytes(n).toString('base64url');
@@ -150,7 +175,7 @@ const cap = (s, n) => String(s ?? '')
   .slice(0, n).trim();
 
 function publicUser(u, includePrivate = false) {
-  const base = { id: u.id, email: u.email, name: u.name, role: u.role, org: u.org, photo: u.photo, linkedin: u.linkedin, twitter: u.twitter, about: u.about, tool_access: parseToolAccess(u.tool_access), seen_intro: !!u.seen_intro };
+  const base = { id: u.id, email: u.email, name: u.name, role: u.role, org: u.org, photo: u.photo, linkedin: u.linkedin, twitter: u.twitter, about: u.about, tool_access: effectiveToolList(u), tool_override: parseToolAccess(u.tool_access), seen_intro: !!u.seen_intro };
   if (includePrivate) { base.confirmed = !!u.confirmed; base.disabled = !!u.disabled; base.created_at = u.created_at; }
   return base;
 }
@@ -701,8 +726,8 @@ app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
   if (req.user.role === 'superadmin') {
     rows = db.prepare('SELECT * FROM users ORDER BY created_at DESC LIMIT 500').all();
   } else {
-    // org-scoped: admins see only their own school/university, never other admins/superadmins
-    rows = db.prepare("SELECT * FROM users WHERE org = ? AND role = 'student' ORDER BY created_at DESC LIMIT 500").all(req.user.org);
+    // org-scoped: admins see students and educators of their own institution, never other admins/superadmins
+    rows = db.prepare("SELECT * FROM users WHERE org = ? AND role IN ('student','educator') ORDER BY created_at DESC LIMIT 500").all(req.user.org);
   }
   res.json({ users: rows.map(u => publicUser(u, true)), scope: req.user.role === 'superadmin' ? 'all' : req.user.org });
 });
@@ -714,26 +739,35 @@ app.put('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
   if (target.id === req.user.id) return res.status(400).json({ error: 'Use your profile page to edit your own account.' });
   const { role, disabled, org, toolAccess } = req.body || {};
   if (req.user.role === 'admin') {
-    // admins: only students in their own org — enable/disable and tool access
-    if (target.org !== req.user.org || target.role !== 'student') return res.status(403).json({ error: 'You can only manage students of your own institution.' });
-    if (role !== undefined || org !== undefined) return res.status(403).json({ error: 'Only super admins can change roles or institutions.' });
+    // admins: only students/educators in their own org
+    if (target.org !== req.user.org || !['student', 'educator'].includes(target.role)) return res.status(403).json({ error: 'You can only manage students and educators of your own institution.' });
+    if (org !== undefined) return res.status(403).json({ error: 'Only super admins can change institutions.' });
+    if (role !== undefined && !['student', 'educator'].includes(role)) return res.status(403).json({ error: 'Admins can set the student or educator level only.' });
   }
+  // determine the role that WILL apply, so tool_access collapses against the right default
+  const nextRole = role !== undefined ? role : target.role;
   const updates = {};
   if (disabled !== undefined) updates.disabled = disabled ? 1 : 0;
+  if (role !== undefined) {
+    const allowedRoles = req.user.role === 'superadmin' ? ['student', 'educator', 'admin'] : ['student', 'educator'];
+    if (!allowedRoles.includes(role)) return res.status(400).json({ error: `Role must be one of: ${allowedRoles.join(', ')}.` });
+    updates.role = role;
+  }
   if (toolAccess !== undefined) {
     if (!Array.isArray(toolAccess) || !toolAccess.length || toolAccess.some(t => !TOOL_IDS.has(String(t)))) {
       return res.status(400).json({ error: 'Select at least one tool — to block everything, disable the account instead.' });
     }
-    // full selection = unrestricted (stored as ''); partial = CSV of granted ids
-    updates.tool_access = toolAccess.length === TOOL_IDS.size ? '' : toolAccess.join(',');
+    // Collapse to '' (= "follow role default") only when the selection exactly
+    // equals that role's default, so unrestricted users keep auto-getting new
+    // tools; anything else is stored as an explicit override CSV.
+    const def = roleDefaultTools(nextRole); // null = all
+    const sel = new Set(toolAccess);
+    const isDefault = def === null
+      ? toolAccess.length === TOOL_IDS.size
+      : (sel.size === def.size && [...def].every(t => sel.has(t)));
+    updates.tool_access = isDefault ? '' : toolAccess.join(',');
   }
-  if (req.user.role === 'superadmin') {
-    if (role !== undefined) {
-      if (!['student', 'admin'].includes(role)) return res.status(400).json({ error: 'Role must be student or admin.' });
-      updates.role = role;
-    }
-    if (org !== undefined) updates.org = cap(org, 120);
-  }
+  if (req.user.role === 'superadmin' && org !== undefined) updates.org = cap(org, 120);
   if (!Object.keys(updates).length) return res.status(400).json({ error: 'Nothing to update.' });
   const sets = Object.keys(updates).map(k => `${k}=?`).join(', ');
   db.prepare(`UPDATE users SET ${sets} WHERE id=?`).run(...Object.values(updates), target.id);
@@ -1015,8 +1049,8 @@ app.use((req, res, next) => {
   if (!TOOL_IDS.has(name)) return next();
   const u = currentUser(req);
   if (!u) return next();
-  const allowed = parseToolAccess(u.tool_access);
-  if (!allowed.length || allowed.includes(name)) return next();
+  const eff = effectiveTools(u); // null = all tools
+  if (eff === null || eff.has(name)) return next();
   res.status(403).send(`<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Tool not enabled — ItsMyResearch</title><link rel="stylesheet" href="/shared.css"/></head>
 <body><div class="hero"><h1>Tool not enabled</h1><p class="lede">Your administrator hasn't enabled this tool for your account. If you think that's a mistake, contact your institution's admin.</p></div>
 <main style="max-width:480px;text-align:center"><div class="card"><a href="/index.html"><button type="button">Back to home</button></a></div></main>
