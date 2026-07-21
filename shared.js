@@ -996,16 +996,35 @@
       <div class="row">
         <button class="ghost" id="${toolId}-copy">${icon('copy', 15)} Copy</button>
         <button class="ghost" id="${toolId}-dl">${icon('download', 15)} Download .md</button>
+        <button class="ghost" id="${toolId}-verify" title="Check every DOI and reference line in this output against the Crossref scholarly registry">${icon('shield', 15)} Verify citations</button>
         ${next ? `<span class="push"></span><button id="${toolId}-next">${esc(next.label)} ${icon('arrow', 15)}</button>` : ''}
-      </div>`;
-    const wireNext = () => {
-      if (!next || !$(`${toolId}-next`)) return;
-      $(`${toolId}-next`).onclick = () => {
-        const carry = next.carry === 'input' ? input.value : lastOutput;
-        localStorage.setItem(next.draftKey, carry);
-        toast('Sent — opening next tool');
-        location.href = next.href;
+      </div>
+      <div id="${toolId}-verify-out"></div>
+      ${AI_OUTPUT_NOTE}`;
+    const wireActions = () => {
+      $(`${toolId}-copy`).onclick = (e) => copyText(lastOutput, e.currentTarget);
+      $(`${toolId}-dl`).onclick = () => downloadText(downloadName, lastOutput);
+      $(`${toolId}-verify`).onclick = async (e) => {
+        const btn = e.currentTarget; btn.disabled = true;
+        const vo = $(`${toolId}-verify-out`);
+        vo.innerHTML = `<div class="stream-status" style="margin-top:8px"><span class="spinner"></span>Checking citations against Crossref…</div>`;
+        try {
+          const report = await verifyCitations(lastOutput, (done, total) => {
+            const s = vo.querySelector('.stream-status'); if (s && total) s.lastChild.textContent = `Checking citations against Crossref… ${done}/${total}`;
+          });
+          renderCitationCheck(vo, report);
+        } catch (err) {
+          vo.innerHTML = `<div class="error-box" style="margin-top:8px">${icon('alert', 16)}<span>${esc(err.message)}</span></div>`;
+        } finally { btn.disabled = false; }
       };
+      if (next && $(`${toolId}-next`)) {
+        $(`${toolId}-next`).onclick = () => {
+          const carry = next.carry === 'input' ? input.value : lastOutput;
+          localStorage.setItem(next.draftKey, carry);
+          toast('Sent — opening next tool');
+          location.href = next.href;
+        };
+      }
     };
 
     async function run() {
@@ -1045,9 +1064,7 @@
         });
         streamEl.innerHTML = md(lastOutput);
         streamEl.insertAdjacentHTML('afterend', actionsHtml);
-        $(`${toolId}-copy`).onclick = (e) => copyText(lastOutput, e.currentTarget);
-        $(`${toolId}-dl`).onclick = () => downloadText(downloadName, lastOutput);
-        wireNext();
+        wireActions();
         track('run', lastOutput.length);
       } catch (e) {
         if (e.name === 'AbortError') {
@@ -1055,9 +1072,7 @@
             lastOutput = pending;
             streamEl.innerHTML = md(pending);
             streamEl.insertAdjacentHTML('afterend', `<p class="hint">Stopped early — partial output shown.</p>${actionsHtml}`);
-            $(`${toolId}-copy`).onclick = (e) => copyText(lastOutput, e.currentTarget);
-            $(`${toolId}-dl`).onclick = () => downloadText(downloadName, lastOutput);
-            wireNext();
+            wireActions();
           } else {
             out.innerHTML = emptyState;
           }
@@ -1077,8 +1092,92 @@
     });
   }
 
+  // ---------- citation cross-check: anti-hallucination verification ----------
+  // Every DOI in an output is checked against Crossref (the publishers' own
+  // registry); DOI-less reference lines are bibliographic-searched and accepted
+  // only on strong title overlap. "Couldn't verify" is reported honestly as
+  // "check manually" — absence from Crossref does not prove fabrication
+  // (books, chapters, and regional journals are often missing from it).
+  const AI_OUTPUT_NOTE = `<p class="hint" style="margin:8px 0 0;max-width:100%">${'⚠️'} AI-generated — verify every claim, number, and citation before use; you are responsible for meeting your institution's integrity rules. Citations can be checked automatically with <b>Verify citations</b> above.</p>`;
+  const doiRe = () => /\b10\.\d{4,9}\/[^\s"'<>\])}]+/g;
+  function titleSim(a, b) {
+    const tok = (s) => new Set(String(s).toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(w => w.length > 2));
+    const A = tok(a), B = tok(b);
+    if (!A.size || !B.size) return 0;
+    let hit = 0; A.forEach(w => { if (B.has(w)) hit++; });
+    return hit / Math.min(A.size, B.size);
+  }
+  function extractReferences(text) {
+    const dois = [...new Set((String(text).match(doiRe()) || []).map(d => d.replace(/[.,;:)\]]+$/, '')))].slice(0, 25);
+    const refLines = String(text).split(/\n+/).map(l => l.trim().replace(/^[-*\d.)\s]+/, ''))
+      .filter(l => /\(\d{4}[a-z]?\)/.test(l) && l.length > 40 && l.length < 400 && !doiRe().test(l))
+      .slice(0, 20);
+    return { dois, refLines };
+  }
+  async function verifyCitations(text, onProgress) {
+    const { dois, refLines } = extractReferences(text);
+    const total = dois.length + refLines.length;
+    const results = [];
+    const step = () => onProgress && onProgress(results.length, total);
+    for (const doi of dois) {
+      try {
+        const r = await fetchWithTimeout(`https://api.crossref.org/works/${encodeURIComponent(doi)}`, { timeout: 15000 });
+        if (r.ok) {
+          const m = (await r.json()).message;
+          const who = m.author?.[0]?.family || m.editor?.[0]?.family || '';
+          const yr = m.issued?.['date-parts']?.[0]?.[0] || '?';
+          results.push({ ref: doi, status: 'verified', found: `${who} (${yr}). ${(m.title?.[0] || '').slice(0, 100)}`, url: `https://doi.org/${doi}` });
+        } else if (r.status === 404) {
+          results.push({ ref: doi, status: 'failed', note: 'DOI does not exist in the Crossref registry — likely fabricated or mistyped.' });
+        } else {
+          results.push({ ref: doi, status: 'unknown', note: `Crossref returned ${r.status} — try again or check the DOI manually.` });
+        }
+      } catch (e) { results.push({ ref: doi, status: 'unknown', note: e.message }); }
+      step();
+    }
+    for (const line of refLines) {
+      try {
+        const r = await fetchWithTimeout(`https://api.crossref.org/works?query.bibliographic=${encodeURIComponent(line.slice(0, 220))}&rows=1&select=title,author,issued,DOI&mailto=hello@itsmyresearch.com`, { timeout: 15000 });
+        const m = r.ok ? (await r.json()).message?.items?.[0] : null;
+        const sim = m ? titleSim(line, m.title?.[0] || '') : 0;
+        if (m && sim >= 0.6) {
+          results.push({ ref: line, status: 'verified', found: `${m.author?.[0]?.family || ''} (${m.issued?.['date-parts']?.[0]?.[0] || '?'}). ${(m.title?.[0] || '').slice(0, 100)}`, url: m.DOI ? `https://doi.org/${m.DOI}` : '' });
+        } else if (m && sim >= 0.45) {
+          results.push({ ref: line, status: 'uncertain', found: `Closest match: ${(m.title?.[0] || '').slice(0, 100)}`, url: m.DOI ? `https://doi.org/${m.DOI}` : '', note: 'Partial match only — confirm this is the same work.' });
+        } else {
+          results.push({ ref: line, status: 'unknown', note: 'No Crossref match. Not proof of fabrication (books and non-DOI works are often absent) — verify manually via Google Scholar or your library.' });
+        }
+      } catch (e) { results.push({ ref: line, status: 'unknown', note: e.message }); }
+      step();
+    }
+    return { results, dois: dois.length, refLines: refLines.length };
+  }
+  function renderCitationCheck(el, { results }) {
+    if (!results.length) {
+      el.innerHTML = `<p class="hint" style="margin:8px 0 0">No DOIs or reference-style lines detected in this output — nothing to verify. If the output makes factual claims without citations, treat them with extra care.</p>`;
+      return;
+    }
+    const badge = (s) => s === 'verified' ? '<span class="badge ok">✓ verified</span>'
+      : s === 'failed' ? '<span class="badge warn">✗ failed check</span>'
+      : s === 'uncertain' ? '<span class="badge">≈ close match</span>'
+      : '<span class="badge">? unverified</span>';
+    const failed = results.filter(r => r.status === 'failed').length;
+    const ok = results.filter(r => r.status === 'verified').length;
+    el.innerHTML = `
+      <div style="background:var(--surface-2);border-radius:var(--radius);padding:12px 14px;margin-top:10px">
+        <b style="font-size:14px">Citation cross-check — ${ok}/${results.length} verified against the Crossref registry${failed ? ` · <span style="color:#b3402a">${failed} failed</span>` : ''}</b>
+        <ul style="margin:8px 0 0;padding-left:18px;font-size:13px;line-height:1.6">
+          ${results.map(r => `<li style="margin-bottom:6px">${badge(r.status)} <span style="color:var(--ink-2)">${esc(String(r.ref).slice(0, 140))}</span>
+            ${r.found ? `<br/><span class="hint">Registry record: ${esc(r.found)}${r.url ? ` — <a class="link" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">open</a>` : ''}</span>` : ''}
+            ${r.note ? `<br/><span class="hint">${esc(r.note)}</span>` : ''}</li>`).join('')}
+        </ul>
+        <p class="hint" style="margin:8px 0 0;max-width:100%">Verified = the DOI resolves or a strong bibliographic match exists in Crossref. Unverified ≠ fake — but do not cite anything you have not confirmed yourself.</p>
+      </div>`;
+  }
+
   window.Rewiseed = {
     renderNav, renderSettingsBar, openSettings, billingStatus, checkText, assertTextAllowed, aiDisclaimer,
+    verifyCitations, renderCitationCheck,
     callLLM, md, esc, icon, toast, track,
     downloadText, copyText, getCfg, clearApiKey, isLocalUrl,
     mountStreamingTool, playIntro, saveToLibrary, fetchWithTimeout,

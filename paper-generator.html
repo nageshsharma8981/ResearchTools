@@ -162,8 +162,10 @@ function renderPaper() {
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
       <button class="ghost" id="dl-md">${icon('download', 15)} Download draft (.md)</button>
       <button class="ghost" id="copy-md">${icon('copy', 15)} Copy</button>
+      <button class="ghost" id="verify-cites" title="Check every DOI and reference line in the draft against the Crossref scholarly registry">${icon('shield', 15)} Verify citations</button>
       <a class="link" href="apa-formatter.html" style="align-self:center">Format it as a .docx ${icon('arrow', 13)}</a>
     </div>
+    <div id="verify-cites-out"></div>
   </div>`;
   const secWrap = $('secs');
   plan.forEach((sec, i) => {
@@ -189,6 +191,18 @@ function renderPaper() {
   renderUnlock();
   $('dl-md').onclick = () => Rewiseed.downloadText('research-paper-draft.md', assemble());
   $('copy-md').onclick = () => navigator.clipboard.writeText(assemble()).then(() => toast('Draft copied'));
+  $('verify-cites').onclick = async (e) => {
+    const btn = e.currentTarget; btn.disabled = true;
+    const vo = $('verify-cites-out');
+    vo.innerHTML = `<div class="stream-status" style="margin-top:8px"><span class="spinner"></span>Checking the draft's citations against Crossref…</div>`;
+    try {
+      const report = await Rewiseed.verifyCitations(assemble(), (done, total) => {
+        const s = vo.querySelector('.stream-status'); if (s && total) s.lastChild.textContent = `Checking the draft's citations against Crossref… ${done}/${total}`;
+      });
+      Rewiseed.renderCitationCheck(vo, report);
+    } catch (err) { vo.innerHTML = `<div class="error-box" style="margin-top:8px">${icon('alert', 16)}<span>${esc(err.message)}</span></div>`; }
+    finally { btn.disabled = false; }
+  };
 }
 const sampleBlur = () => 'This section will develop the argument in full, integrate the literature, and connect back to the research aim with the depth an examiner expects. '.repeat(6);
 function assemble() {
