@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23a16207%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z%22/%3E%3C/svg%3E"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Security — ItsMyResearch</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ItsMyResearch"/>
+<meta property="og:title" content="Security — how your API key and data are protected"/>
+<meta property="og:description" content="Plainly: your AI key never reaches our servers and no other website or tab can read it. Here's exactly how, and where the honest limits are."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/security"/>
+<meta name="twitter:card" content="summary"/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+.legal h2{font-size:19px;margin:26px 0 8px}
+.legal p,.legal li{font-size:14.5px;color:var(--ink-2);line-height:1.7}
+.legal ul{padding-left:22px}
+.flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--surface-2);border-radius:var(--radius);padding:14px 16px;margin:12px 0;font-size:13.5px;font-weight:600}
+.flow .node{background:var(--surface);border:1px solid var(--border-strong);border-radius:999px;padding:6px 14px}
+.flow .node.you{border-color:var(--accent);color:var(--accent-strong);background:var(--accent-soft)}
+.flow .arr{color:var(--muted)}
+.flow .x{color:#b3402a}
+.q{border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px}
+.q b{display:block;font-size:15px;color:var(--ink);margin-bottom:4px}
+.chk::before{content:'✅ ';}
+.warn2::before{content:'⚠️ ';}
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Security, in plain language</h1>
+  <p class="lede">The question that matters most: <b>can another website, another open tab, or we ourselves ever get your AI provider key?</b> Short answer — <b>no</b>. Here is exactly how that works, and where the honest limits are.</p>
+</div>
+<main style="max-width:760px">
+  <div class="card legal">
+    <h2>Where your key lives, and where it goes</h2>
+    <p>When you paste an AI provider key into API settings, it is saved <b>only in your own browser's local storage</b> on this one device. When you run an AI tool, your browser sends the request — with that key — <b>directly to the provider you chose</b> (OpenAI, Anthropic, Google, etc.). It goes nowhere else.</p>
+    <div class="flow" aria-label="Data flow">
+      <span class="node you">Your browser</span>
+      <span class="arr">— key + your text, over HTTPS →</span>
+      <span class="node">Your AI provider</span>
+    </div>
+    <p><b class="chk">Your key is never sent to ItsMyResearch's servers.</b> We have no code that receives it, so there is nothing on our side to store, log, leak, or have stolen. You can verify this yourself: open your browser's developer tools → Network tab, run a tool, and you'll see the request go straight to the provider's domain — never to ours.</p>
+
+    <h2>Can another website or open tab read my key?</h2>
+    <div class="q"><b>No — the browser physically prevents it.</b>
+      Browsers enforce the <b>same-origin policy</b>: local storage is walled off per website. Data saved by <code>itsmyresearch.com</code> can only be read by <code>itsmyresearch.com</code>. A shopping site, a social network, or any malicious page open in another tab <b>cannot reach into our storage</b> — the browser blocks it at the engine level, no matter what that page tries. This is the same protection that stops other sites from reading your bank's session.</div>
+    <p>We also add belt-and-braces on our side so nothing can bridge that wall:</p>
+    <ul>
+      <li><b>No cross-site messaging.</b> We register no channels (no <code>postMessage</code> listeners, no third-party frames) that another page could use to talk to our storage.</li>
+      <li><b>A strict Content-Security-Policy.</b> The browser is told to block plug-in objects, disallow our pages from being embedded in a frame (<code>frame-ancestors 'none'</code>, plus <code>X-Frame-Options: DENY</code>), and restrict where scripts may load from — closing the usual routes an attacker uses to run code on a page.</li>
+      <li><b>Escape-everything rendering.</b> The one way a site's own storage can be stolen is a script-injection (XSS) flaw on that site. Everything we display — including AI output and anything you paste — is HTML-escaped before it is shown, so text can never turn into running code.</li>
+      <li><b>HTTPS everywhere</b> (with HSTS), so the key is encrypted in transit and can't be read off the network.</li>
+    </ul>
+
+    <h2>What we honestly can't protect against</h2>
+    <p>No website can defend against threats that live on your own device or in your own browser. Being straight about this matters more than sounding bulletproof:</p>
+    <ul>
+      <li><b class="warn2">Malicious browser extensions.</b> An extension you install can, by design, read the contents of pages and storage you visit — any site, not just ours. Only install extensions you trust, and review their permissions.</li>
+      <li><b class="warn2">Malware or another user on your computer.</b> Software running on your machine, or someone with access to your unlocked device, can read browser storage. Keep your device secure and locked.</li>
+      <li><b class="warn2">Shared or public computers.</b> Your key persists in that browser until cleared. On a shared machine, remove it when you're done (API settings → clear the key, or your browser's "clear site data").</li>
+    </ul>
+    <p><b>The zero-key option.</b> If any of the above worries you, use the <b>free built-in browser model</b> or a <b>local model</b> (Ollama / LM Studio). Then there is <b>no key at all</b>, and your research text is processed entirely on your own device — nothing, not even to your AI provider, ever leaves your machine.</p>
+
+    <h2>Accounts and payments</h2>
+    <ul>
+      <li><b>Passwords</b> are stored only as a salted scrypt hash — we cannot read them. Sign-in tokens are stored hashed, in httpOnly cookies a page's JavaScript can't read.</li>
+      <li><b>Payments</b> go through Razorpay. Card and UPI details go straight to them; we never see or store them — only a payment id and your plan status.</li>
+      <li><b>Your research content</b> — documents, transcripts, drafts — is processed in your browser and never uploaded to us. The only thing that reaches your AI provider is what you submit to a tool, under your own account with them.</li>
+    </ul>
+
+    <h2>Found something? Tell us.</h2>
+    <p>If you believe you've found a security issue, please contact us so we can fix it quickly and responsibly. We take reports seriously and will not pursue good-faith researchers who report privately and give us time to remediate.</p>
+    <p class="hint" style="margin-top:18px">See also the <a class="link" href="privacy.html">Privacy Policy</a> for what data we do and don't collect. Last reviewed: July 20, 2026.</p>
+  </div>
+</main>
+<script src="shared.js"></script>
+<script>Rewiseed.renderNav('security.html'); document.getElementById('hero-icon').innerHTML = Rewiseed.icon('shield', 26);</script>
+</body>
+</html>

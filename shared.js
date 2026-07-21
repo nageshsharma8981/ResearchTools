@@ -384,6 +384,7 @@
                 <input id="cfg-apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-… (stays in this browser)" value="${esc(cfg.apiKey || '')}"/>
                 <button type="button" class="icon-btn" id="cfg-eye" aria-label="Show or hide API key">${icon('eye', 16)}</button>
               </span>
+              <span class="hint" style="display:block;margin-top:5px;font-weight:500">${icon('shield', 11)} Stored only in this browser, sent only to your provider — never to us, and other sites can't read it. <a class="link" href="security.html">How this is protected</a></span>
             </label>
             <label>Model
               <input id="cfg-model" autocomplete="off" spellcheck="false" placeholder="gpt-4o-mini" value="${esc(cfg.model || '')}"/>
