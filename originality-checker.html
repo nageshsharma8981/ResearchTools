@@ -237,6 +237,7 @@ function dashboardCard(aiPct, agg) {
       </div>
     </div>
     <p class="hint" style="margin:12px 0 0;max-width:100%"><b>These are independent.</b> A fully human essay can still plagiarize (high similarity, low AI); a fully AI text can be 0% similar to any source. Tools that blur the two mislead you — we report each with its own evidence: <a class="link" href="#sec-heat">sentence heatmap</a> · <a class="link" href="#overlap-card">matched sources</a> · <a class="link" href="#sec-fix">how to fix</a>.</p>
+    <p class="hint" style="margin:8px 0 0;max-width:100%">${'⚠️'} <b>No detector is 100% accurate</b> — this report is evidence to weigh, never proof, and must not be the sole basis for any accusation or high-stakes decision. Every run is computed fresh: nothing is cached from previous checks, and the source scan queries the live index each time.</p>
   </div>`;
 }
 
@@ -411,7 +412,9 @@ async function overlapScan(text, container) {
     try {
       const q = chunk.split(' ').slice(0, 30).join(' ');
       const params = new URLSearchParams({ search: q, per_page: '2', select: 'id,doi,display_name,publication_year,authorships,abstract_inverted_index' });
-      const r = await fetch(`https://api.openalex.org/works?${params}`);
+      // no-store: bypass the browser's HTTP cache so every run scans the live
+      // index — a re-check after edits must never reuse yesterday's results
+      const r = await fetch(`https://api.openalex.org/works?${params}`, { cache: 'no-store' });
       if (!r.ok) throw new Error(`OpenAlex ${r.status}`);
       const works = (await r.json()).results || [];
       const cw = new Set(contentWords(chunk));
@@ -480,6 +483,13 @@ $('run').onclick = async () => {
   running = true;
   const btn = $('run'); btn.disabled = true;
   const out = $('out');
+
+  // fresh run, every time: wipe all state from previous checks so nothing
+  // stale leaks into this report (scores, flagged sentences, rewrites)
+  lastReport = '';
+  window._flaggedSents = [];
+  const pf0 = $('para-flagged'); if (pf0) pf0.hidden = true;
+  const po = $('para-out'); if (po) po.innerHTML = '';
 
   // 1. stylometry
   const m = stylometry(text);
