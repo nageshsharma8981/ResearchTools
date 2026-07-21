@@ -444,19 +444,15 @@
     if (d) { d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
   }
 
-  // ---------- content moderation (client copy) ----------
-  // KEEP IN SYNC with the server copy in server.js ("content moderation (server copy)").
-  // Whole words only + common suffix variants; case-insensitive. Deliberately safe on
-  // class / skills / Essex / bombastic / assessment / rapid / terror.
-  const BANNED_RE = /\b(?:sex(?:es|ed|ing)?|crap(?:s|py|ped|ping)?|shit(?:s|ty|ted|ting)?|boobs?|fuck(?:s|ed|ing|ers?)?|kill(?:s|ed|ing|ers?)?|bomb(?:s|ed|ing|ers?)?|murder(?:s|ed|ing|ous|ers?)?|rap(?:e|es|ed|ing|ists?)|porn(?:o|os|ography|ographic)?|terror(?:ism|ists?))\b/i;
+  // ---------- input validation (no word blocklist — research vocabulary is
+  // legitimate; per operator decision the earlier banned-word screen was removed.
+  // What remains is safety validation: hidden/control characters and length.) ----------
   const HIDDEN_CHARS_RE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F​-‏‪-‮⁦-⁩﻿]/;
   const MOD_CAP_INPUT = 10_000;      // single-line fields
   const MOD_CAP_TEXTAREA = 200_000;  // long-form fields match the platform's run limit
 
   function checkText(text, cap = MOD_CAP_TEXTAREA) {
     const s = String(text ?? '');
-    const m = BANNED_RE.exec(s);
-    if (m) return { ok: false, word: m[0], message: `The word "${m[0]}" is not allowed — please remove it to continue.` };
     if (HIDDEN_CHARS_RE.test(s)) return { ok: false, word: null, message: 'Hidden or invisible control characters were found — re-paste as plain text to continue.' };
     if (s.length > cap) return { ok: false, word: null, message: `Text is ${(s.length - cap).toLocaleString()} characters over the ${cap.toLocaleString()}-character limit — please shorten it.` };
     return { ok: true };

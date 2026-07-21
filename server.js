@@ -123,20 +123,6 @@ const cap = (s, n) => String(s ?? '')
   .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F​-‏‪-‮⁦-⁩﻿]/g, '')
   .slice(0, n).trim();
 
-// ---------- content moderation (server copy) ----------
-// KEEP IN SYNC with the client copy in shared.js ("content moderation (client copy)").
-const BANNED_RE = /\b(?:sex(?:es|ed|ing)?|crap(?:s|py|ped|ping)?|shit(?:s|ty|ted|ting)?|boobs?|fuck(?:s|ed|ing|ers?)?|kill(?:s|ed|ing|ers?)?|bomb(?:s|ed|ing|ers?)?|murder(?:s|ed|ing|ous|ers?)?|rap(?:e|es|ed|ing|ists?)|porn(?:o|os|ography|ographic)?|terror(?:ism|ists?))\b/i;
-function screenText(res, fields) {
-  for (const [label, value] of Object.entries(fields || {})) {
-    const m = BANNED_RE.exec(String(value ?? ''));
-    if (m) {
-      res.status(400).json({ error: `${label}: The word "${m[0]}" is not allowed — please remove it to continue.` });
-      return false;
-    }
-  }
-  return true;
-}
-
 function publicUser(u, includePrivate = false) {
   const base = { id: u.id, email: u.email, name: u.name, role: u.role, org: u.org, photo: u.photo, linkedin: u.linkedin, twitter: u.twitter, about: u.about, tool_access: parseToolAccess(u.tool_access), seen_intro: !!u.seen_intro };
   if (includePrivate) { base.confirmed = !!u.confirmed; base.disabled = !!u.disabled; base.created_at = u.created_at; }
@@ -430,7 +416,6 @@ app.post('/api/auth/signup', async (req, res) => {
     return res.status(503).json({ error: 'Signups are not open yet — email delivery is being configured. Please try again soon.' });
   }
   const displayName = cap(name, 80);
-  if (!screenText(res, { Name: displayName })) return;
   const existing = db.prepare('SELECT id, confirmed FROM users WHERE email = ?').get(em);
   // Anti-enumeration: same response whether or not the account exists,
   // with the same scrypt cost either way (no timing oracle).
@@ -606,7 +591,6 @@ app.put('/api/me', requireAuth, (req, res) => {
       return res.status(400).json({ error: `${k === 'linkedin' ? 'LinkedIn' : 'Twitter/X'} must be a full https:// profile URL on the official domain.` });
     }
   }
-  if (!screenText(res, { Name: clean.name, Institution: clean.org })) return;
   // profile links: https only (they may be rendered as anchors) — no other schemes
   for (const f of ['linkedin', 'twitter']) {
     if (clean[f] && !/^https:\/\/[^\s]+$/i.test(clean[f])) {
