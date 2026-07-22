@@ -178,6 +178,39 @@ button.icon-btn:hover:not(:disabled) { background: var(--surface-2); color: var(
 }
 .step-crumb a:hover { color: var(--accent-strong); border-color: var(--accent); }
 .step-crumb a svg { transform: rotate(180deg); }
+
+/* "From idea to finished paper" workflow bar — appears on every step's tool page */
+.wf-bar {
+  max-width: 1160px; margin: 12px auto 0; padding: 8px 24px;
+  display: flex; align-items: center; gap: 8px;
+}
+.wf-bar .wf-lead {
+  flex: 0 0 auto; font-family: var(--font-mono, monospace); font-size: 10.5px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+}
+.wf-bar .wf-track {
+  flex: 1 1 auto; display: flex; gap: 6px; overflow-x: auto; padding: 3px 1px;
+  scrollbar-width: thin; -webkit-overflow-scrolling: touch;
+}
+.wf-bar .wf-chip {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+  border: 1px solid var(--border); border-radius: 999px; padding: 4px 11px;
+  font-size: 12px; color: var(--ink-2); background: var(--surface); white-space: nowrap; transition: border-color .15s, background .15s;
+}
+.wf-bar .wf-chip .num { font-family: var(--font-mono, monospace); font-weight: 700; font-size: 10.5px; color: var(--muted); }
+.wf-bar .wf-chip:hover { border-color: var(--accent); color: var(--ink); }
+.wf-bar .wf-chip.cur { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
+.wf-bar .wf-chip.cur .num { color: var(--accent-strong); }
+.wf-bar .wf-chip.manual { opacity: .55; cursor: default; }
+.wf-bar .wf-chip.manual:hover { border-color: var(--border); color: var(--ink-2); }
+.wf-bar .wf-arrow {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border-strong);
+  background: var(--surface); color: var(--ink-2); text-decoration: none; font-size: 20px; line-height: 1; font-weight: 700;
+}
+.wf-bar .wf-arrow:hover { border-color: var(--accent); color: var(--accent-strong); }
+.wf-bar .wf-arrow.disabled { opacity: .3; pointer-events: none; }
+@media (max-width: 640px) { .wf-bar .wf-lead { display: none; } }
 .tool-menu .menu a {
   display: flex; align-items: center; gap: 10px;
   padding: 9px 10px; border-radius: var(--radius-sm);

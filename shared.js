@@ -390,6 +390,39 @@
     };
   }
 
+  // ---------- "From idea to finished paper" workflow (navigable from every step) ----------
+  const WORKFLOW = [
+    { n: 1, label: 'Concept note', href: 'paper-generator.html#concept', hint: 'Frame the problem, aim & significance' },
+    { n: 2, label: 'Gap & questions', href: 'research-question-generator.html', hint: 'Find the gap, form your research questions' },
+    { n: 3, label: 'Methodology', href: 'instrument-designer.html', hint: 'Design the survey / interview' },
+    { n: 4, label: 'Collect data', manual: true, hint: 'Run it and gather your own data (offline)' },
+    { n: 5, label: 'Chat with data', href: 'data-qa.html', hint: 'Explore your dataset in plain language' },
+    { n: 6, label: 'Analyse', href: 'statpls.html', hint: 'Model & test — PLS-SEM, statistics' },
+    { n: 7, label: 'Paper', href: 'paper-generator.html', hint: 'Assemble the manuscript template' },
+    { n: 8, label: 'Quality check', href: 'citation-integrity.html', hint: 'Reference mapping & language' },
+  ];
+  function renderWorkflowBar(activeHref, afterEl) {
+    const curIdx = WORKFLOW.findIndex(s => s.href === activeHref); // exact match → this page's step
+    if (curIdx < 0) return; // not a workflow page
+    const withHref = WORKFLOW.map((s, i) => ({ ...s, i })).filter(s => s.href);
+    const curPos = withHref.findIndex(s => s.i === curIdx);
+    const prev = curPos > 0 ? withHref[curPos - 1] : null;
+    const next = curPos < withHref.length - 1 ? withHref[curPos + 1] : null;
+    const bar = document.createElement('div');
+    bar.className = 'wf-bar';
+    bar.setAttribute('aria-label', 'Research workflow steps');
+    const arrow = (s, dir) => s
+      ? `<a class="wf-arrow" href="${s.href}" title="${dir === 'prev' ? 'Previous' : 'Next'} step — ${esc(s.label)}" aria-label="${dir === 'prev' ? 'Previous' : 'Next'} step: ${esc(s.label)}">${dir === 'prev' ? '‹' : '›'}</a>`
+      : `<span class="wf-arrow disabled" aria-hidden="true">${dir === 'prev' ? '‹' : '›'}</span>`;
+    const chips = WORKFLOW.map((s, i) => {
+      const inner = `<span class="num">${s.n}</span>${esc(s.label)}`;
+      if (s.manual) return `<span class="wf-chip manual" title="${esc(s.hint)}">${inner}</span>`;
+      return `<a class="wf-chip${i === curIdx ? ' cur' : ''}" href="${s.href}" title="${esc(s.hint)}"${i === curIdx ? ' aria-current="step"' : ''}>${inner}</a>`;
+    }).join('');
+    bar.innerHTML = `<span class="wf-lead" title="From idea to finished paper">Workflow</span>${arrow(prev, 'prev')}<div class="wf-track">${chips}</div>${arrow(next, 'next')}`;
+    (afterEl || document.querySelector('.step-crumb') || document.querySelector('nav.topnav')).insertAdjacentElement('afterend', bar);
+  }
+
   function renderNav(activeHref) {
     const nav = document.createElement('nav');
     nav.className = 'topnav';
@@ -421,6 +454,7 @@
       crumb.innerHTML = `<a href="index.html#step-${step.i}" title="Back to this step on the home page">${icon('arrow', 13)} Step ${step.n} · ${esc(step.name)}</a>`;
       nav.insertAdjacentElement('afterend', crumb);
     }
+    renderWorkflowBar(activeHref); // "idea → paper" step nav, on every workflow tool page
     mountFeedback();
     // credit-cost transparency: every tool page states what a run costs
     // 'data' = flat 1 credit per run/search/comparison; 'ai' = 1-4 by input size; 'both' = data run + optional AI
