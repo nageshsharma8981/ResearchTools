@@ -33,6 +33,16 @@
 .paper-title { font-family:var(--font-serif); font-size:24px; font-weight:700; text-align:center; margin:0 0 4px; }
 .progress-track { height:8px; border-radius:99px; background:var(--surface-2); overflow:hidden; margin-top:10px; }
 .progress-fill { height:100%; background:var(--accent); border-radius:99px; transition:width .3s; }
+.wf { display:flex; flex-wrap:wrap; gap:8px; align-items:stretch; }
+.wf-step { flex:1 1 140px; min-width:128px; display:flex; flex-direction:column; text-decoration:none; border:1px solid var(--border); border-radius:10px; padding:9px 11px; background:var(--surface); text-align:left; cursor:pointer; transition:border-color .15s, transform .15s; font:inherit; }
+.wf-step:hover { border-color:var(--accent); transform:translateY(-1px); }
+.wf-step.here { border-color:var(--accent); background:var(--accent-soft); cursor:default; }
+.wf-step.manual { background:var(--surface-2); cursor:default; }
+.wf-step .n { font-family:var(--font-mono,monospace); font-size:10px; font-weight:700; letter-spacing:.06em; color:var(--accent-strong); }
+.wf-step b { font-size:12.5px; color:var(--ink); margin:2px 0 1px; }
+.wf-step .d { font-size:11px; color:var(--muted); line-height:1.35; }
+.wf-step .lnk { margin-top:5px; font-size:10.5px; font-weight:600; color:var(--accent-strong); }
+.wf-step.manual .lnk, .wf-step.here .lnk { color:var(--muted); }
 </style>
 </head>
 <body>
@@ -43,6 +53,13 @@
 </div>
 <main style="max-width:900px">
   <div id="settings"></div>
+
+  <div class="card">
+    <span class="overline">Guided research workflow</span>
+    <h2 style="margin:2px 0 4px">From idea to finished paper</h2>
+    <p class="hint" style="margin:0 0 12px">This template is the <b>Paper</b> step. The real data, results, and findings it needs come from the earlier steps — do those first, then bring your own numbers into the draft. Each step opens the right tool.</p>
+    <div class="wf" id="wf"></div>
+  </div>
 
   <div class="card" id="disclaimer-card" style="border-color:var(--accent);background:var(--accent-soft)">
     <div style="display:flex;gap:12px;align-items:flex-start">
@@ -91,6 +108,11 @@
         </select></label>
     </div>
     <span class="hint" style="margin:6px 0 0;font-size:12px;display:block">Submission standard: full research papers 5,000–8,000 words · case studies 2,000–4,000. References are drawn from real, recent works via OpenAlex; you can switch citation style any time before you download.</span>
+    <div id="concept-wrap" style="margin-top:12px">
+      <button type="button" class="ghost" id="concept-btn" style="min-height:34px"></button>
+      <span class="hint" style="margin:0 0 0 4px;font-size:12px">Workflow step 1 — a short concept note (problem, aim, significance, approach) to frame the study before you draft.</span>
+      <div id="concept-out"></div>
+    </div>
     <label class="field-label" for="rq" style="margin-top:12px">Research question(s) or aim <span style="font-weight:400;color:var(--muted)">— optional; the Question Generator's output drops in</span></label>
     <textarea id="rq" rows="2" placeholder="e.g. RQ1: Does AI tutoring improve exam performance vs. traditional tutoring?"></textarea>
     <label class="field-label" for="refs" style="margin-top:12px">Key references to build on <span style="font-weight:400;color:var(--muted)">— optional; one per line</span></label>
@@ -125,6 +147,54 @@ Rewiseed.billingStatus().then(b => {
   }
 }).catch(() => {});
 $('ai-disc').innerHTML = Rewiseed.aiDisclaimer() + '<br/><b style="color:var(--accent-strong)">On references:</b> these are real works pulled from the OpenAlex index, but confirm each resolves (DOI Finder) and is indexed in your target database, and that it genuinely supports the sentence it is attached to. <b>The body text — data, results, and examples — is illustrative and must be replaced with your own research.</b>';
+$('concept-btn').innerHTML = `${icon('sparkle', 14)} Draft a concept note`;
+
+// ---------- guided workflow roadmap ----------
+const WORKFLOW = [
+  { n: '1', label: 'Concept note', d: 'Frame the problem, aim & significance', act: 'concept' },
+  { n: '2', label: 'Gap & questions', d: 'Find the gap, form your RQs', href: 'research-question-generator.html' },
+  { n: '3', label: 'Methodology', d: 'Design the survey / interview', href: 'instrument-designer.html' },
+  { n: '4', label: 'Collect data', d: 'Run it; gather your own data', manual: true },
+  { n: '5', label: 'Chat with data', d: 'Explore it in plain language', href: 'data-qa.html' },
+  { n: '6', label: 'Analyse', d: 'Model & test — PLS-SEM, stats', href: 'statpls.html' },
+  { n: '7', label: 'Paper', d: 'Assemble the manuscript', here: true },
+  { n: '8', label: 'Quality check', d: 'Reference mapping & language', href: 'citation-integrity.html' },
+];
+$('wf').innerHTML = WORKFLOW.map(s => {
+  const inner = `<span class="n">STEP ${s.n}</span><b>${esc(s.label)}</b><span class="d">${esc(s.d)}</span>` +
+    `<span class="lnk">${s.href ? 'Open tool →' : s.here ? 'You are here' : s.manual ? 'Your own data' : 'Draft it below →'}</span>`;
+  if (s.href) return `<a class="wf-step" href="${s.href}">${inner}</a>`;
+  const cls = 'wf-step' + (s.here ? ' here' : '') + (s.manual ? ' manual' : '');
+  return `<button type="button" class="${cls}"${s.act ? ` data-wf="${s.act}"` : ' disabled style="opacity:1"'}>${inner}</button>`;
+}).join('');
+document.querySelectorAll('[data-wf="concept"]').forEach(b => b.onclick = () => {
+  $('concept-btn').scrollIntoView({ block: 'center', behavior: 'smooth' });
+  $('concept-btn').focus();
+});
+
+// ---------- concept note (workflow step 1) ----------
+$('concept-btn').onclick = async () => {
+  const topic = $('topic').value.trim();
+  if (!topic) { toast('Enter a topic first', 'error'); $('topic').focus(); return; }
+  const btn = $('concept-btn'); btn.disabled = true;
+  $('concept-out').innerHTML = `<div class="stream-status" style="margin-top:8px"><span class="spinner"></span>Drafting a concept note…</div>`;
+  try {
+    let acc = '';
+    await Rewiseed.callLLM({
+      system: 'You are a research advisor. Write a concise CONCEPT NOTE (about 180–220 words) for a proposed study, in this order: (1) the problem and context, (2) the research aim and objectives, (3) why it matters — significance and potential contribution, (4) a one–two sentence outline of the intended approach (design, data, analysis). Formal, clear, in short paragraphs. Do NOT fabricate statistics or cite specific studies. Markdown allowed.',
+      user: `Topic: ${topic}${$('field').value ? '\nField: ' + $('field').value.trim() : ''}${$('rq').value ? '\nResearch question(s)/aim: ' + $('rq').value.trim() : ''}`,
+      temperature: 0.4, maxTokens: 700,
+      onStream: (d) => { acc += d; $('concept-out').innerHTML = `<div class="card" style="margin-top:8px"><span class="overline">Concept note</span><div class="body" style="font-size:14px;line-height:1.65">${md(acc)}</div></div>`; },
+    });
+    if (acc.trim()) {
+      $('concept-out').insertAdjacentHTML('beforeend', `<div class="chip-row" style="margin-top:8px"><button type="button" class="chip" id="concept-copy">${icon('copy', 13)} Copy</button><span class="hint" style="align-self:center;margin:0">Use this to sharpen your topic and research questions above.</span></div>`);
+      $('concept-copy').onclick = (e) => Rewiseed.copyText(acc, e.currentTarget);
+      Rewiseed.track('run');
+    }
+  } catch (e) {
+    $('concept-out').innerHTML = `<div class="error-box" style="margin-top:8px">${icon('alert', 15)}<span>${esc(e.message)}</span></div>`;
+  } finally { btn.disabled = false; }
+};
 
 // ---------- paper structures (section word-weights sum ~= 1) ----------
 // Structures follow the official APA 7 sample papers: the Introduction is the
