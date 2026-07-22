@@ -50,6 +50,14 @@ const params = new URLSearchParams(location.search);
 const { esc, icon, toast } = Rewiseed;
 const { api, mountCaptcha } = RewiseedAccount;
 Rewiseed.renderNav('signin.html');
+// after login, return to the tool the user was trying to open (?next=), if it's a safe same-origin path
+function safeNext() {
+  try {
+    const n = new URLSearchParams(location.search).get('next') || '';
+    if (/^\/[A-Za-z0-9_\-./]*$/.test(n) && !n.startsWith('//')) return n;
+  } catch {}
+  return 'index.html';
+}
 document.getElementById('hero-icon').innerHTML = icon('logo', 26);
 document.getElementById('submit').innerHTML = `${icon('play', 15)} Sign in`;
 document.getElementById('eye').innerHTML = icon('eye', 16);
@@ -78,7 +86,7 @@ document.getElementById('form').addEventListener('submit', async (e) => {
       password: document.getElementById('password').value,
       captchaToken,
     }});
-    location.href = 'index.html';
+    location.href = safeNext();
   } catch (err) {
     toast(err.message, 'error', 5000);
     // unconfirmed account → offer a one-click fresh confirmation email

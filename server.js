@@ -1439,13 +1439,27 @@ app.delete('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
 });
 
 // ---------- tool access gate ----------
-// When a signed-in user has a restricted tool list, block ungranted tool
-// pages. Anonymous visitors keep public access (the product default).
+// Tools require an account: signed-out visitors can browse the whole site
+// (home, about, pricing, journal, guides) but must sign in to open any tool.
+// Signed-in users with a restricted tool list are blocked from ungranted tools.
 app.use((req, res, next) => {
   const name = req.path.replace(/^\//, '').replace(/\.html$/, '');
   if (!TOOL_IDS.has(name)) return next();
   const u = currentUser(req);
-  if (!u) return next();
+  if (!u) {
+    // non-logged-in → sign-in-required page (keeps them oriented and offers a free account)
+    const nextPath = '/' + name + '.html';
+    return res.status(401).send(`<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Sign in to use this tool — ItsMyResearch</title><link rel="stylesheet" href="/shared.css"/><script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script></head>
+<body><div class="hero"><h1>Sign in to use this tool</h1>
+<p class="lede">You're welcome to explore ItsMyResearch, but the tools themselves need a free account — it's how we keep your work private and metered to you. Create one in under a minute, or sign in to continue.</p></div>
+<main style="max-width:520px;text-align:center"><div class="card">
+<div class="btn-row" style="justify-content:center;gap:10px"><a href="/signin.html?next=${encodeURIComponent(nextPath)}"><button type="button">Sign in</button></a>
+<a href="/signup.html?next=${encodeURIComponent(nextPath)}"><button type="button" class="ghost">Create free account</button></a></div>
+<p class="hint" style="margin:12px 0 0">Browsing is open to everyone — the home page, the Research Journey, pricing, and the JBMS journal need no account.</p>
+<div class="btn-row" style="justify-content:center;margin-top:10px"><a class="link" href="/index.html">← Back to home</a></div>
+</div></main>
+<script src="/shared.js"></script><script>Rewiseed.renderNav('');</script></body></html>`);
+  }
   const eff = effectiveTools(u); // null = all tools
   if (eff === null || eff.has(name)) return next();
   const inStudent = STUDENT_TOOLS.has(name), inBasic = BASIC_TOOLS.has(name);
