@@ -141,23 +141,51 @@ $('concept-btn').onclick = async () => {
   if (!topic) { toast('Enter a topic first', 'error'); $('topic').focus(); return; }
   const btn = $('concept-btn'); btn.disabled = true;
   $('concept-out').innerHTML = `<div class="stream-status" style="margin-top:8px"><span class="spinner"></span>Drafting a concept note…</div>`;
+  const conceptCard = (body) => `<div class="card" style="margin-top:8px"><span class="overline">Concept note</span><div class="body" style="font-size:14px;line-height:1.65">${md(body)}</div></div>`;
   try {
     let acc = '';
     await Rewiseed.callLLM({
-      system: 'You are a research advisor. Write a concise CONCEPT NOTE (about 180–220 words) for a proposed study, in this order: (1) the problem and context, (2) the research aim and objectives, (3) why it matters — significance and potential contribution, (4) a one–two sentence outline of the intended approach (design, data, analysis). Formal, clear, in short paragraphs. Do NOT fabricate statistics or cite specific studies. Markdown allowed.',
+      system: `You are a doctoral research advisor. Write a CONCEPT NOTE (a short concept paper, ~500–700 words total) for the proposed study, using EXACTLY these Markdown headings and nothing else:
+## Introduction
+Introduce the topic and its context, why it is important, and why it is worth studying. 1–2 short paragraphs.
+## Preliminary Literature Review
+Summarise, in general terms, what prior research in this area has focused on and the gap or weakness that motivates this study. Do NOT invent specific citations, authors, years, or statistics — describe the state of the field in general terms.
+## Discussion and Conclusion
+Outline the intended research approach (design, data, and analysis at a high level) and state the expected contribution in one closing sentence.
+RULES: formal, precise academic register. Write each section ONCE — never repeat sentences or paragraphs, and stop when the three sections are complete. Do NOT name any specific university, institution, company, or person. Do NOT fabricate statistics or citations. Output only the three sections above.`,
       user: `Topic: ${topic}${$('field').value ? '\nField: ' + $('field').value.trim() : ''}${$('rq').value ? '\nResearch question(s)/aim: ' + $('rq').value.trim() : ''}`,
-      temperature: 0.4, maxTokens: 700,
-      onStream: (d) => { acc += d; $('concept-out').innerHTML = `<div class="card" style="margin-top:8px"><span class="overline">Concept note</span><div class="body" style="font-size:14px;line-height:1.65">${md(acc)}</div></div>`; },
+      temperature: 0.35, maxTokens: 1100,
+      onStream: (full) => { acc = dedupeText(full); $('concept-out').innerHTML = conceptCard(acc); },
     });
+    acc = dedupeText(acc);
     if (acc.trim()) {
-      $('concept-out').insertAdjacentHTML('beforeend', `<div class="chip-row" style="margin-top:8px"><button type="button" class="chip" id="concept-copy">${icon('copy', 13)} Copy</button><span class="hint" style="align-self:center;margin:0">Use this to sharpen your topic and research questions above.</span></div>`);
+      $('concept-out').innerHTML = conceptCard(acc) +
+        `<div class="chip-row" style="margin-top:8px"><button type="button" class="chip" id="concept-copy">${icon('copy', 13)} Copy</button><span class="hint" style="align-self:center;margin:0">Use this to sharpen your topic and research questions above.</span></div>`;
       $('concept-copy').onclick = (e) => Rewiseed.copyText(acc, e.currentTarget);
       Rewiseed.track('run');
+    } else {
+      $('concept-out').innerHTML = `<div class="error-box" style="margin-top:8px">${icon('alert', 15)}<span>The model returned an empty note — try again, or switch to a stronger provider in API settings.</span></div>`;
     }
   } catch (e) {
     $('concept-out').innerHTML = `<div class="error-box" style="margin-top:8px">${icon('alert', 15)}<span>${esc(e.message)}</span></div>`;
   } finally { btn.disabled = false; }
 };
+// guard against small-model repetition loops: drop repeated sentences/paragraphs
+function dedupeText(t) {
+  if (!t) return t;
+  const blocks = t.split(/\n{2,}/).map(b => {
+    const seen = new Set(), sents = [];
+    for (const s of b.split(/(?<=[.!?])\s+/)) {
+      // compare on the sentence's own last line, stripped of heading markup
+      const core = s.replace(/^#+\s*/, '').split('\n').pop().trim().toLowerCase();
+      if (core.length > 20 && seen.has(core)) continue; // an already-seen sentence → repetition
+      if (core.length > 20) seen.add(core);
+      sents.push(s);
+    }
+    return sents.join(' ');
+  });
+  return blocks.filter((b, i) => i === 0 || b.trim() !== blocks[i - 1].trim()).join('\n\n');
+}
 
 // ---------- paper structures (section word-weights sum ~= 1) ----------
 // Structures follow the official APA 7 sample papers: the Introduction is the
@@ -424,6 +452,7 @@ Conventions to follow:
 - Formal, precise academic register. Method and Results are written in the past tense; avoid first person unless it is natural for a qualitative account.
 ${citeRule}
 - Report statistics in APA notation where relevant (M, SD, t, F, p, and effect sizes such as d, r, or ηp²).
+- Do not name any specific university, institution, employer, or private individual in the body text (cited authors in references are the only exception). Write each idea once — never repeat sentences or paragraphs.
 ${refRule}${hasPool ? '\n\nSOURCE LIST — cite only these, using the exact (Author, Year) shown:\n' + pool : ''}`;
 }
 function sectionUser(title, ctx) {

@@ -80,7 +80,7 @@
     }
     el.innerHTML = html;
   }
-  async function webllmChat({ system, user, temperature, onStream, signal, model }) {
+  async function webllmChat({ system, user, temperature, maxTokens, onStream, signal, model }) {
     if (!navigator.gpu) {
       throw new Error('The built-in model needs WebGPU, which this browser does not support. Use Chrome or Edge — or pick another provider in API settings.');
     }
@@ -102,11 +102,12 @@
     }
     if (signal) signal.addEventListener('abort', () => { try { _webllm.interruptGenerate(); } catch {} }, { once: true });
     const messages = [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: user }];
+    const cap = Math.min(maxTokens || 2048, 4096); // hard ceiling — small on-device models can loop without one
     if (!onStream) {
-      const r = await _webllm.chat.completions.create({ messages, temperature });
+      const r = await _webllm.chat.completions.create({ messages, temperature, max_tokens: cap });
       return r.choices?.[0]?.message?.content || '';
     }
-    const chunks = await _webllm.chat.completions.create({ messages, temperature, stream: true });
+    const chunks = await _webllm.chat.completions.create({ messages, temperature, max_tokens: cap, stream: true });
     let full = '';
     for await (const c of chunks) {
       if (signal?.aborted) { const err = new Error('aborted'); err.name = 'AbortError'; throw err; }
@@ -889,7 +890,7 @@
     const cfg = cfgOverride || getCfg();
     const baseUrl = (cfg.baseUrl || PRESETS.openai.baseUrl).replace(/\/+$/, '');
     if (isBuiltin(baseUrl)) {
-      return webllmChat({ system, user, temperature, onStream, signal, model: cfg.model });
+      return webllmChat({ system, user, temperature, maxTokens, onStream, signal, model: cfg.model });
     }
     if (!cfg.apiKey && !isLocalUrl(baseUrl)) {
       openSettings();

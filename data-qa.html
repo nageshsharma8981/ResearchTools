@@ -310,7 +310,7 @@ async function ask() {
   try {
     let acc = '';
     await Rewiseed.callLLM({ system: buildSystem(), user, temperature: 0.2, maxTokens: 1400,
-      onStream: (delta) => { acc += delta; chat[idx].content = acc; $('chatlog').children[idx].querySelector('.bubble').innerHTML = md(acc); } });
+      onStream: (full) => { acc = full; chat[idx].content = acc; $('chatlog').children[idx].querySelector('.bubble').innerHTML = md(acc); } });
     if (!acc.trim()) chat[idx].content = '_(no answer returned — try rephrasing)_';
     Rewiseed.track('run');
   } catch (e) {
