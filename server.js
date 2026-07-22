@@ -959,6 +959,39 @@ app.get('/api/data', async (req, res) => {
   }
 });
 
+// ---------- Semantic Scholar proxy (second author-metrics source) ----------
+// The keyless S2 API is heavily rate-limited (shared ~1 req/s) and 429s without CORS headers,
+// so browsers can't call it reliably. We proxy it: same-origin (no CORS), cached, and able to
+// attach a free S2 API key server-side (SEMANTIC_SCHOLAR_API_KEY) for a much higher rate limit.
+const S2_KEY = (process.env.SEMANTIC_SCHOLAR_API_KEY || process.env.S2_API_KEY || '').trim();
+const s2Cache = new Map();             // query -> { at, body }
+const S2_TTL = 24 * 3600_000;          // author metrics change slowly — cache a day
+app.get('/api/s2-author', async (req, res) => {
+  if (!rateLimit('s2:' + req.ip, 40, 15 * 60_000)) return res.status(429).json({ error: 'Too many lookups — wait a few minutes.' });
+  const q = String(req.query.query || '').trim().slice(0, 160);
+  if (!q) return res.status(400).json({ error: 'Missing query.' });
+  const fields = 'name,hIndex,citationCount,paperCount,affiliations,url,externalIds';
+  const url = `https://api.semanticscholar.org/graph/v1/author/search?query=${encodeURIComponent(q)}&limit=10&fields=${fields}`;
+  const hit = s2Cache.get(q.toLowerCase());
+  if (hit && now() - hit.at < S2_TTL) { res.setHeader('X-Cache', 'HIT'); return res.type('application/json').send(hit.body); }
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15_000);
+    const headers = { 'User-Agent': 'ItsMyResearch/1.0 (+https://www.itsmyresearch.com)' };
+    if (S2_KEY) headers['x-api-key'] = S2_KEY;
+    const r = await fetch(url, { signal: ctrl.signal, headers });
+    clearTimeout(timer);
+    const body = await r.text();
+    if (!r.ok) return res.status(r.status === 429 ? 429 : 502).json({ error: `Semantic Scholar returned ${r.status}.` });
+    if (s2Cache.size > 3000) s2Cache.clear();
+    s2Cache.set(q.toLowerCase(), { at: now(), body });
+    res.setHeader('X-Cache', 'MISS');
+    res.type('application/json').send(body);
+  } catch {
+    res.status(504).json({ error: 'Semantic Scholar did not respond in time.' });
+  }
+});
+
 // ---------- reference library ----------
 app.get('/api/library', requireAuth, (req, res) => {
   const rows = db.prepare('SELECT * FROM library WHERE user_id = ? ORDER BY added_at DESC').all(req.user.id);

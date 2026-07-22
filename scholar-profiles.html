@@ -11,7 +11,7 @@
 <meta property="og:type" content="website"/>
 <meta property="og:site_name" content="ItsMyResearch"/>
 <meta property="og:title" content="Author &amp; Institution Profiles — ItsMyResearch"/>
-<meta property="og:description" content="Look up any researcher or institution — works count, citations, h-index, affiliations, and their most-cited papers. Keyless via OpenAlex."/>
+<meta property="og:description" content="Look up any researcher or institution — works count, citations, h-index, affiliations, and their most-cited papers. Keyless, cross-checked across OpenAlex and Semantic Scholar."/>
 <meta property="og:url" content="https://www.itsmyresearch.com/scholar-profiles"/>
 <meta property="og:image" content="https://www.itsmyresearch.com/og-card.png"/>
 <meta property="og:image:width" content="1200"/>
@@ -43,7 +43,7 @@ button.result-pick:hover:not(:disabled){ background:var(--surface-2); box-shadow
 <div class="hero">
   <span class="tool-icon" id="hero-icon"></span>
   <h1>Author &amp; Institution Profiles</h1>
-  <p class="lede">Look up any researcher or institution — output, citations, h-index, affiliations, and most-cited work. Free and keyless via OpenAlex.</p>
+  <p class="lede">Look up any researcher or institution — output, citations, h-index, affiliations, and most-cited work. Free and keyless, cross-checked across OpenAlex and Semantic Scholar.</p>
 </div>
 <main style="max-width:840px">
   <div class="mode-tabs" role="tablist">
@@ -137,6 +137,29 @@ function barChart(data, key, aria) {
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${aria}" style="max-width:100%;display:block">${bars}</svg>`;
 }
 
+// cross-source verification card — Semantic Scholar figures next to OpenAlex's
+function s2Card(s2, oaH) {
+  if (!s2) return '';
+  const delta = (s2.hIndex != null && oaH != null) ? Math.abs(s2.hIndex - oaH) : null;
+  const agree = delta != null && delta <= 3;
+  return `<div class="card">
+    <span class="overline">Cross-source check · Semantic Scholar (Allen Institute for AI)</span>
+    <div class="stat-grid">
+      <div class="s"><b>${num(s2.paperCount)}</b><span>papers</span></div>
+      <div class="s"><b>${num(s2.citationCount)}</b><span>citations</span></div>
+      <div class="s"><b>${s2.hIndex ?? '—'}</b><span>h-index</span></div>
+    </div>
+    <p class="hint" style="margin:0 0 8px">${s2.matchedBy === 'orcid'
+      ? 'Matched to the same researcher by ORCID.'
+      : 'Closest name match on Semantic Scholar — confirm it is the same person before relying on these figures.'}${delta != null
+      ? (agree
+        ? ` The two indexes broadly agree (h-index differs by ${delta}), which corroborates the figures.`
+        : ` The h-index differs by ${delta} — normal, since each service indexes a different slice of the literature.`)
+      : ''}</p>
+    ${s2.url ? `<a class="link" href="${esc(s2.url)}" target="_blank" rel="noopener noreferrer">Full profile on Semantic Scholar ${icon('external', 12)}</a>` : ''}
+  </div>`;
+}
+
 async function showProfile(r) {
   $('out').innerHTML = `<div class="card"><div class="stream-status"><span class="spinner"></span>Loading profile…</div></div>`;
   // pull the authoritative single record (freshest h-index / i10 + yearly counts)
@@ -144,7 +167,10 @@ async function showProfile(r) {
   r = full;
   const s = r.summary_stats || {};
   const years = (r.counts_by_year || []).slice().sort((a, b) => a.year - b.year).slice(-14); // recent years, readable
+  // second, independent source (author metrics only) — fetched in parallel; degrades silently if unreachable
+  const s2p = mode === 'author' ? D.semanticScholarAuthor(r).catch(() => null) : Promise.resolve(null);
   const works = await D.topWorks(mode === 'author' ? 'author.id' : 'institutions.id', r.id, 6);
+  const s2 = await s2p;
   // only the current, DIRECT affiliation(s) — not the full past-institution history
   const affil = mode === 'author'
     ? (r.last_known_institutions || []).map(a => a.display_name).filter(Boolean)
@@ -168,6 +194,7 @@ async function showProfile(r) {
         ${mode === 'author' ? `<a class="link" href="${gsUrl}" target="_blank" rel="noopener noreferrer">Cross-check on Google Scholar ${icon('external', 12)}</a>` : ''}
       </div>
     </div>
+    ${mode === 'author' ? s2Card(s2, s.h_index) : ''}
     ${years.length ? `<div class="card">
       <span class="overline">Output &amp; impact over time · OpenAlex</span>
       <div class="charts">
@@ -180,7 +207,7 @@ async function showProfile(r) {
       <h2 style="font-size:17px">Top papers</h2>
       ${works.length ? `<div id="tw">${works.map(w => D.paperCard(w)).join('')}</div>` : `<p class="hint" style="margin:0">No indexed works found.</p>`}
     </div>
-    <p class="hint" style="max-width:100%">Metrics are OpenAlex's and update as their index grows. Google Scholar often reports higher h-index and citation counts because it also indexes preprints, theses, and grey literature — but Scholar has no public API and its terms don't permit automated collection, so we can't pull its numbers directly. Use the <b>Cross-check on Google Scholar</b> link above to compare. Name matches can conflate distinct people — confirm the affiliation and ORCID.${works.some(w => w.open_access && !w.open_access.is_oa) ? ' ' + D.PAYWALL_NOTE : ''}</p>`;
+    <p class="hint" style="max-width:100%">Figures are drawn from two independent programmatic sources — <b>OpenAlex</b> and, for authors, <b>Semantic Scholar</b> (Allen Institute for AI) — so you can cross-check one against the other. Each indexes a slightly different slice of the literature, so small differences are expected. Google Scholar often reports higher numbers still because it also counts preprints, theses, and grey literature — but it has no public API and its terms don't permit automated collection, so we can't pull its numbers directly; use the <b>Cross-check on Google Scholar</b> link above to compare. Name matches can conflate distinct people — confirm the affiliation and ORCID.${works.some(w => w.open_access && !w.open_access.is_oa) ? ' ' + D.PAYWALL_NOTE : ''}</p>`;
   const tw = $('tw'); if (tw) D.wireSaveButtons(tw);
 }
 

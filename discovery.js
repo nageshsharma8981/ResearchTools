@@ -91,7 +91,7 @@
   }
 
   async function authorSearch(q) {
-    const r = await T(`${OA}/authors?search=${encodeURIComponent(q)}&per_page=5&select=id,display_name,works_count,cited_by_count,summary_stats,counts_by_year,last_known_institutions,affiliations,orcid`);
+    const r = await T(`${OA}/authors?search=${encodeURIComponent(q)}&per_page=5&select=id,display_name,display_name_alternatives,works_count,cited_by_count,summary_stats,counts_by_year,last_known_institutions,affiliations,orcid`);
     if (!r.ok) throw new Error(`OpenAlex returned ${r.status}`);
     return (await r.json()).results || [];
   }
@@ -103,7 +103,7 @@
   // fetch the authoritative single record by id — freshest summary_stats + yearly counts
   async function entityById(kind, id) {
     const sel = kind === 'author'
-      ? 'id,display_name,works_count,cited_by_count,summary_stats,counts_by_year,last_known_institutions,affiliations,orcid'
+      ? 'id,display_name,display_name_alternatives,works_count,cited_by_count,summary_stats,counts_by_year,last_known_institutions,affiliations,orcid'
       : 'id,display_name,works_count,cited_by_count,country_code,type,homepage_url,summary_stats,counts_by_year';
     const r = await T(`${OA}/${kind === 'author' ? 'authors' : 'institutions'}/${shortId(id)}?select=${sel}`);
     return r.ok ? await r.json() : null;
@@ -113,11 +113,49 @@
     return r.ok ? ((await r.json()).results || []) : [];
   }
 
+  // Second, independent source for author metrics — Semantic Scholar (Allen Institute for AI).
+  // Fetched through OUR server proxy (/api/s2-author): same-origin (no CORS), cached, and able to
+  // use a server-side API key. Takes an OpenAlex author record. Matches the SAME researcher by
+  // ORCID when we have one; otherwise picks the canonical (highest-cited) profile among same-surname
+  // candidates — fragments have tiny counts, the merged record dominates.
+  const shapeS2 = (p, matchedBy) => ({
+    name: p.name, url: p.url, matchedBy,
+    hIndex: p.hIndex, citationCount: p.citationCount, paperCount: p.paperCount,
+    orcid: (p.externalIds?.ORCID || [])[0] || null,
+  });
+  async function semanticScholarAuthor(author) {
+    if (!author) return null;
+    const orcid = String(author.orcid || '').replace(/^https?:\/\/orcid\.org\//i, '').trim() || null;
+    // OpenAlex sometimes localises the display name (e.g. Cyrillic); Semantic Scholar is Latin-indexed,
+    // so query with a clean Latin-script name — display name if it already is one, else an alternative.
+    const names = [author.display_name, ...(author.display_name_alternatives || [])].filter(Boolean);
+    const clean = /^[A-Za-z][A-Za-z .,'’\-]*$/;
+    const query = names.find(n => clean.test(n.trim())) || names.find(n => /[A-Za-z]/.test(n)) || author.display_name;
+    if (!query) return null;
+    let r;
+    try { r = await T(`/api/s2-author?query=${encodeURIComponent(query)}`); }
+    catch { return null; } // network/timeout or S2 rate-limit (429) — degrade to OpenAlex only
+    if (!r.ok) return null;
+    const data = (await r.json().catch(() => null))?.data || [];
+    if (!data.length) return null;
+    // 1) exact same researcher by ORCID
+    if (orcid) {
+      const m = data.find(a => (a.externalIds?.ORCID || []).map(x => String(x).trim()).includes(orcid));
+      if (m) return shapeS2(m, 'orcid');
+    }
+    // 2) canonical profile for this name: prefer same-surname candidates, then most citations
+    const surname = String(query).trim().split(/\s+/).pop().toLowerCase().replace(/[.,]/g, '');
+    const byName = surname.length > 1 ? data.filter(a => String(a.name || '').toLowerCase().includes(surname)) : [];
+    const pool = byName.length ? byName : data;
+    pool.sort((a, b) => (b.citationCount || 0) - (a.citationCount || 0));
+    return shapeS2(pool[0], 'name');
+  }
+
   // Shown wherever a list may contain paywalled papers.
   const PAYWALL_NOTE = 'About paywalled papers: details shown here come from public metadata and the abstract only. For complete and authoritative content — full methods, results, tables, and exact quotations — please consult the publisher’s version via the DOI link or your institution’s library access.';
 
   window.RewiseedDiscovery = {
     relatedFor, byTopics, renderRelated, paperCard, wireSaveButtons,
-    authorSearch, institutionSearch, entityById, topWorks, shortId, authorLine, PAYWALL_NOTE,
+    authorSearch, institutionSearch, entityById, topWorks, semanticScholarAuthor, shortId, authorLine, PAYWALL_NOTE,
   };
 })();
