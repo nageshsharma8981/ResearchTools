@@ -257,7 +257,7 @@
     'author-impact.html': ['data', '1 credit per author analysis'],
     'scholar-profiles.html': ['data', '1 credit per profile search'],
     'data-explorer.html': ['data', '1 credit per data query'],
-    'citation-integrity.html': ['data', '1 credit per manuscript scan'],
+    'citation-integrity.html': ['data', '5 credits per manuscript scan'],
     'statpls.html': ['both', '1 credit per model run · AI write-up 1\u20134 more'],
     'smart-literature-finder.html': ['both', '1 credit per search · AI insights 1\u20134 more'],
     'bibliometrics.html': ['both', '1 credit per analysis · AI reading 1\u20134 more'],

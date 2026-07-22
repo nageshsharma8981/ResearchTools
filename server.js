@@ -346,6 +346,8 @@ const PLAN_AMOUNT_PAISE = 49900;
 const TOPUP_AMOUNT_PAISE = 19900;
 // run weight by input size: the heavy-document guardrail
 const runWeight = (chars) => chars <= 20_000 ? 1 : chars <= 80_000 ? 2 : chars <= 200_000 ? 4 : 0;
+// per-tool cost for a data run (default 1); heavier tools cost more
+const DATA_RUN_COST = { 'citation-integrity': 5 };
 
 // email a user a top-up reminder when they hit zero credits — at most once per 30 days
 function maybeSendCreditReminder(u) {
@@ -1352,9 +1354,9 @@ app.post('/api/run-credit', (req, res) => {
   if (['admin', 'superadmin'].includes(u.role)) return res.json({ ok: true, metered: false, staff: true });
   refreshFreeCredits(u); // apply the monthly free allowance before charging
   if (!rateLimit('runc:' + u.id, 60, 15 * 60_000)) return res.status(429).json({ error: 'Too many runs — wait a few minutes.' });
-  const isData = (req.body || {}).mode === 'data'; // non-AI run (search, lookup, comparison, model run) — flat rate
+  const isData = (req.body || {}).mode === 'data'; // non-AI run (search, lookup, comparison, model run)
   const chars = Math.max(0, Math.min(10_000_000, Number((req.body || {}).chars) || 0));
-  const w = isData ? 1 : runWeight(chars);
+  const w = isData ? (DATA_RUN_COST[String((req.body || {}).tool)] || 1) : runWeight(chars);
   if (w === 0) return res.status(400).json({ error: 'This document is too large for one run (200k character limit) — split it into parts.', reason: 'toolarge' });
   const result = db.transaction(() => {
     const cur = db.prepare('SELECT credits, free_run_used, plan_status FROM users WHERE id = ?').get(u.id);

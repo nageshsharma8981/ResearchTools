@@ -167,7 +167,9 @@ function costLabel(href) {
   if (rc[0] === 'free') return 'Free';
   if (rc[0] === 'ai') return href === 'paper-generator.html' ? '1–6 credits' : '1–4 credits/run';
   if (rc[0] === 'both') return '1+ credits/run';
-  return '1 credit/run';
+  const m = String(rc[1]).match(/^(\d+)\s+credit/); // data run — read the count from its label
+  const n = m ? +m[1] : 1;
+  return `${n} credit${n === 1 ? '' : 's'}/run`;
 }
 Promise.all([
   fetch('/api/me', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null),
