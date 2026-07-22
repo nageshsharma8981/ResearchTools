@@ -481,6 +481,12 @@
           ? `${icon('sparkle', 13)} free run ready`
           : `${icon('sparkle', 13)} ${b.credits ?? 0} credit${b.credits === 1 ? '' : 's'}`;
       if (!b.unlimited && b.freeRunUsed && (b.credits ?? 0) === 0) el.classList.add('empty');
+      // proactive reminder: once per session, when a metered user is low/out of credits
+      const low = !b.unlimited && b.freeRunUsed && (b.credits ?? 0) <= 3;
+      if (low && activeHref !== 'pricing.html' && !sessionStorage.getItem('imr_topup_nudge')) {
+        sessionStorage.setItem('imr_topup_nudge', '1');
+        setTimeout(() => showTopupModal({ credits: b.credits ?? 0 }), 900);
+      }
     });
     applyTheme(document.documentElement.getAttribute('data-theme'));
     $('theme-toggle').onclick = () => {
@@ -792,7 +798,7 @@
       return;
     }
     if (d.reason === 'signin') { setTimeout(() => { location.href = 'signin.html'; }, 1600); }
-    else if (d.reason === 'subscribe' || d.reason === 'topup') { setTimeout(() => { location.href = 'pricing.html'; }, 2200); }
+    else if (d.reason === 'subscribe' || d.reason === 'topup') { showTopupModal({ blocked: true }); }
     throw new Error(d.error || 'This run needs an active plan — see Pricing.');
   }
   // charges a flat 1-credit data run (search / lookup / comparison / model run).
@@ -818,10 +824,42 @@
       if (d.metered && typeof d.remaining === 'number') { _billing.credits = d.remaining; updateCreditBadge(); }
       return true;
     }
-    toast(d.error || 'This run needs credits \u2014 see Pricing.', 'error', 6000);
-    if (d.reason === 'signin') setTimeout(() => { location.href = 'signin.html'; }, 1600);
-    else if (d.reason === 'subscribe' || d.reason === 'topup') setTimeout(() => { location.href = 'pricing.html'; }, 2400);
+    if (d.reason === 'signin') { toast(d.error || 'Sign in to run this tool.', 'error', 5000); setTimeout(() => { location.href = 'signin.html'; }, 1600); }
+    else if (d.reason === 'subscribe' || d.reason === 'topup') { showTopupModal({ blocked: true }); }
+    else toast(d.error || 'This run needs credits \u2014 see Pricing.', 'error', 6000);
     return false;
+  }
+  // top-up reminder pop-up \u2014 shown when a run is blocked, or once per session when credits run low
+  function showTopupModal(opts = {}) {
+    if (document.getElementById('topup-modal')) return; // never stack
+    const b = _billing || {};
+    const credits = opts.credits != null ? opts.credits : (typeof b.credits === 'number' ? b.credits : 0);
+    const tu = b.topupInr || 199, tc = b.topupCredits || 25, pi = b.priceInr || 499, mc = b.monthlyCredits || 150;
+    const out = credits <= 0;
+    const title = (opts.blocked || out) ? 'You\u2019re out of run credits' : 'Running low on run credits';
+    const line = opts.blocked
+      ? 'This run needs more credits than you have. Top up to keep going \u2014 or wait for your free monthly allowance to refresh.'
+      : `You have ${credits} credit${credits === 1 ? '' : 's'} left. Top up now so your research isn\u2019t interrupted.`;
+    const ov = document.createElement('div');
+    ov.id = 'topup-modal';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:220;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML = `<div role="dialog" aria-modal="true" aria-label="Top up credits" style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-md);max-width:420px;width:100%;padding:24px 22px 20px;text-align:center">
+      <div style="font-size:30px;line-height:1;color:var(--accent-strong)">${icon('sparkle', 30)}</div>
+      <h2 style="margin:10px 0 4px;font-size:20px">${esc(title)}</h2>
+      <p class="hint" style="margin:0 0 16px">${esc(line)}</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <a href="pricing.html" style="text-decoration:none"><button type="button" style="width:100%;justify-content:center">Top up \u2014 \u20b9${tu} for ${tc} credits</button></a>
+        <a href="pricing.html" style="text-decoration:none"><button type="button" class="ghost" style="width:100%;justify-content:center">Go Pro \u2014 \u20b9${pi}/mo for ${mc} credits</button></a>
+        <button type="button" class="ghost" id="topup-later" style="width:100%;justify-content:center;border:none;box-shadow:none">Maybe later</button>
+      </div>
+      <p class="hint" style="margin:12px 0 0;font-size:11.5px">Browsing and keyless tools stay free \u00b7 an admin can also grant you credits.</p>
+    </div>`;
+    const close = () => { ov.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+    document.body.appendChild(ov);
+    document.getElementById('topup-later').onclick = close;
+    document.addEventListener('keydown', onKey);
   }
   function updateCreditBadge() {
     if (!_billing) return;
@@ -1481,7 +1519,7 @@
 
   window.Rewiseed = {
     renderNav, renderSettingsBar, openSettings, billingStatus, checkText, assertTextAllowed, aiDisclaimer,
-    verifyCitations, renderCitationCheck, exportPDF, meterDataRun, RUN_COSTS, STEP_GROUPS,
+    verifyCitations, renderCitationCheck, exportPDF, meterDataRun, showTopupModal, RUN_COSTS, STEP_GROUPS,
     callLLM, md, esc, icon, toast, track,
     downloadText, copyText, getCfg, clearApiKey, isLocalUrl,
     mountStreamingTool, playIntro, saveToLibrary, fetchWithTimeout,

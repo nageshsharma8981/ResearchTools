@@ -56,7 +56,8 @@ CREATE TABLE IF NOT EXISTS access_allow (
 for (const col of ["terms_version TEXT NOT NULL DEFAULT ''", 'terms_accepted_at INTEGER NOT NULL DEFAULT 0', "tool_access TEXT NOT NULL DEFAULT ''", 'seen_intro INTEGER NOT NULL DEFAULT 0',
   // billing
   "plan TEXT NOT NULL DEFAULT 'free'", "plan_status TEXT NOT NULL DEFAULT ''", 'credits INTEGER NOT NULL DEFAULT 0', 'credits_reset_at INTEGER NOT NULL DEFAULT 0',
-  'free_run_used INTEGER NOT NULL DEFAULT 0', 'free_reset_at INTEGER NOT NULL DEFAULT 0', "rzp_customer_id TEXT NOT NULL DEFAULT ''", "rzp_subscription_id TEXT NOT NULL DEFAULT ''"]) {
+  'free_run_used INTEGER NOT NULL DEFAULT 0', 'free_reset_at INTEGER NOT NULL DEFAULT 0', "rzp_customer_id TEXT NOT NULL DEFAULT ''", "rzp_subscription_id TEXT NOT NULL DEFAULT ''",
+  'credits_reminded_at INTEGER NOT NULL DEFAULT 0']) {
   try { db.exec(`ALTER TABLE users ADD COLUMN ${col}`); } catch { /* already present */ }
 }
 db.exec(`CREATE TABLE IF NOT EXISTS payments (
@@ -267,6 +268,20 @@ const confirmEmailHtml = (name, link) => `
   <p style="color:#716b60;font-size:13px">This link expires in 24 hours. If you didn't create an account, ignore this email.</p>
 </div>`;
 
+const SITE_URL = process.env.SITE_URL || 'https://www.itsmyresearch.com';
+const topupReminderHtml = (name, credits) => `
+<div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;padding:24px">
+  <h2 style="color:#1c1a17">You're out of run credits${name ? ', ' + String(name).replace(/[<>&]/g, '') : ''}</h2>
+  <p style="color:#44403a;line-height:1.6">Your ItsMyResearch balance is now <b>${Math.max(0, credits | 0)} credit${(credits | 0) === 1 ? '' : 's'}</b>, so AI tools are paused until you top up or your monthly free allowance refreshes.</p>
+  <p style="color:#44403a;line-height:1.6">Two ways to keep going:</p>
+  <ul style="color:#44403a;line-height:1.7">
+    <li><b>Top up</b> — ₹${TOPUP_AMOUNT_PAISE / 100} for ${TOPUP_CREDITS} run credits, one-time.</li>
+    <li><b>Go Pro</b> — ₹${PLAN_AMOUNT_PAISE / 100}/month for ${MONTHLY_CREDITS} credits that stack on your free allowance.</li>
+  </ul>
+  <p><a href="${SITE_URL}/pricing.html" style="background:#211e1a;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Top up my credits</a></p>
+  <p style="color:#716b60;font-size:13px">You're receiving this because you have an ItsMyResearch account and just ran out of credits. We'll only send this at most once a month.</p>
+</div>`;
+
 // ---------- captcha: drag-to-match, server-verified ----------
 const CAPTCHA_POOL = [
   ['🦉', 'owl'], ['🐢', 'turtle'], ['🐝', 'bee'], ['🦊', 'fox'], ['🐘', 'elephant'],
@@ -331,6 +346,17 @@ const PLAN_AMOUNT_PAISE = 49900;
 const TOPUP_AMOUNT_PAISE = 19900;
 // run weight by input size: the heavy-document guardrail
 const runWeight = (chars) => chars <= 20_000 ? 1 : chars <= 80_000 ? 2 : chars <= 200_000 ? 4 : 0;
+
+// email a user a top-up reminder when they hit zero credits — at most once per 30 days
+function maybeSendCreditReminder(u) {
+  if (!u || !BILLING_ENFORCED) return;
+  if (['admin', 'superadmin'].includes(u.role)) return; // staff are never metered
+  const row = db.prepare('SELECT email, name, credits, credits_reminded_at FROM users WHERE id = ?').get(u.id);
+  if (!row || row.credits > 0) return;                                        // only when truly out
+  if (now() - (row.credits_reminded_at || 0) < 30 * 24 * 3600_000) return;    // reminded recently
+  db.prepare('UPDATE users SET credits_reminded_at = ? WHERE id = ?').run(now(), u.id); // stamp first (dedupe concurrent 402s)
+  sendEmail(row.email, "You're out of ItsMyResearch credits — top up to keep going", topupReminderHtml(row.name, row.credits)).catch(() => {});
+}
 
 async function rzp(pathname, method = 'GET', body = null) {
   const r = await fetch(`https://api.razorpay.com/v1${pathname}`, {
@@ -1288,6 +1314,7 @@ app.post('/api/paper-unlock', requireAuth, (req, res) => {
     return { ok: false, have: cur.credits };
   })();
   if (result.ok) return res.json({ ok: true, metered: true, cost, remaining: result.remaining });
+  maybeSendCreditReminder(req.user); // out of credits → reminder email (rate-limited)
   res.status(402).json({ error: `Unlocking the full paper costs ${cost} credits — you have ${result.have}. Top up ₹${TOPUP_AMOUNT_PAISE / 100} for ${TOPUP_CREDITS} credits, or subscribe to Pro.`, reason: 'topup', cost });
 });
 
@@ -1342,6 +1369,7 @@ app.post('/api/run-credit', (req, res) => {
     return { ok: false, active: cur.plan_status === 'active', freeUsed: !!cur.free_run_used, weight: w };
   })();
   if (result.ok) return res.json({ ...result, metered: true });
+  maybeSendCreditReminder(u); // out of credits → reminder email (rate-limited)
   const heavyFirst = !result.freeUsed && result.weight > 2;
   res.status(402).json({
     error: heavyFirst
