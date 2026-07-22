@@ -99,19 +99,75 @@ $('run').innerHTML = `${icon('play', 15)} Preview the paper (free)`;
 $('ai-disc').innerHTML = Rewiseed.aiDisclaimer() + '<br/><b style="color:var(--accent-strong)">On citations especially:</b> AI-suggested references may not be real. Verify every one with the DOI Finder and replace any that don’t resolve before you cite them.';
 
 // ---------- paper structures (section word-weights sum ~= 1) ----------
+// Structures follow the official APA 7 sample papers: the Introduction is the
+// paper title as a heading (no "Introduction" label), Level-2 (##) subheadings
+// carry the parts named in each section's guide, and empirical papers use APA
+// statistical notation. Each section = [title, word-weight, writing guide].
 const TYPES = {
   litreview: { name: 'Literature Review', desc: 'synthesize a body of work', prisma: true,
-    sections: [['Abstract', .05], ['Introduction', .12], ['Review Methodology', .09], ['Thematic Synthesis', .34], ['Discussion', .20], ['Conclusion', .08], ['References', .12]] },
+    sections: [
+      ['Abstract', .05, ''],
+      ['Introduction', .12, 'Establish the topic’s importance and scope, define the key constructs, state the guiding review question, and lay out the organizing framework the synthesis will follow.'],
+      ['Review Methodology', .09, 'Describe how the literature was identified and selected: databases searched, search terms, date range, and inclusion/exclusion criteria. If systematic, follow PRISMA 2020 (identification → screening → eligibility → inclusion).'],
+      ['Thematic Synthesis', .33, 'Organize by THEME, never article-by-article. Use a Level-2 (##) subheading for each theme; within each, compare and contrast findings across studies, note where evidence converges and contradicts, and cite several sources per claim.'],
+      ['Discussion', .19, 'Synthesize what the body of work collectively shows, weigh the strength and consistency of the evidence, and surface the tensions and gaps that remain.'],
+      ['Future Directions', .09, 'Translate the gaps into specific, researchable directions and the questions each would answer.'],
+      ['Conclusion', .06, 'Restate the central insight and its significance in a few sentences. Introduce no new evidence.'],
+      ['References', .07, '']] },
   quant: { name: 'Quantitative', desc: 'hypotheses, data, statistics',
-    sections: [['Abstract', .04], ['Introduction', .12], ['Literature Review', .18], ['Methods', .16], ['Results', .16], ['Discussion', .18], ['Conclusion', .06], ['References', .10]] },
+    sections: [
+      ['Abstract', .04, ''],
+      ['Introduction', .18, 'State the problem and its significance and weave the relevant prior research directly into the argument (APA folds the literature review into the introduction). End with explicit, numbered hypotheses or research questions.'],
+      ['Method', .19, 'Past tense. Use Level-2 (##) subheadings: Participants (sampling, final N, key demographics), Measures (each instrument with reliability/validity evidence), Procedure (what participants actually did), and Research Design (design and the planned statistical analyses).'],
+      ['Results', .19, 'Report findings WITHOUT interpretation. Give descriptive statistics (M, SD) then inferential tests in APA notation — e.g., t(df) = 2.34, p = .02; F(1, 358) = 23.51, p < .001, ηp² = .06 — and refer to tables/figures as “Table 1”, “Figure 1”.'],
+      ['Discussion', .20, 'Interpret the results against the hypotheses and prior work. Use Level-2 (##) subheadings: Theoretical Implications, Limitations and Future Directions, and Practical Implications.'],
+      ['Conclusion', .05, 'State the take-home message and why it matters, briefly.'],
+      ['References', .15, '']] },
   qual: { name: 'Qualitative', desc: 'meaning, themes, interviews',
-    sections: [['Abstract', .04], ['Introduction', .12], ['Literature Review', .17], ['Methodology', .16], ['Findings', .22], ['Discussion', .17], ['Conclusion', .06], ['References', .06]] },
+    sections: [
+      ['Abstract', .04, ''],
+      ['Introduction', .16, 'Frame the phenomenon and its significance, review the relevant literature, state the research question(s), and name the qualitative tradition (e.g., phenomenology, grounded theory, thematic analysis).'],
+      ['Method', .18, 'Use Level-2 (##) subheadings: Study Design (tradition and rationale), Participants (sampling strategy, N, setting), Procedure (data collection — interviews, observation), Ethics (consent, confidentiality, IRB/ethics approval), and Data Analysis (coding approach, how themes were derived, steps taken for trustworthiness).'],
+      ['Findings', .24, 'Organize by theme, with a Level-2 (##) subheading per theme. Support each theme with representative participant quotes in quotation marks, attributed to pseudonyms. Report what was found, not what it means.'],
+      ['Discussion', .18, 'Interpret the themes against existing literature. Use Level-2 (##) subheadings: Limitations and Conclusions.'],
+      ['References', .16, '']] },
+  mixed: { name: 'Mixed Methods', desc: 'integrate numbers and narrative',
+    sections: [
+      ['Abstract', .04, ''],
+      ['Introduction', .16, 'Frame the problem and why it needs both strands of evidence. State research questions that require quantitative AND qualitative data, and name the mixed methods design (convergent, explanatory sequential, or exploratory sequential).'],
+      ['Method', .19, 'Use Level-2 (##) subheadings: Context, Participants, Measures (quantitative instruments and qualitative protocols), and Procedure and Analysis (how each strand was collected and analysed and how the two are integrated).'],
+      ['Results', .22, 'Use Level-2 (##) subheadings: Quantitative Results (descriptives and inferential tests in APA notation) and Qualitative Results (themes with representative quotes). Report without interpreting.'],
+      ['Discussion', .19, 'Integrate the two strands — where they converge, diverge, or complement each other. Use Level-2 (##) subheadings: Limitations and Conclusion.'],
+      ['References', .15, '']] },
   experimental: { name: 'Experimental', desc: 'design, manipulation, effects',
-    sections: [['Abstract', .04], ['Introduction', .12], ['Theoretical Framework & Hypotheses', .10], ['Method', .18], ['Results', .18], ['Discussion', .20], ['Conclusion', .06], ['References', .12]] },
+    sections: [
+      ['Abstract', .04, ''],
+      ['Introduction', .16, 'Establish the problem and its significance and review the prior work that motivates the experiment.'],
+      ['Theoretical Framework & Hypotheses', .10, 'Develop the conceptual model and state each hypothesis explicitly (H1, H2 …) with the reasoning behind it.'],
+      ['Method', .18, 'Past tense, Level-2 (##) subheadings: Participants, Design (independent and dependent variables, conditions, the manipulation), Materials, and Procedure.'],
+      ['Results', .18, 'Report manipulation checks first, then each hypothesis test in APA statistical notation (t, F, p, effect sizes), referring to tables/figures. No interpretation here.'],
+      ['Discussion', .19, 'Interpret against the hypotheses. Level-2 (##) subheadings: Theoretical Implications, Limitations and Future Directions, and Practical Implications.'],
+      ['Conclusion', .05, 'State the key finding and its significance briefly.'],
+      ['References', .10, '']] },
   theoretical: { name: 'Theoretical', desc: 'build a framework or model',
-    sections: [['Abstract', .04], ['Introduction', .13], ['Theoretical Background', .22], ['Proposed Framework & Propositions', .26], ['Discussion & Implications', .21], ['Conclusion', .07], ['References', .07]] },
+    sections: [
+      ['Abstract', .04, ''],
+      ['Introduction', .13, 'Establish the conceptual problem and why a new framework is needed; preview the argument.'],
+      ['Theoretical Background', .22, 'Review and critique the existing theories and constructs relevant to the framework, organized by concept with a Level-2 (##) subheading per major idea.'],
+      ['Proposed Framework & Propositions', .26, 'Present the new conceptual model and state formal, numbered propositions (P1, P2 …), explaining the logic that links the constructs. Describe the model figure if one is implied.'],
+      ['Discussion & Implications', .21, 'Explain how the framework advances theory and what it implies for future research and for practice.'],
+      ['Conclusion', .07, 'Restate the contribution succinctly; add no new claims.'],
+      ['References', .07, '']] },
   case: { name: 'Case Study', desc: 'a real organization, decision, or event', caseStudy: true,
-    sections: [['Abstract', .09], ['Introduction', .13], ['Background & Context', .17], ['Case Description', .22], ['Analysis & Discussion', .21], ['Lessons & Implications', .08], ['Conclusion', .04], ['References', .06]] },
+    sections: [
+      ['Abstract', .09, ''],
+      ['Introduction', .13, 'Introduce the case and the question it illuminates, and why it is worth examining.'],
+      ['Background & Context', .17, 'Describe the organization or setting and the situation, giving the reader the background needed to follow the case.'],
+      ['Case Description', .22, 'Narrate the decision, event, or intervention in detail — what happened, who was involved, and the sequence of events.'],
+      ['Analysis & Discussion', .21, 'Apply relevant theory or frameworks to analyse the case, connecting the evidence to concepts.'],
+      ['Lessons & Implications', .08, 'Draw the generalizable lessons and the practical implications for readers facing similar situations.'],
+      ['Conclusion', .04, 'Close with the central takeaway.'],
+      ['References', .06, '']] },
 };
 // submission-standard length ranges (word count includes references, tables, appendices)
 const RANGE = () => paperType === 'case' ? [2000, 4000] : [5000, 8000];
@@ -160,8 +216,16 @@ function sectionSystem(title, words, ctx) {
   const abstractNote = /^abstract$/i.test(title)
     ? ' The abstract MUST be 200\u2013300 words and clearly outline, in this order: (1) the purpose and objectives of the study, (2) the research methodology, (3) the key findings, and (4) the practical and theoretical implications. Immediately after the abstract text, add one final line starting with "**Keywords:** " followed by 4\u20136 comma-separated keywords.' : '';
   const [lo, hi] = RANGE();
-  return `You are an academic author writing ONE section of a ${TYPES[paperType].name.toLowerCase()} research paper for the field of "${ctx.field || 'the stated discipline'}". The full manuscript targets the journal submission standard: APA 7th Edition throughout, total length ${lo.toLocaleString()}\u2013${hi.toLocaleString()} words including references, tables, and appendices. Write the "${title}" section only, in scholarly prose, targeting about ${words} words.${abstractNote}${prismaNote}
-Rules: use formal academic register and APA 7 in-text citation style (Author, Year). Where you cite, the references must be plausible and consistent with any provided key references, but mark the whole paper's citations as requiring verification — never claim a specific DOI. Do not repeat the section heading. Do not write other sections. Use Markdown; use ### subheadings within the section only if it genuinely helps. If this is the References section, produce an alphabetical APA 7 reference list of the works you cited, and begin it with the line: "> AI-suggested references — verify each with the DOI Finder before citing; replace any that do not resolve."`;
+  const guide = ((plan && plan.find(s => s.title === title)) || {}).guide || '';
+  const guideNote = guide ? `\nWhat this section must contain: ${guide}` : '';
+  return `You are an academic author writing ONE section of a ${TYPES[paperType].name.toLowerCase()} research paper for the field of "${ctx.field || 'the stated discipline'}". The full manuscript follows the APA 7th Edition Publication Manual and targets the journal submission standard: total length ${lo.toLocaleString()}–${hi.toLocaleString()} words including references, tables, and appendices. Write the "${title}" section only, in scholarly prose, targeting about ${words} words.${guideNote}${abstractNote}${prismaNote}
+APA 7 conventions to follow:
+- The section heading is a Level-1 heading; any subsections named above are Level-2 headings. In Markdown write each Level-2 subheading as "## Subheading Name" in Title Case, and go deeper (### Level-3) only if genuinely needed. Do NOT restate the section's own title as a heading.
+- Formal, precise academic register. Method and Results are written in the past tense; avoid first person unless it is natural for a qualitative account.
+- In-text citations in author–date form: (Author, Year); (Author & Author, Year); (Author et al., Year) for three or more authors. Use "&" inside parentheses and "and" in running prose. Spell out a group author with its abbreviation on first mention, then use the abbreviation.
+- Report statistics in APA notation where relevant (M, SD, t, F, p, and effect sizes such as d, r, or ηp²).
+- Cited references must be plausible and consistent with any provided key references, but the whole paper's citations require verification — never fabricate or claim a specific DOI.
+Do not write other sections. If this is the References section, produce an alphabetical, hanging-indent APA 7 reference list of exactly the works cited in the paper, and begin it with the line: "> AI-suggested references — verify each with the DOI Finder before citing; replace any that do not resolve."`;
 }
 function sectionUser(title, ctx) {
   return `Paper working title: ${ctx.topic}
@@ -318,7 +382,7 @@ $('run').onclick = async () => {
   if (!topic) { toast('Give the paper a topic or working title', 'error'); $('topic').focus(); return; }
   meta = { topic, field: $('field').value.trim(), rq: $('rq').value.trim(), refs: $('refs').value.trim() };
   const total = +$('length').value;
-  plan = TYPES[paperType].sections.map(([title, w]) => ({ title, words: Math.round(total * w) }));
+  plan = TYPES[paperType].sections.map(([title, w, guide]) => ({ title, words: Math.round(total * w), guide: guide || '' }));
   sections = {};
   generating = true; $('run').disabled = true;
   renderPaper();

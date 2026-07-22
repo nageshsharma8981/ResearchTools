@@ -70,12 +70,12 @@
       <label>Instructor <input id="m-instr" placeholder="Dr. A. Professor"/></label>
       <label>Due date <input id="m-date" placeholder="July 18, 2026"/></label>
       <label>Paper type (APA only)
-        <select id="m-type"><option value="student">Student paper</option><option value="professional">Professional (running head)</option><option value="ggu">Thesis / dissertation</option></select>
+        <select id="m-type"><option value="student">Student paper</option><option value="professional">Professional (running head)</option><option value="thesis">Thesis / dissertation</option></select>
       </label>
-      <label class="full" id="ggu-inst-wrap" hidden>Institution <input id="m-inst" placeholder="[University Name]"/></label>
-      <label class="full" id="ggu-degree-wrap" hidden>Degree &amp; program <input id="m-degree" placeholder="[Degree and Program, e.g. Doctor of Philosophy (PhD) in …]"/></label>
-      <label id="ggu-chair-wrap" hidden>Committee Chair <input id="m-chair" placeholder="Dr. Chair Name"/></label>
-      <label id="ggu-cochair-wrap" hidden>Committee Co-Chair <input id="m-cochair" placeholder="Dr. Co-Chair Name"/></label>
+      <label class="full" id="thesis-inst-wrap" hidden>Institution <input id="m-inst" placeholder="[University Name]"/></label>
+      <label class="full" id="thesis-degree-wrap" hidden>Degree &amp; program <input id="m-degree" placeholder="[Degree and Program, e.g. Doctor of Philosophy (PhD) in …]"/></label>
+      <label id="thesis-chair-wrap" hidden>Committee Chair <input id="m-chair" placeholder="Dr. Chair Name"/></label>
+      <label id="thesis-cochair-wrap" hidden>Committee Co-Chair <input id="m-cochair" placeholder="Dr. Co-Chair Name"/></label>
     </div>
     <div class="row">
       <label style="display:inline-flex;align-items:center;gap:7px;font-size:13.5px;color:var(--ink-2);font-weight:600">
@@ -104,9 +104,9 @@ $('out').innerHTML = EMPTY;
 
 const styleSel = () => $('m-style').value;
 const setRunLabel = () => {
-  const ggu = styleSel() === 'apa7' && $('m-type').value === 'ggu';
-  $('run').innerHTML = `${icon('play', 15)} Format as ${ggu ? 'thesis / dissertation (APA 7)' : STYLES[styleSel()].label}`;
-  ['ggu-inst-wrap', 'ggu-degree-wrap', 'ggu-chair-wrap', 'ggu-cochair-wrap'].forEach(id => { $(id).hidden = !ggu; });
+  const thesis = styleSel() === 'apa7' && $('m-type').value === 'thesis';
+  $('run').innerHTML = `${icon('play', 15)} Format as ${thesis ? 'thesis / dissertation (APA 7)' : STYLES[styleSel()].label}`;
+  ['thesis-inst-wrap', 'thesis-degree-wrap', 'thesis-chair-wrap', 'thesis-cochair-wrap'].forEach(id => { $(id).hidden = !thesis; });
 };
 document.addEventListener('DOMContentLoaded', () => {
   setRunLabel();
@@ -301,12 +301,12 @@ function refParaLinked(text, urls) {
 }
 function buildDocx(text, meta, styleKey) {
   const st = STYLES[styleKey] || STYLES.apa7;
-  const ggu = styleKey === 'apa7' && meta.type === 'ggu';
+  const thesis = styleKey === 'apa7' && meta.type === 'thesis';
   const paras = [];
   const urls = []; // external hyperlink targets (thesis references)
   let refN = 0;
   // --- front matter ---
-  if (ggu) {
+  if (thesis) {
     // dissertation title page (modeled on standard university thesis templates)
     for (let i = 0; i < 3; i++) paras.push(para('', { center: true }));
     paras.push(para(meta.title || 'Untitled Dissertation', { bold: true, center: true }));
@@ -350,7 +350,7 @@ function buildDocx(text, meta, styleKey) {
   }
   // --- body: line-based parse so single newlines after headings work ---
   // dissertations don't repeat the title before Chapter 1 — chapters open their own pages
-  let inRefs = false, first = styleKey !== 'mla9' && !ggu, buf = [];
+  let inRefs = false, first = styleKey !== 'mla9' && !thesis, buf = [];
   const flushBuf = () => {
     if (!buf.length) return;
     const t = buf.join(' ').replace(/\s+/g, ' ').trim();
@@ -369,7 +369,7 @@ function buildDocx(text, meta, styleKey) {
       if (inRefs) { title = st.ref; refN = 0; } // keep the section title style-true
       // thesis mode: every Level-1 section (chapters, appendices, front matter) starts a new page;
       // ### renders as APA Level 3 (flush left, bold italic)
-      paras.push(para(title, { bold: true, italic: h[1].length === 3, center: h[1].length === 1, pageBreak: first || inRefs || (ggu && h[1].length === 1) }));
+      paras.push(para(title, { bold: true, italic: h[1].length === 3, center: h[1].length === 1, pageBreak: first || inRefs || (thesis && h[1].length === 1) }));
       first = false;
     } else if (!t) {
       flushBuf();
@@ -380,7 +380,7 @@ function buildDocx(text, meta, styleKey) {
         entry = entry.replace(/^(\[\d+\]|\d+[.)])\s*/, ''); // strip any existing number
         entry = st.numbered === 'bracket' ? `[${++refN}] ${entry}` : `${++refN}. ${entry}`;
       }
-      if (ggu && /https?:\/\//.test(entry)) paras.push(refParaLinked(entry, urls));
+      if (thesis && /https?:\/\//.test(entry)) paras.push(refParaLinked(entry, urls));
       else paras.push(para(entry, { hanging: true, italicRuns: true }));
     } else {
       buf.push(t);
@@ -393,7 +393,7 @@ function buildDocx(text, meta, styleKey) {
   if (styleKey === 'mla9') {
     const lastName = (meta.author || '').trim().split(/\s+/).pop() || '';
     headerRuns = `<w:r>${RPR}<w:tab/></w:r><w:r>${RPR}<w:t xml:space="preserve">${X(lastName)} </w:t></w:r>${PAGEFLD}`;
-  } else if (styleKey === 'apa7' && (meta.type === 'professional' || meta.type === 'ggu') && meta.title) {
+  } else if (styleKey === 'apa7' && (meta.type === 'professional' || meta.type === 'thesis') && meta.title) {
     // thesis: left-aligned ALL-CAPS running head (≤50 chars) + right page number, every page
     headerRuns = `<w:r>${RPR}<w:t xml:space="preserve">${X(meta.title.toUpperCase().slice(0, 50))}</w:t></w:r><w:r>${RPR}<w:tab/></w:r>${PAGEFLD}`;
   } else {
@@ -456,8 +456,17 @@ $('clear-doc').addEventListener('click', () => {
 
 // ---------- orchestration ----------
 const STYLE_RULES = {
-  apa7: `- Fix every in-text citation to APA 7 author–date form: (Walker, 2017); (Chang et al., 2015) for 3+ authors; "&" inside parentheses, "and" in prose.
-- Rebuild the reference section, headed exactly "# References": alphabetical by first author surname, APA 7 format (Author, A. A. (Year). Title of work. *Journal Name, Volume*(Issue), pages. https://doi.org/...). Wrap journal names, book titles, and volume numbers in *asterisks* (they become italics).`,
+  apa7: `- Fix every in-text citation to APA 7 author–date form: (Walker, 2017); (Chang & Lee, 2019); (Chang et al., 2015) for THREE OR MORE authors from the first citation onward; "&" inside parentheses, "and" in running prose. Narrative form: Walker (2017) found… For a group author, give the full name with its abbreviation on first mention — (National Institute of Mental Health [NIMH], 2020) — then (NIMH, 2020). Direct quotations add a page or paragraph number: (Walker, 2017, p. 24).
+- Rebuild the reference section, headed exactly "# References": alphabetical by first author surname, hanging indent, each entry on its own line. Titles of articles, chapters, books, and reports use SENTENCE CASE (capitalize only the first word, the first word after a colon, and proper nouns); journal names use Title Case and are italicized along with the volume number. Wrap everything that must be italic in *asterisks*. Give the DOI as a full link https://doi.org/... when one exists. List up to 20 authors; for 21+, list the first 19, an ellipsis …, then the final author. Use "&" before the last author. Follow these exact patterns:
+  - Journal article with DOI: Nulty, D. D. (2008). The adequacy of response rates to online and paper surveys: What can be done? *Assessment & Evaluation in Higher Education, 33*(3), 301–314. https://doi.org/10.1080/02602930701293231
+  - Journal article, no DOI: Dewar, J. M. (2011). Helping stakeholders understand the limitations of SRT data: Are we doing enough? *Journal of Faculty Development, 25*(3), 40–44.
+  - Authored book: Berk, R. A. (2013). *Top 10 flashpoints in student ratings and the evaluation of teaching*. Stylus.
+  - Edited book: Gilovich, T., Griffin, D., & Kahneman, D. (Eds.). (2002). *Heuristics and biases: The psychology of intuitive judgment*. Cambridge University Press. https://doi.org/10.1017/CBO9780511808098
+  - Chapter in an edited book: White, J. R. (2000). Introduction. In J. R. White & A. S. Freeman (Eds.), *Cognitive-behavioral group therapy: For specific problems and populations* (pp. 3–25). American Psychological Association.
+  - Report / group author: American Psychological Association. (2017). *Stress in America: The state of our nation*. https://www.apa.org/news/press/releases/stress/2017/state-nation.pdf
+  - Web page: Hardy, K. (2017, October 8). *Mindfulness is plentiful in "The post-traumatic insomnia workbook."* Veterans Training Support Center. https://example.org/mindfulness
+  - Author with a suffix: Menzies, V., Lyon, D. E., Elswick, R. K., Jr., McCain, N. L., & Gray, D. P. (2014). Effects of guided imagery on biobehavioral factors in women with fibromyalgia. *Journal of Behavioral Medicine, 37*(1), 70–80.
+  - Same author, same year: disambiguate with letters — Boysen, G. A. (2015a). … Boysen, G. A. (2015b). … and cite as (Boysen, 2015a).`,
   mla9: `- Fix every in-text citation to MLA 9 form: (Walker 24) — author and page with NO comma; when the author is named in the prose, only the page goes in parentheses. Use year-free citations; if no page exists (websites), author name alone.
 - Rebuild the reference section, headed exactly "# Works Cited": alphabetical by author surname, MLA 9 core-element format (Author. "Title of Source." *Title of Container*, vol. X, no. X, Year, pp. XX–XX.). Wrap container titles (journals, books, sites) in *asterisks*.`,
   chicago: `- Fix every in-text citation to Chicago 17 author–date form: (Walker 2017); with page: (Walker 2017, 24); multiple authors (Chang et al. 2015).
@@ -483,7 +492,7 @@ $('run').onclick = async () => {
   if (!text) { toast('Paste or load your paper first', 'error'); $('in').focus(); return; }
   const styleKey = styleSel(), st = STYLES[styleKey];
   const meta = { title: $('m-title').value.trim(), author: $('m-author').value.trim(), affil: $('m-affil').value.trim(), course: $('m-course').value.trim(), instr: $('m-instr').value.trim(), date: $('m-date').value.trim(), type: $('m-type').value, inst: $('m-inst').value.trim(), degree: $('m-degree').value.trim(), chair: $('m-chair').value.trim(), cochair: $('m-cochair').value.trim() };
-  const isGgu = styleKey === 'apa7' && meta.type === 'ggu';
+  const isThesis = styleKey === 'apa7' && meta.type === 'thesis';
   if (!meta.title) { toast('A paper title is needed', 'error'); $('m-title').focus(); return; }
   if (styleKey === 'mla9' && !meta.author) { toast('MLA needs your name for the first-page heading and the “Lastname 1” header', 'error'); $('m-author').focus(); return; }
   running = true; const btn = $('run'); btn.disabled = true;
@@ -504,7 +513,7 @@ $('run').onclick = async () => {
       let raf = 0, pending = '';
       const paint = () => { $('apa-stream').innerHTML = `<div class="cursor-blink">${md(pending)}</div>`; raf = 0; };
       const cleaned = await Rewiseed.callLLM({
-        system: aiSys(styleKey) + (isGgu ? `
+        system: aiSys(styleKey) + (isThesis ? `
 
 This paper is a university thesis/dissertation. Additionally:
 - Keep chapter structure in Level 1 headings labeled "# Chapter N. Title" (e.g. "# Chapter 1. Introduction", "# Chapter 2. Review of the Literature"). Do not invent chapters that aren't there, but normalize existing chapter headings to that form.
@@ -535,10 +544,10 @@ This paper is a university thesis/dissertation. Additionally:
       .replace(/[^\p{L}\p{N}\s-]+/gu, '')
       .trim().replace(/\s+/g, '-').toLowerCase()
       .slice(0, 60).replace(/^-+|-+$/g, '');
-    const fname = (slug.length >= 3 ? slug : 'paper') + '-' + (isGgu ? 'thesis-apa7' : st.slug) + '.docx';
+    const fname = (slug.length >= 3 ? slug : 'paper') + '-' + (isThesis ? 'thesis-apa7' : st.slug) + '.docx';
     out.insertAdjacentHTML('beforeend', `
-      <div class="card"><span class="overline">Result</span><h2>Your ${isGgu ? 'thesis / dissertation (APA 7)' : esc(st.label)} document</h2>
-        <p class="hint">${isGgu ? 'Thesis format: dissertation title page (By / degree / institution — placeholders like [University Name] fill any field you leave blank), committee approval page with signature lines, Table of Contents field (right-click → Update Field in Word), ALL-CAPS running head left + page number right on every page, each chapter and appendix on a new page, APA headings (Level 3 bold italic), hanging-indent References with URLs as live blue underlined links.' : esc(st.mech)}</p>
+      <div class="card"><span class="overline">Result</span><h2>Your ${isThesis ? 'thesis / dissertation (APA 7)' : esc(st.label)} document</h2>
+        <p class="hint">${isThesis ? 'Thesis format: dissertation title page (By / degree / institution — placeholders like [University Name] fill any field you leave blank), committee approval page with signature lines, Table of Contents field (right-click → Update Field in Word), ALL-CAPS running head left + page number right on every page, each chapter and appendix on a new page, APA headings (Level 3 bold italic), hanging-indent References with URLs as live blue underlined links.' : esc(st.mech)}</p>
         <div class="dl-hero"><span class="big">${icon('doc', 28)}</span>
           <div style="min-width:0">
             <b style="font-size:14px;overflow-wrap:anywhere">${esc(fname)}</b>
