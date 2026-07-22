@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" type="image/png" href="favicon.png"/>
+<link rel="apple-touch-icon" href="favicon.png"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Paper Q&amp;A — ItsMyResearch</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ItsMyResearch"/>
+<meta property="og:title" content="Paper Q&amp;A — ItsMyResearch"/>
+<meta property="og:description" content="Ask questions of your own papers and get answers grounded in the text, with the exact source and quote — processed in your browser, never uploaded."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/paper-qa"/>
+<meta property="og:image" content="https://www.itsmyresearch.com/og-card.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://www.itsmyresearch.com/og-card.png"/>
+<meta name="twitter:title" content="Paper Q&amp;A — ItsMyResearch"/>
+<meta name="twitter:description" content="Ask your own papers questions — grounded, cited answers, processed privately in your browser."/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+  .sources { display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+  .src-item { display:flex; align-items:flex-start; gap:10px; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; }
+  .src-item .tag { font-family:var(--font-mono,monospace); font-weight:700; color:var(--accent-strong); font-size:13px; flex:0 0 auto; }
+  .src-item .meta { flex:1 1 auto; min-width:0; }
+  .src-item .nm { font-size:13.5px; font-weight:600; color:var(--ink); word-break:break-word; }
+  .src-item .wc { font-size:12px; color:var(--muted); }
+  .src-item button { flex:0 0 auto; min-height:28px; padding:2px 10px; font-size:12px; }
+  .chatlog { display:flex; flex-direction:column; gap:14px; }
+  .msg { display:flex; gap:10px; max-width:100%; }
+  .msg .who { flex:0 0 auto; width:30px; height:30px; border-radius:50%; display:grid; place-items:center; font-size:13px; font-weight:700; }
+  .msg.user .who { background:var(--accent-soft); color:var(--accent-strong); }
+  .msg.ai .who { background:var(--surface-2); color:var(--ink-2); border:1px solid var(--border); }
+  .msg .bubble { flex:1 1 auto; min-width:0; }
+  .msg.user .bubble { font-weight:500; }
+  .msg .bubble p:first-child { margin-top:0; }
+  .msg .bubble p:last-child { margin-bottom:0; }
+  .cite { display:inline-block; font-family:var(--font-mono,monospace); font-size:11px; font-weight:700; color:var(--accent-strong); background:var(--accent-soft); border-radius:5px; padding:0 5px; margin:0 1px; }
+  .ask-row { display:flex; gap:8px; align-items:flex-end; margin-top:14px; }
+  .ask-row textarea { min-height:46px; max-height:180px; resize:vertical; }
+  .suggests { display:flex; gap:7px; flex-wrap:wrap; margin-top:10px; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Paper Q&amp;A</h1>
+  <p class="lede">Load your own papers and ask them questions — every answer is grounded strictly in the text you provide, with the source and the supporting quote. Your documents are read in your browser and never uploaded to us.</p>
+</div>
+<main class="split">
+  <div id="settings"></div>
+
+  <div class="card input-card">
+    <h2>Your sources</h2>
+    <p class="hint">Add one or more papers — upload <code>.pdf</code>, <code>.docx</code>, or <code>.txt</code>, or paste text. Each becomes a numbered source the answers can cite, e.g. <span class="cite">S1</span>.</p>
+    <div class="chip-row" style="margin-bottom:8px">
+      <label class="chip" style="display:inline-flex;align-items:center;cursor:pointer">Upload paper<input id="file" type="file" accept=".pdf,.docx,.txt,.md" multiple style="display:none"/></label>
+      <button type="button" class="chip" id="paste-toggle">Paste text</button>
+      <button type="button" class="chip" id="example">Load example</button>
+      <span id="fstatus" class="hint" style="align-self:center;margin:0"></span>
+    </div>
+    <div id="paste-wrap" hidden>
+      <input id="paste-name" placeholder="Source name (e.g. Smith 2024)" style="margin-bottom:6px"/>
+      <textarea id="paste-in" placeholder="Paste the paper text here…" style="min-height:120px"></textarea>
+      <div class="row"><button type="button" class="ghost" id="paste-add">Add this source</button></div>
+    </div>
+    <div class="sources" id="sources"></div>
+  </div>
+
+  <div class="card" id="chat-card" hidden>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <h2 style="margin:0">Ask your papers</h2>
+      <button type="button" class="ghost" id="clear-chat" style="min-height:30px;padding:3px 12px;font-size:12.5px">Clear conversation</button>
+    </div>
+    <p class="hint" id="ai-note" style="margin:6px 0 12px"></p>
+    <div class="chatlog" id="chatlog"></div>
+    <div class="suggests" id="suggests"></div>
+    <div class="ask-row">
+      <textarea id="q" placeholder="Ask a question about your sources…" aria-label="Your question"></textarea>
+      <button id="send" style="flex:0 0 auto"></button>
+    </div>
+    <span class="hint" style="display:block;margin-top:6px"><kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd> to send · each question costs credits by how much source text is in context</span>
+  </div>
+</main>
+
+<script src="shared.js"></script>
+<script src="doc-extract.js"></script>
+<script>
+const { esc, icon, toast, md } = Rewiseed;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('paper-qa.html');
+Rewiseed.renderSettingsBar('settings');
+$('hero-icon').innerHTML = icon('chat', 26);
+$('send').innerHTML = `${icon('play', 15)} Ask`;
+$('ai-note').innerHTML = Rewiseed.aiDisclaimer() + ' Answers are drawn only from your sources; if something isn’t in them, the assistant will say so — but always verify quotes against the original.';
+
+// ---------- sources ----------
+let sources = [];   // { name, text }
+const MAX_SOURCES = 8;
+const CTX_BUDGET = 120000; // characters of source text sent as context (kept under the 200k run ceiling)
+
+function renderSources() {
+  const box = $('sources');
+  if (!sources.length) { box.innerHTML = ''; $('chat-card').hidden = true; return; }
+  box.innerHTML = sources.map((s, i) => `
+    <div class="src-item">
+      <span class="tag">S${i + 1}</span>
+      <div class="meta"><div class="nm">${esc(s.name)}</div><div class="wc">${s.text.split(/\s+/).filter(Boolean).length.toLocaleString()} words</div></div>
+      <button type="button" class="ghost" data-rm="${i}">Remove</button>
+    </div>`).join('');
+  box.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { sources.splice(+b.dataset.rm, 1); renderSources(); });
+  $('chat-card').hidden = false;
+  if (!chat.length) renderSuggests();
+}
+function addSource(name, text) {
+  text = (text || '').trim();
+  if (!text) { toast('That source had no readable text', 'error'); return; }
+  if (sources.length >= MAX_SOURCES) { toast(`Up to ${MAX_SOURCES} sources at once`, 'error'); return; }
+  sources.push({ name: name || `Source ${sources.length + 1}`, text });
+  renderSources();
+}
+
+$('file').addEventListener('change', async () => {
+  const files = [...$('file').files]; $('file').value = '';
+  for (const f of files) {
+    $('fstatus').innerHTML = `<span class="spinner"></span> reading ${esc(f.name)}…`;
+    try { addSource(f.name.replace(/\.[^.]+$/, ''), await RewiseedDocExtract.extract(f)); $('fstatus').innerHTML = ''; }
+    catch (e) { $('fstatus').innerHTML = `<span class="badge warn">${esc(f.name)}: ${esc(e.message)}</span>`; }
+  }
+});
+$('paste-toggle').onclick = () => { $('paste-wrap').hidden = !$('paste-wrap').hidden; };
+$('paste-add').onclick = () => {
+  addSource($('paste-name').value.trim(), $('paste-in').value);
+  $('paste-name').value = ''; $('paste-in').value = ''; $('paste-wrap').hidden = true;
+};
+$('example').onclick = () => {
+  addSource('Ng & Rivera (2024) — Remote work & productivity',
+    `Title: The productivity paradox of remote work: A longitudinal study.\nAbstract: We tracked 1,240 knowledge workers across 18 months as their organizations shifted to hybrid and fully remote arrangements. Self-reported productivity rose 7% on average, but manager-rated output was flat, and collaboration-dependent tasks slowed by 12%. Fully remote workers reported higher focus but weaker informal knowledge transfer.\nMethod: Longitudinal survey (4 waves) plus objective task-completion logs from project software. Sample: 1,240 employees in 6 firms (tech, finance, consulting).\nResults: Individual focus work improved (d = 0.34). Cross-team tasks showed longer cycle times (M = 4.8 vs 4.3 days). Junior employees reported the largest drop in mentoring access.\nDiscussion: The productivity gains are real but uneven; they concentrate in solo work and erode in tasks that need spontaneous coordination. We recommend structured "collaboration windows" rather than blanket return-to-office mandates.`);
+  toast('Example paper added — try the suggested questions');
+};
+
+// ---------- chat ----------
+let chat = [];   // { role:'user'|'assistant', content }
+let busy = false;
+
+const SUGGESTS = ['Summarize the main finding in two sentences', 'What method and sample were used?', 'What are the stated limitations?', 'Which claims are best supported by evidence?'];
+function renderSuggests() {
+  $('suggests').innerHTML = SUGGESTS.map(s => `<button type="button" class="chip" data-sg="${esc(s)}">${esc(s)}</button>`).join('');
+  $('suggests').querySelectorAll('[data-sg]').forEach(b => b.onclick = () => { $('q').value = b.dataset.sg; ask(); });
+}
+function renderChat() {
+  $('chatlog').innerHTML = chat.map(m => `
+    <div class="msg ${m.role === 'user' ? 'user' : 'ai'}">
+      <span class="who">${m.role === 'user' ? 'You' : icon('logo', 16)}</span>
+      <div class="bubble">${m.role === 'user' ? esc(m.content) : renderAnswer(m.content)}</div>
+    </div>`).join('');
+  $('suggests').style.display = chat.length ? 'none' : 'flex';
+}
+// turn [S2] markers into styled citation chips
+function renderAnswer(text) {
+  let html = md(text || '');
+  html = html.replace(/\[S(\d+)\]/g, (m, n) => `<span class="cite">S${n}</span>`);
+  return html;
+}
+
+function buildSystem() {
+  const budget = Math.floor(CTX_BUDGET / Math.max(1, sources.length));
+  const corpus = sources.map((s, i) => {
+    let t = s.text;
+    if (t.length > budget) t = t.slice(0, budget) + `\n…[source S${i + 1} truncated for length]`;
+    return `<<<SOURCE S${i + 1}: ${s.name}>>>\n${t}`;
+  }).join('\n\n');
+  return `You are a careful research assistant answering questions about a specific set of source documents.
+RULES:
+- Answer ONLY using the provided sources. Do not use outside knowledge or invent facts.
+- Cite the source of every claim inline using its tag in square brackets, e.g. [S1], [S2]. When you quote, quote the source's own words in quotation marks.
+- If the answer is not contained in the sources, say plainly: "The sources provided don't cover that." Do not guess.
+- Be concise and scholarly. Use short Markdown where it helps (bold, lists). Do not fabricate page numbers or DOIs.
+
+THE SOURCES:
+${corpus}`;
+}
+
+async function ask() {
+  if (busy) return;
+  const q = $('q').value.trim();
+  if (!q) { $('q').focus(); return; }
+  if (!sources.length) { toast('Add at least one source first', 'error'); return; }
+  busy = true; $('send').disabled = true; $('q').value = '';
+  chat.push({ role: 'user', content: q });
+  chat.push({ role: 'assistant', content: '' });
+  renderChat();
+  const idx = chat.length - 1;
+  // conversation context: prior turns (trimmed) + the new question
+  const history = chat.slice(0, -1).filter(m => m.content).map(m => `${m.role === 'user' ? 'Q' : 'A'}: ${m.content}`).slice(-6).join('\n\n');
+  const user = `${history ? 'Conversation so far:\n' + history + '\n\n' : ''}New question: ${q}`;
+  try {
+    let acc = '';
+    await Rewiseed.callLLM({
+      system: buildSystem(), user, temperature: 0.2, maxTokens: 1400,
+      onStream: (delta) => { acc += delta; chat[idx].content = acc; $('chatlog').children[idx].querySelector('.bubble').innerHTML = renderAnswer(acc); },
+    });
+    if (!acc.trim()) { chat[idx].content = '_(no answer returned — try rephrasing)_'; }
+    Rewiseed.track('run');
+  } catch (e) {
+    chat[idx].content = '';
+    chat.splice(idx, 1); // drop the empty assistant turn
+    renderChat();
+    if (!/credits|Pro|sign in|API key/i.test(e.message)) toast(e.message, 'error', 6000);
+    else $('chatlog').insertAdjacentHTML('beforeend', `<div class="msg ai"><span class="who">!</span><div class="bubble"><div class="error-box">${icon('alert', 15)}<span>${esc(e.message)}</span></div></div></div>`);
+  } finally {
+    busy = false; $('send').disabled = false; renderChat();
+    $('chat-card').scrollIntoView({ block: 'end', behavior: 'smooth' });
+  }
+}
+$('send').onclick = ask;
+$('q').addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); ask(); } });
+$('clear-chat').onclick = () => { chat = []; renderChat(); renderSuggests(); };
+</script>
+</body>
+</html>

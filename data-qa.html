@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" type="image/png" href="favicon.png"/>
+<link rel="apple-touch-icon" href="favicon.png"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
+<title>Data Q&amp;A — ItsMyResearch</title>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ItsMyResearch"/>
+<meta property="og:title" content="Data Q&amp;A — ItsMyResearch"/>
+<meta property="og:description" content="Ask your dataset questions in plain language. Summary statistics and charts are computed in your browser for accuracy; the AI explains them. Your data never leaves your device."/>
+<meta property="og:url" content="https://www.itsmyresearch.com/data-qa"/>
+<meta property="og:image" content="https://www.itsmyresearch.com/og-card.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://www.itsmyresearch.com/og-card.png"/>
+<meta name="twitter:title" content="Data Q&amp;A — ItsMyResearch"/>
+<meta name="twitter:description" content="Ask your dataset questions in plain language — stats computed locally, explained by AI, private by design."/>
+<link rel="stylesheet" href="shared.css"/>
+<script>(function(){var t=localStorage.getItem('rewiseed_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();</script>
+<style>
+  .prof-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .prof-table th, .prof-table td { text-align:left; padding:6px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  .prof-table th { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+  .prof-table td.num { font-variant-numeric:tabular-nums; text-align:right; }
+  .pill { font-family:var(--font-mono,monospace); font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:999px; }
+  .pill.numeric { background:var(--accent-soft); color:var(--accent-strong); }
+  .pill.text { background:var(--surface-2); color:var(--ink-2); border:1px solid var(--border); }
+  .qc-row { display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-top:6px; }
+  .qc-row label { font-size:12.5px; display:flex; flex-direction:column; gap:3px; }
+  .qc-row select { min-height:34px; }
+  #chart svg { max-width:100%; height:auto; }
+  .chatlog { display:flex; flex-direction:column; gap:14px; }
+  .msg { display:flex; gap:10px; }
+  .msg .who { flex:0 0 auto; width:30px; height:30px; border-radius:50%; display:grid; place-items:center; font-size:13px; font-weight:700; }
+  .msg.user .who { background:var(--accent-soft); color:var(--accent-strong); }
+  .msg.ai .who { background:var(--surface-2); color:var(--ink-2); border:1px solid var(--border); }
+  .msg .bubble { flex:1 1 auto; min-width:0; }
+  .msg .bubble p:first-child { margin-top:0; } .msg .bubble p:last-child { margin-bottom:0; }
+  .ask-row { display:flex; gap:8px; align-items:flex-end; margin-top:14px; }
+  .ask-row textarea { min-height:46px; max-height:180px; resize:vertical; }
+  .suggests { display:flex; gap:7px; flex-wrap:wrap; margin-top:10px; }
+  .tablewrap { overflow-x:auto; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <span class="tool-icon" id="hero-icon"></span>
+  <h1>Data Q&amp;A</h1>
+  <p class="lede">Upload a dataset and ask it questions in plain language. Summary statistics, correlations, and charts are computed in your browser — so the numbers are exact and your data never leaves your device — and the assistant explains what they mean.</p>
+</div>
+<main class="split">
+  <div id="settings"></div>
+
+  <div class="card input-card">
+    <h2>Your dataset</h2>
+    <p class="hint">A <code>.csv</code> or <code>.tsv</code> with a header row. Everything is parsed and analysed locally — nothing is uploaded to us.</p>
+    <div class="chip-row" style="margin-bottom:8px">
+      <label class="chip" style="display:inline-flex;align-items:center;cursor:pointer">Upload CSV / TSV<input id="file" type="file" accept=".csv,.tsv,.txt" style="display:none"/></label>
+      <button type="button" class="chip" id="paste-toggle">Paste data</button>
+      <button type="button" class="chip" id="example">Load example</button>
+      <span id="fstatus" class="hint" style="align-self:center;margin:0"></span>
+    </div>
+    <div id="paste-wrap" hidden>
+      <textarea id="paste-in" placeholder="Paste comma- or tab-separated data with a header row…" style="min-height:120px"></textarea>
+      <div class="row"><button type="button" class="ghost" id="paste-add">Use this data</button></div>
+    </div>
+  </div>
+
+  <div class="card" id="profile-card" hidden>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <h2 style="margin:0">Overview</h2>
+      <span id="dims" class="hint" style="margin:0"></span>
+    </div>
+    <div class="tablewrap" style="margin-top:10px"><table class="prof-table" id="prof"></table></div>
+
+    <h3 style="margin:18px 0 4px;font-size:15px">Quick chart</h3>
+    <div class="qc-row">
+      <label>Chart<select id="qc-type"><option value="hist">Histogram</option><option value="scatter">Scatter</option><option value="bar">Bar (category means)</option></select></label>
+      <label>Column / X<select id="qc-x"></select></label>
+      <label id="qc-y-wrap">Y (numeric)<select id="qc-y"></select></label>
+      <button type="button" class="ghost" id="qc-draw" style="min-height:34px">Draw</button>
+    </div>
+    <div id="chart" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card" id="chat-card" hidden>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <h2 style="margin:0">Ask your data</h2>
+      <button type="button" class="ghost" id="clear-chat" style="min-height:30px;padding:3px 12px;font-size:12.5px">Clear conversation</button>
+    </div>
+    <p class="hint" id="ai-note" style="margin:6px 0 12px"></p>
+    <div class="chatlog" id="chatlog"></div>
+    <div class="suggests" id="suggests"></div>
+    <div class="ask-row">
+      <textarea id="q" placeholder="Ask a question about your data…" aria-label="Your question"></textarea>
+      <button id="send" style="flex:0 0 auto"></button>
+    </div>
+    <span class="hint" style="display:block;margin-top:6px"><kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd> to send · the assistant reasons over locally-computed statistics, so cited numbers are exact</span>
+  </div>
+</main>
+
+<script src="shared.js"></script>
+<script>
+const { esc, icon, toast, md } = Rewiseed;
+const $ = (id) => document.getElementById(id);
+Rewiseed.renderNav('data-qa.html');
+Rewiseed.renderSettingsBar('settings');
+$('hero-icon').innerHTML = icon('grid', 26);
+$('send').innerHTML = `${icon('play', 15)} Ask`;
+$('ai-note').innerHTML = Rewiseed.aiDisclaimer() + ' Descriptive statistics and charts are computed exactly in your browser; the AI interprets them. For confirmatory modelling (PLS-SEM), hand off to <a class="link" href="statpls.html">StatPLS</a>.';
+
+// ---------- parsing ----------
+let ds = null; // { rows:[{col:val}], cols:[{name,type,stats}], n }
+function parse(text) {
+  const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
+  if (lines.length < 2) throw new Error('Need a header row plus at least one data row.');
+  const head = lines[0];
+  const delim = [',', '\t', ';'].sort((a, b) => head.split(b).length - head.split(a).length)[0];
+  const split = (l) => l.split(delim).map(c => c.trim().replace(/^"|"$/g, ''));
+  const names = split(head).map((n, i) => n || `col${i + 1}`);
+  const rows = [];
+  for (let i = 1; i < lines.length && rows.length < 50000; i++) {
+    const cells = split(lines[i]); const r = {};
+    names.forEach((nm, j) => { r[nm] = (cells[j] ?? ''); });
+    rows.push(r);
+  }
+  const cols = names.map(name => {
+    const vals = rows.map(r => r[name]);
+    const nonEmpty = vals.filter(v => v !== '');
+    const nums = nonEmpty.map(Number);
+    const numeric = nonEmpty.length > 0 && nums.filter(v => !Number.isNaN(v)).length >= nonEmpty.length * 0.85;
+    const stats = { missing: vals.length - nonEmpty.length };
+    if (numeric) {
+      const x = nums.filter(v => !Number.isNaN(v)).sort((a, b) => a - b);
+      const n = x.length, sum = x.reduce((s, v) => s + v, 0), mean = sum / n;
+      const sd = Math.sqrt(x.reduce((s, v) => s + (v - mean) ** 2, 0) / Math.max(1, n - 1));
+      const q = (p) => x[Math.min(n - 1, Math.floor(p * (n - 1)))];
+      Object.assign(stats, { n, mean, sd, min: x[0], max: x[n - 1], median: q(0.5), q1: q(0.25), q3: q(0.75) });
+    } else {
+      const counts = {}; nonEmpty.forEach(v => counts[v] = (counts[v] || 0) + 1);
+      const top = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      Object.assign(stats, { unique: top.length, top: top.slice(0, 6) });
+    }
+    return { name, type: numeric ? 'numeric' : 'text', stats };
+  });
+  return { rows, cols, n: rows.length };
+}
+function setData(d, label) {
+  ds = d;
+  $('dims').textContent = `${d.n.toLocaleString()} rows · ${d.cols.length} columns`;
+  $('fstatus').innerHTML = `<span class="badge ok">${icon('check', 11)} ${esc(label)}</span>`;
+  renderProfile(); buildChartControls();
+  $('profile-card').hidden = false; $('chat-card').hidden = false;
+  chat = []; renderChat(); renderSuggests();
+}
+const fmt = (v) => (v == null || Number.isNaN(v)) ? '—' : (Math.abs(v) >= 1000 || Number.isInteger(v) ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : v.toFixed(3));
+function renderProfile() {
+  $('prof').innerHTML = `<thead><tr><th>Column</th><th>Type</th><th>Missing</th><th>Summary</th></tr></thead><tbody>` +
+    ds.cols.map(c => {
+      const s = c.stats;
+      const summary = c.type === 'numeric'
+        ? `mean ${fmt(s.mean)} · sd ${fmt(s.sd)} · range ${fmt(s.min)}–${fmt(s.max)} · median ${fmt(s.median)}`
+        : `${s.unique} unique · top: ${s.top.map(([v, n]) => `${esc(String(v)).slice(0, 18)} (${n})`).join(', ')}`;
+      return `<tr><td><b>${esc(c.name)}</b></td><td><span class="pill ${c.type}">${c.type}</span></td><td class="num">${s.missing}</td><td>${summary}</td></tr>`;
+    }).join('') + `</tbody>`;
+}
+
+// ---------- quick chart (SVG, computed locally) ----------
+function buildChartControls() {
+  const all = ds.cols.map(c => c.name), num = ds.cols.filter(c => c.type === 'numeric').map(c => c.name);
+  const opt = (arr) => arr.map(n => `<option>${esc(n)}</option>`).join('');
+  $('qc-x').innerHTML = opt(all); $('qc-y').innerHTML = opt(num);
+  syncChartControls();
+}
+$('qc-type').onchange = syncChartControls;
+function syncChartControls() {
+  const t = $('qc-type').value;
+  const num = ds.cols.filter(c => c.type === 'numeric').map(c => c.name);
+  const all = ds.cols.map(c => c.name);
+  $('qc-y-wrap').style.display = (t === 'hist') ? 'none' : 'flex';
+  $('qc-x').innerHTML = (t === 'hist' || t === 'scatter' ? num : all).map(n => `<option>${esc(n)}</option>`).join('');
+}
+$('qc-draw').onclick = drawChart;
+function drawChart() {
+  const t = $('qc-type').value, cx = $('qc-x').value, cy = $('qc-y').value;
+  const W = 560, H = 300, P = 44;
+  const axis = (x1, y1, x2, y2) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--border-strong)" stroke-width="1"/>`;
+  const txt = (x, y, s, anc = 'middle') => `<text x="${x}" y="${y}" font-size="11" fill="var(--muted)" text-anchor="${anc}">${esc(String(s))}</text>`;
+  let inner = '';
+  try {
+    if (t === 'hist') {
+      const v = ds.rows.map(r => Number(r[cx])).filter(x => !Number.isNaN(x));
+      const min = Math.min(...v), max = Math.max(...v), bins = 12, bw = (max - min) / bins || 1;
+      const counts = Array(bins).fill(0); v.forEach(x => counts[Math.min(bins - 1, Math.floor((x - min) / bw))]++);
+      const mx = Math.max(...counts);
+      inner = counts.map((c, i) => { const bh = (c / mx) * (H - 2 * P); const x = P + i * ((W - 2 * P) / bins); const w = (W - 2 * P) / bins - 2;
+        return `<rect x="${x}" y="${H - P - bh}" width="${w}" height="${bh}" fill="var(--accent)" opacity="0.85" rx="2"/>`; }).join('')
+        + axis(P, H - P, W - P, H - P) + txt(P, H - P + 16, fmt(min), 'start') + txt(W - P, H - P + 16, fmt(max), 'end') + txt(W / 2, H - 8, cx);
+    } else if (t === 'scatter') {
+      const pts = ds.rows.map(r => [Number(r[cx]), Number(r[cy])]).filter(p => !Number.isNaN(p[0]) && !Number.isNaN(p[1]));
+      const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+      const xmin = Math.min(...xs), xmax = Math.max(...xs), ymin = Math.min(...ys), ymax = Math.max(...ys);
+      const sx = (x) => P + ((x - xmin) / (xmax - xmin || 1)) * (W - 2 * P);
+      const sy = (y) => (H - P) - ((y - ymin) / (ymax - ymin || 1)) * (H - 2 * P);
+      inner = pts.slice(0, 3000).map(p => `<circle cx="${sx(p[0]).toFixed(1)}" cy="${sy(p[1]).toFixed(1)}" r="3" fill="var(--accent)" opacity="0.55"/>`).join('')
+        + axis(P, H - P, W - P, H - P) + axis(P, P, P, H - P)
+        + txt(W / 2, H - 8, cx) + `<text x="14" y="${H / 2}" font-size="11" fill="var(--muted)" text-anchor="middle" transform="rotate(-90 14 ${H / 2})">${esc(cy)}</text>`;
+    } else { // bar: category means of Y grouped by X
+      const g = {}; ds.rows.forEach(r => { const k = r[cx], y = Number(r[cy]); if (k === '' || Number.isNaN(y)) return; (g[k] = g[k] || []).push(y); });
+      const cats = Object.entries(g).map(([k, arr]) => [k, arr.reduce((s, v) => s + v, 0) / arr.length]).sort((a, b) => b[1] - a[1]).slice(0, 12);
+      const mx = Math.max(...cats.map(c => c[1])), bw2 = (W - 2 * P) / cats.length;
+      inner = cats.map((c, i) => { const bh = (c[1] / mx) * (H - 2 * P); const x = P + i * bw2;
+        return `<rect x="${x + 3}" y="${H - P - bh}" width="${bw2 - 6}" height="${bh}" fill="var(--accent)" opacity="0.85" rx="2"/>` + txt(x + bw2 / 2, H - P + 14, String(c[0]).slice(0, 8)); }).join('')
+        + axis(P, H - P, W - P, H - P) + txt(W / 2, H - 4, `mean ${esc(cy)} by ${esc(cx)}`);
+    }
+  } catch { inner = txt(W / 2, H / 2, 'Could not chart those columns'); }
+  $('chart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="chart">${inner}</svg>`;
+}
+
+// ---------- files ----------
+async function ingest(text, label) { try { setData(parse(text), label); } catch (e) { toast(e.message, 'error', 5000); } }
+$('file').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; await ingest(await f.text(), f.name); e.target.value = ''; };
+$('paste-toggle').onclick = () => { $('paste-wrap').hidden = !$('paste-wrap').hidden; };
+$('paste-add').onclick = () => { if ($('paste-in').value.trim()) ingest($('paste-in').value, 'pasted data'); };
+$('example').onclick = () => {
+  const rows = [['region', 'channel', 'price', 'ad_spend', 'units_sold', 'satisfaction']];
+  const regions = ['North', 'South', 'East', 'West'], channels = ['online', 'retail'];
+  let seed = 42; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+  for (let i = 0; i < 200; i++) {
+    const price = 10 + Math.round(rnd() * 40), ad = Math.round(rnd() * 500);
+    const units = Math.round(300 - price * 3 + ad * 0.4 + rnd() * 40);
+    rows.push([regions[i % 4], channels[i % 2], price, ad, Math.max(0, units), (3 + rnd() * 2).toFixed(1)]);
+  }
+  ingest(rows.map(r => r.join(',')).join('\n'), 'marketing example (n = 200)');
+  toast('Example dataset loaded — try the suggested questions');
+};
+
+// ---------- chat ----------
+let chat = [], busy = false;
+const SUGGESTS = ['Which variables are most strongly related?', 'Summarize the key patterns in this data', 'What predicts units_sold?', 'Are there any data quality issues?'];
+function renderSuggests() {
+  $('suggests').innerHTML = SUGGESTS.map(s => `<button type="button" class="chip" data-sg="${esc(s)}">${esc(s)}</button>`).join('');
+  $('suggests').querySelectorAll('[data-sg]').forEach(b => b.onclick = () => { $('q').value = b.dataset.sg; ask(); });
+}
+function renderChat() {
+  $('chatlog').innerHTML = chat.map(m => `
+    <div class="msg ${m.role === 'user' ? 'user' : 'ai'}">
+      <span class="who">${m.role === 'user' ? 'You' : icon('logo', 16)}</span>
+      <div class="bubble">${m.role === 'user' ? esc(m.content) : md(m.content || '')}</div>
+    </div>`).join('');
+  $('suggests').style.display = chat.length ? 'none' : 'flex';
+}
+// correlation matrix for numeric columns (computed locally, given to the model)
+function corrMatrix() {
+  const num = ds.cols.filter(c => c.type === 'numeric').map(c => c.name);
+  if (num.length < 2) return '';
+  const col = (nm) => ds.rows.map(r => Number(r[nm]));
+  const pearson = (a, b) => {
+    const pairs = a.map((v, i) => [v, b[i]]).filter(p => !Number.isNaN(p[0]) && !Number.isNaN(p[1]));
+    const n = pairs.length; if (n < 3) return NaN;
+    const ma = pairs.reduce((s, p) => s + p[0], 0) / n, mb = pairs.reduce((s, p) => s + p[1], 0) / n;
+    let cov = 0, va = 0, vb = 0;
+    pairs.forEach(p => { cov += (p[0] - ma) * (p[1] - mb); va += (p[0] - ma) ** 2; vb += (p[1] - mb) ** 2; });
+    return cov / Math.sqrt(va * vb || 1);
+  };
+  const data = num.map(a => col(a));
+  const out = [];
+  for (let i = 0; i < num.length; i++) for (let j = i + 1; j < num.length; j++) {
+    const r = pearson(data[i], data[j]); if (!Number.isNaN(r)) out.push(`${num[i]} ~ ${num[j]}: r = ${r.toFixed(2)}`);
+  }
+  return out.join('\n');
+}
+function buildSystem() {
+  const profile = ds.cols.map(c => {
+    const s = c.stats;
+    return c.type === 'numeric'
+      ? `- ${c.name} (numeric): n=${s.n}, mean=${fmt(s.mean)}, sd=${fmt(s.sd)}, min=${fmt(s.min)}, q1=${fmt(s.q1)}, median=${fmt(s.median)}, q3=${fmt(s.q3)}, max=${fmt(s.max)}, missing=${s.missing}`
+      : `- ${c.name} (categorical): ${s.unique} unique, top=[${s.top.map(([v, n]) => `${v}:${n}`).join(', ')}], missing=${s.missing}`;
+  }).join('\n');
+  const corr = corrMatrix();
+  const sample = [ds.cols.map(c => c.name).join(' | '), ...ds.rows.slice(0, 25).map(r => ds.cols.map(c => r[c.name]).join(' | '))].join('\n');
+  return `You are a rigorous data analyst helping interpret a dataset. All summary statistics below were computed exactly from the full dataset (${ds.n} rows) in the user's browser — treat them as ground truth.
+RULES:
+- Base every quantitative statement on the provided statistics or correlations. Quote the exact numbers given.
+- If a question needs a calculation not provided (e.g. a specific regression coefficient, a group comparison p-value), say what would be needed and, if you estimate from the 25-row sample, label it clearly as an approximation from a sample — never present it as exact.
+- Do not invent columns, values, or statistics. Be concise and use short Markdown (bold, lists, a small table) where it helps.
+- When useful, suggest which Quick chart (histogram / scatter / bar) the user should draw, or recommend StatPLS for confirmatory modelling.
+
+DATASET PROFILE (${ds.n} rows, ${ds.cols.length} columns):
+${profile}
+${corr ? '\nPAIRWISE CORRELATIONS (Pearson r, full data):\n' + corr : ''}
+
+FIRST 25 ROWS (sample only — for context, not for computing totals):
+${sample}`;
+}
+async function ask() {
+  if (busy) return;
+  const q = $('q').value.trim(); if (!q) { $('q').focus(); return; }
+  if (!ds) { toast('Load a dataset first', 'error'); return; }
+  busy = true; $('send').disabled = true; $('q').value = '';
+  chat.push({ role: 'user', content: q }); chat.push({ role: 'assistant', content: '' }); renderChat();
+  const idx = chat.length - 1;
+  const history = chat.slice(0, -1).filter(m => m.content).map(m => `${m.role === 'user' ? 'Q' : 'A'}: ${m.content}`).slice(-6).join('\n\n');
+  const user = `${history ? 'Conversation so far:\n' + history + '\n\n' : ''}New question: ${q}`;
+  try {
+    let acc = '';
+    await Rewiseed.callLLM({ system: buildSystem(), user, temperature: 0.2, maxTokens: 1400,
+      onStream: (delta) => { acc += delta; chat[idx].content = acc; $('chatlog').children[idx].querySelector('.bubble').innerHTML = md(acc); } });
+    if (!acc.trim()) chat[idx].content = '_(no answer returned — try rephrasing)_';
+    Rewiseed.track('run');
+  } catch (e) {
+    chat.splice(idx, 1); renderChat();
+    if (!/credits|Pro|sign in|API key/i.test(e.message)) toast(e.message, 'error', 6000);
+    else $('chatlog').insertAdjacentHTML('beforeend', `<div class="msg ai"><span class="who">!</span><div class="bubble"><div class="error-box">${icon('alert', 15)}<span>${esc(e.message)}</span></div></div></div>`);
+  } finally { busy = false; $('send').disabled = false; renderChat(); }
+}
+$('send').onclick = ask;
+$('q').addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); ask(); } });
+$('clear-chat').onclick = () => { chat = []; renderChat(); renderSuggests(); };
+</script>
+</body>
+</html>

@@ -262,6 +262,8 @@
     'smart-literature-finder.html': ['both', '1 credit per search · AI insights 1\u20134 more'],
     'bibliometrics.html': ['both', '1 credit per analysis · AI reading 1\u20134 more'],
     'citation-formatter.html': ['both', '1 credit per batch · AI mode 1\u20134'],
+    'paper-qa.html': ['ai', '1–4 credits per question, by source size'],
+    'data-qa.html': ['ai', '1–4 credits per question, by data size'],
     'originality-checker.html': ['ai', '1\u20134 credits per check, by document size'],
     'research-gap-identifier.html': ['ai', '1\u20134 credits per run, by input size'],
     'research-question-generator.html': ['ai', '1\u20134 credits per run, by input size'],
@@ -289,6 +291,7 @@
       { href: 'literature-matrix.html', icon: 'grid', name: 'Literature Synthesis Matrix' },
       { href: 'scholar-profiles.html', icon: 'user', name: 'Author & Institution Profiles' },
       { href: 'author-impact.html', icon: 'user', name: 'Author Impact Dashboard' },
+      { href: 'paper-qa.html', icon: 'chat', name: 'Paper Q&A' },
     ]},
     { n: 'III', name: 'Formulate hypotheses', tools: [
       { href: 'research-question-generator.html', icon: 'flask', name: 'Research Question Generator' },
@@ -303,6 +306,7 @@
     ]},
     { n: 'VI', name: 'Analyse the data', tools: [
       { href: 'statpls.html', icon: 'sigma', name: 'StatPLS' },
+      { href: 'data-qa.html', icon: 'grid', name: 'Data Q&A' },
       { href: 'qualitative-coding-assistant.html', icon: 'dna', name: 'Qualitative Coding Assistant' },
     ]},
     { n: 'VII', name: 'Interpret, write & report', tools: [
