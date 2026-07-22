@@ -276,7 +276,7 @@
     'writing-polisher.html': ['ai', '1\u20134 credits per run, by document size'],
     'rubric-lens.html': ['ai', '1\u20134 credits per run, by document size'],
     'abstract-generator.html': ['ai', '1\u20134 credits per run, by document size'],
-    'paper-generator.html': ['ai', '1 credit preview \u00b7 6 credits full-paper unlock'],
+    'paper-generator.html': ['ai', '6 credits per paper (whole paper in one pass)'],
   };
 
   const STEP_GROUPS = [
