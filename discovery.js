@@ -91,14 +91,22 @@
   }
 
   async function authorSearch(q) {
-    const r = await T(`${OA}/authors?search=${encodeURIComponent(q)}&per_page=5&select=id,display_name,works_count,cited_by_count,summary_stats,last_known_institutions,affiliations,orcid`);
+    const r = await T(`${OA}/authors?search=${encodeURIComponent(q)}&per_page=5&select=id,display_name,works_count,cited_by_count,summary_stats,counts_by_year,last_known_institutions,affiliations,orcid`);
     if (!r.ok) throw new Error(`OpenAlex returned ${r.status}`);
     return (await r.json()).results || [];
   }
   async function institutionSearch(q) {
-    const r = await T(`${OA}/institutions?search=${encodeURIComponent(q)}&per_page=5&select=id,display_name,works_count,cited_by_count,country_code,type,homepage_url,summary_stats`);
+    const r = await T(`${OA}/institutions?search=${encodeURIComponent(q)}&per_page=5&select=id,display_name,works_count,cited_by_count,country_code,type,homepage_url,summary_stats,counts_by_year`);
     if (!r.ok) throw new Error(`OpenAlex returned ${r.status}`);
     return (await r.json()).results || [];
+  }
+  // fetch the authoritative single record by id — freshest summary_stats + yearly counts
+  async function entityById(kind, id) {
+    const sel = kind === 'author'
+      ? 'id,display_name,works_count,cited_by_count,summary_stats,counts_by_year,last_known_institutions,affiliations,orcid'
+      : 'id,display_name,works_count,cited_by_count,country_code,type,homepage_url,summary_stats,counts_by_year';
+    const r = await T(`${OA}/${kind === 'author' ? 'authors' : 'institutions'}/${shortId(id)}?select=${sel}`);
+    return r.ok ? await r.json() : null;
   }
   async function topWorks(filterKey, id, n = 6) {
     const r = await T(`${OA}/works?filter=${filterKey}:${shortId(id)}&sort=cited_by_count:desc&per_page=${n}&select=id,doi,title,publication_year,authorships,cited_by_count,primary_location,open_access`);
@@ -110,6 +118,6 @@
 
   window.RewiseedDiscovery = {
     relatedFor, byTopics, renderRelated, paperCard, wireSaveButtons,
-    authorSearch, institutionSearch, topWorks, shortId, authorLine, PAYWALL_NOTE,
+    authorSearch, institutionSearch, entityById, topWorks, shortId, authorLine, PAYWALL_NOTE,
   };
 })();

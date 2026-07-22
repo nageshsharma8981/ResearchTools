@@ -202,9 +202,10 @@ function compute(works, authorIdSet) {
 }
 
 // ---------- charts ----------
+const PALETTE = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#6366F1', '#84CC16', '#06B6D4', '#D946EF', '#EAB308', '#F43F5E', '#0EA5E9', '#22C55E'];
 function hbars(entries, valFn, labFn, unit) {
   const max = Math.max(...entries.map(e => valFn(e)), 1);
-  return entries.map(e => `<div class="bar-row"><span class="lab" title="${esc(labFn(e))}">${esc(labFn(e))}</span><div class="bar" style="width:${Math.max(3, 100 * valFn(e) / max)}%"></div><span class="val">${unit ? valFn(e).toFixed(0) : num(valFn(e))}</span></div>`).join('');
+  return entries.map((e, i) => `<div class="bar-row"><span class="lab" title="${esc(labFn(e))}">${esc(labFn(e))}</span><div class="bar" style="width:${Math.max(3, 100 * valFn(e) / max)}%;background:${PALETTE[i % PALETTE.length]}"></div><span class="val">${unit ? valFn(e).toFixed(0) : num(valFn(e))}</span></div>`).join('');
 }
 function yearChart(byYear, key) {
   const pts = byYear.filter(([y]) => y >= 1950); if (pts.length < 2) return '<p class="hint">Not enough yearly data.</p>';
@@ -213,7 +214,7 @@ function yearChart(byYear, key) {
   const x = (i) => pL + i * (W - pL - pR) / (pts.length - 1);
   const y = (v) => pT + (H - pT - pB) * (1 - v / max);
   const bw = Math.max(4, (W - pL - pR) / pts.length - 4);
-  const bars = pts.map(([yr, v], i) => `<rect x="${(x(i) - bw / 2).toFixed(1)}" y="${y(v[key]).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H - pB - y(v[key])).toFixed(1)}" fill="var(--accent)" opacity="0.8"><title>${yr}: ${num(v[key])}</title></rect>`).join('');
+  const bars = pts.map(([yr, v], i) => `<rect x="${(x(i) - bw / 2).toFixed(1)}" y="${y(v[key]).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H - pB - y(v[key])).toFixed(1)}" rx="2" fill="${PALETTE[i % PALETTE.length]}"><title>${yr}: ${num(v[key])}</title></rect>`).join('');
   const step = Math.max(1, Math.ceil(pts.length / 12));
   const ticks = pts.map(([yr], i) => i % step === 0 || i === pts.length - 1 ? `<text x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--muted)">${yr}</text>` : '').join('');
   return `<svg viewBox="0 0 ${W} ${H}" role="img"><text x="${pL - 8}" y="14" text-anchor="end" font-size="10" fill="var(--muted)">${num(max)}</text><line x1="${pL}" y1="${H - pB}" x2="${W - pR}" y2="${H - pB}" stroke="var(--border)"/>${bars}${ticks}</svg>`;
