@@ -217,7 +217,7 @@ const cap = (s, n) => String(s ?? '')
 
 function publicUser(u, includePrivate = false) {
   const base = { id: u.id, email: u.email, name: u.name, role: u.role, org: u.org, photo: u.photo, linkedin: u.linkedin, twitter: u.twitter, about: u.about, tool_access: effectiveToolList(u), tool_override: parseToolAccess(u.tool_access), seen_intro: !!u.seen_intro };
-  if (includePrivate) { base.confirmed = !!u.confirmed; base.disabled = !!u.disabled; base.created_at = u.created_at; }
+  if (includePrivate) { base.confirmed = !!u.confirmed; base.disabled = !!u.disabled; base.created_at = u.created_at; base.credits = u.credits; base.plan_status = u.plan_status; }
   return base;
 }
 
@@ -857,6 +857,37 @@ app.put('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
   db.prepare(`UPDATE users SET ${sets} WHERE id=?`).run(...Object.values(updates), target.id);
   if (updates.disabled) db.prepare('DELETE FROM sessions WHERE user_id = ?').run(target.id);
   res.json({ user: publicUser(db.prepare('SELECT * FROM users WHERE id=?').get(target.id), true) });
+});
+
+// grant (or deduct) run credits for a specific user — admin goodwill, workshops, refunds
+app.post('/api/admin/users/:id/credits', requireAuth, requireAdmin, (req, res) => {
+  const target = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(req.params.id));
+  if (!target) return res.status(404).json({ error: 'User not found.' });
+  if (target.id === req.user.id) return res.status(400).json({ error: 'You cannot grant credits to yourself.' });
+  // staff (admin/superadmin) are never metered, so credits do nothing for them
+  if (!['basic', 'student', 'educator'].includes(target.role)) {
+    return res.status(400).json({ error: 'Staff accounts are never metered — credits do not apply to them.' });
+  }
+  // org admins may only top up their own institution's users
+  if (req.user.role === 'admin' && target.org !== req.user.org) {
+    return res.status(403).json({ error: 'You can only manage users of your own institution.' });
+  }
+  const amount = Math.trunc(Number((req.body || {}).amount));
+  if (!Number.isFinite(amount) || amount === 0) return res.status(400).json({ error: 'Enter a non-zero whole number of credits (use a negative number to deduct).' });
+  if (Math.abs(amount) > 5000) return res.status(400).json({ error: 'One adjustment is limited to ±5000 credits.' });
+  const result = db.transaction(() => {
+    const cur = db.prepare('SELECT credits FROM users WHERE id = ?').get(target.id).credits;
+    // keep the invariant credits <= CREDIT_CAP that top-ups/subscriptions rely on; never below 0
+    const next = Math.max(0, Math.min(cur + amount, CREDIT_CAP));
+    const applied = next - cur;
+    db.prepare('UPDATE users SET credits = ? WHERE id = ?').run(next, target.id);
+    // audit trail in the payments ledger — ₹0 so it never counts as revenue
+    db.prepare('INSERT INTO payments (user_id, rzp_payment_id, rzp_ref, kind, amount, credits, ts) VALUES (?,?,?,?,?,?,?)')
+      .run(target.id, 'admin:' + rand(12), req.user.email, applied >= 0 ? 'admin_grant' : 'admin_deduct', 0, applied, now());
+    return { next, applied };
+  })();
+  const capped = result.applied !== amount;
+  res.json({ ok: true, credits: result.next, applied: result.applied, capped, cap: CREDIT_CAP });
 });
 
 // ---------- statistics proxy (public data only, cached) ----------

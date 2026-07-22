@@ -166,9 +166,9 @@ async function load() {
         <td>${u.role !== 'superadmin' && u.id !== me.id
             ? `<select data-role="${u.id}" title="${esc(ROLE_BLURB[u.role] || '')}"><option value="basic" ${u.role === 'basic' ? 'selected' : ''}>basic</option><option value="student" ${u.role === 'student' ? 'selected' : ''}>student</option><option value="educator" ${u.role === 'educator' ? 'selected' : ''}>educator</option>${su ? `<option value="admin" ${u.role === 'admin' ? 'selected' : ''}>admin</option>` : ''}</select>`
             : `<span class="badge ${u.role === 'superadmin' ? 'gold' : ''}">${esc(u.role)}</span>`}</td>
-        <td>${u.disabled ? `<span class="badge warn">disabled</span>` : u.confirmed ? `<span class="badge ok">active</span>` : `<span class="badge">unconfirmed</span>`}</td>
+        <td>${u.disabled ? `<span class="badge warn">disabled</span>` : u.confirmed ? `<span class="badge ok">active</span>` : `<span class="badge">unconfirmed</span>`}${['basic', 'student', 'educator'].includes(u.role) ? `<br/><span class="hint" style="margin:0;white-space:nowrap">${u.plan_status === 'active' ? '★ ' : ''}<b data-creditbal="${u.id}">${u.credits ?? 0}</b> credits</span>` : ''}</td>
         <td>${u.role !== 'superadmin' && u.id !== me.id
-            ? `<button type="button" class="ghost" data-tools="${u.id}">Tools${u.tool_override && u.tool_override.length ? ` (${u.tool_override.length})` : ''}</button> <button type="button" class="${u.disabled ? '' : 'danger'}" data-toggle="${u.id}" data-disabled="${u.disabled ? 1 : 0}">${u.disabled ? 'Enable' : 'Disable'}</button>${
+            ? `<button type="button" class="ghost" data-tools="${u.id}">Tools${u.tool_override && u.tool_override.length ? ` (${u.tool_override.length})` : ''}</button> ${['basic', 'student', 'educator'].includes(u.role) ? `<button type="button" class="ghost" data-credits="${u.id}">Credits</button> ` : ''}<button type="button" class="${u.disabled ? '' : 'danger'}" data-toggle="${u.id}" data-disabled="${u.disabled ? 1 : 0}">${u.disabled ? 'Enable' : 'Disable'}</button>${
               su ? ` <button type="button" class="danger" data-del="${u.id}" data-email="${esc(u.email)}">Delete</button>` : ''}`
             : ''}</td>
       </tr>
@@ -191,7 +191,20 @@ async function load() {
             <button type="button" data-toolsave="${u.id}" style="min-height:36px;padding:6px 16px;font-size:13px">Save access</button>
           </div>
         </div>
-      </td></tr>`).join('')}
+      </td></tr>
+      ${['basic', 'student', 'educator'].includes(u.role) ? `<tr data-creditrow="${u.id}" hidden><td colspan="6" style="background:var(--surface-2)">
+        <div style="padding:6px 4px">
+          <b style="font-size:13px">Adjust credits for ${esc(u.email)}</b>
+          <p class="hint" style="margin:4px 0 8px">Current balance: <b data-creditbal2="${u.id}">${u.credits ?? 0}</b> credits. Add credits for workshops, goodwill or refunds; use a negative amount to deduct. Balance is capped at 300. Logged for audit and never counted as revenue.</p>
+          <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">
+            <button type="button" class="ghost" data-creditadd="${u.id}" data-amt="25" style="min-height:30px;padding:3px 12px;font-size:12px">+25</button>
+            <button type="button" class="ghost" data-creditadd="${u.id}" data-amt="50" style="min-height:30px;padding:3px 12px;font-size:12px">+50</button>
+            <button type="button" class="ghost" data-creditadd="${u.id}" data-amt="100" style="min-height:30px;padding:3px 12px;font-size:12px">+100</button>
+            <input type="number" step="1" data-creditamt="${u.id}" placeholder="custom (– to deduct)" style="max-width:180px"/>
+            <button type="button" data-creditapply="${u.id}" style="min-height:34px;padding:5px 14px;font-size:13px">Apply</button>
+          </div>
+        </div>
+      </td></tr>` : ''}`).join('')}
     </tbody></table></div>
     ${r.users.length === 0 ? `<p class="hint" style="margin-top:12px">No users in scope yet.</p>` : ''}
   </div>`;
@@ -255,6 +268,27 @@ async function load() {
   document.querySelectorAll('[data-tools]').forEach(b => b.onclick = () => {
     const row = document.querySelector(`[data-toolrow="${b.dataset.tools}"]`);
     row.hidden = !row.hidden;
+  });
+  document.querySelectorAll('[data-credits]').forEach(b => b.onclick = () => {
+    const row = document.querySelector(`[data-creditrow="${b.dataset.credits}"]`);
+    row.hidden = !row.hidden;
+  });
+  async function applyCredit(id, amount) {
+    const n = Math.trunc(Number(amount));
+    if (!Number.isFinite(n) || n === 0) return toast('Enter a non-zero whole number of credits.', 'error', 4000);
+    try {
+      const r = await api(`/api/admin/users/${id}/credits`, { method: 'POST', body: { amount: n } });
+      // update both balance readouts in place so the row stays open for further edits
+      document.querySelectorAll(`[data-creditbal="${id}"], [data-creditbal2="${id}"]`).forEach(el => { el.textContent = r.credits; });
+      const amt = document.querySelector(`[data-creditamt="${id}"]`); if (amt) amt.value = '';
+      toast(r.capped ? `Applied ${r.applied >= 0 ? '+' : ''}${r.applied} (capped at ${r.cap}). New balance: ${r.credits}.`
+                     : `${r.applied >= 0 ? 'Added' : 'Deducted'} ${Math.abs(r.applied)} credits. New balance: ${r.credits}.`, 'ok', 4500);
+    } catch (e) { toast(e.message, 'error', 5000); }
+  }
+  document.querySelectorAll('[data-creditadd]').forEach(b => b.onclick = () => applyCredit(b.dataset.creditadd, b.dataset.amt));
+  document.querySelectorAll('[data-creditapply]').forEach(b => b.onclick = () => {
+    const id = b.dataset.creditapply;
+    applyCredit(id, document.querySelector(`[data-creditamt="${id}"]`).value);
   });
   document.querySelectorAll('[data-toolpreset]').forEach(b => b.onclick = () => {
     const id = b.dataset.toolpreset, preset = b.dataset.preset;
