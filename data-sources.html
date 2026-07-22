@@ -44,6 +44,7 @@
       <span class="chip-row" id="tag-chips"></span>
     </div>
     <p class="hint" style="margin:8px 0 0"><span class="badge ok">in-app</span> means you can pull the data inside ReWiseEd right now · <span class="badge">portal</span> means the source has no open API, so the honest answer is a good link.</p>
+    <p class="hint" style="margin:6px 0 0">Every source listed here is <b>publicly accessible and free to reuse</b> — official statistics from governments and international organizations, published under open or public-domain terms. None require a paid subscription or an institutional login. Follow each provider's attribution requirement when you cite or redistribute (the citation format below covers this).</p>
   </div>
   <div class="card"><div id="list"></div></div>
   <div class="card">
@@ -105,21 +106,11 @@ const SOURCES = [
     covers: 'Japanese trade and investment statistics, market-entry surveys, and country business reports in English.',
     span: 'Report-based rather than continuous series; recent years emphasised.',
     note: 'Reports and PDFs, no API. Strong qualitative-plus-quantitative context for trade and market-entry research.' },
-  { name: 'globalEDGE Statistical Data Sources', url: 'https://globaledge.msu.edu/global-resources/statistical-data-sources/', access: 'portal',
-    tags: ['meta', 'global', 'business', 'directory'],
-    covers: 'Michigan State curated index pointing to hundreds of national and international statistical agencies.',
-    span: 'n/a — it is a directory of directories.',
-    note: 'Start here when you need a country statistical office you have never used before.' },
-  { name: 'US Government Statistics (Michigan guide)', url: 'https://guides.lib.umich.edu/govstatistics', access: 'portal',
-    tags: ['united states', 'meta', 'government', 'directory'],
-    covers: 'Library guide to US federal statistics: Census, BLS, BEA, FRED, data.gov and agency-specific sources.',
-    span: 'n/a — guide.',
-    note: 'The clearest map of the fragmented US federal statistical system. FRED in particular is excellent and has a free API.' },
-  { name: 'University Library Research Guides (LibGuides)', url: 'https://community.libguides.com/', access: 'open',
-    tags: ['dba', 'methods', 'library', 'directory'],
-    covers: 'Community directory of thousands of university library research guides — subject databases, methodology references, and dissertation resources curated by academic librarians.',
-    span: 'n/a — guide.',
-    note: 'Start from your own institution’s guide when you can; several linked databases need a university login.' },
+  { name: 'U.S. Federal Statistics — Data.gov, FRED, Census, BLS, BEA', url: 'https://data.gov/', access: 'portal',
+    tags: ['united states', 'government', 'economics', 'social'],
+    covers: 'The U.S. government open-data hub and the core public agencies behind it: FRED (macroeconomic time series), the Census Bureau, the Bureau of Labor Statistics, and the Bureau of Economic Analysis.',
+    span: 'Long historical series; FRED and Census reach back over a century for some indicators.',
+    note: 'U.S. federal data is public domain and free to reuse. FRED, Census, BLS, and BEA each publish free public APIs (a couple use a free registration key). No subscription or institutional login required.' },
 ];
 
 const ALL_TAGS = [...new Set(SOURCES.flatMap(s => s.tags))].sort();
