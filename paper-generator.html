@@ -7,10 +7,10 @@
 <link rel="apple-touch-icon" href="favicon.png"/>
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf9f6"/>
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131110"/>
-<title>Research Paper Generator — ItsMyResearch</title>
+<title>Research Paper Template Generator — ItsMyResearch</title>
 <meta property="og:type" content="website"/>
 <meta property="og:site_name" content="ItsMyResearch"/>
-<meta property="og:title" content="Research Paper Generator — ItsMyResearch"/>
+<meta property="og:title" content="Research Paper Template Generator — ItsMyResearch"/>
 <meta property="og:description" content="Draft a full structured research paper — literature review, qualitative, quantitative, experimental, or theoretical — with PRISMA support. Generates the complete, submission-formatted draft in one pass."/>
 <meta property="og:url" content="https://www.itsmyresearch.com/paper-generator"/>
 <meta property="og:image" content="https://www.itsmyresearch.com/og-card.png"/>
@@ -38,11 +38,26 @@
 <body>
 <div class="hero">
   <span class="tool-icon" id="hero-icon"></span>
-  <h1>Research Paper Generator</h1>
-  <p class="lede">Draft a complete, structured research paper — pick the type, set the topic, and get a full academic manuscript with the right sections, headings, and flow. It writes every section — abstract to references — in a single pass, formatted to the APA 7 submission standard.</p>
+  <h1>Research Paper Template Generator</h1>
+  <p class="lede">Generate a complete, structured research-paper <b>template</b> — pick the type, set the topic, and get a full manuscript scaffold with the right sections, headings, real recent references, and academic flow. The body is an AI-generated starting point: <b>replace its data, results, and examples with your own actual research before use.</b></p>
 </div>
 <main style="max-width:900px">
   <div id="settings"></div>
+
+  <div class="card" id="disclaimer-card" style="border-color:var(--accent);background:var(--accent-soft)">
+    <div style="display:flex;gap:12px;align-items:flex-start">
+      <span style="font-size:22px;line-height:1">⚠️</span>
+      <div>
+        <b style="font-size:14.5px;color:var(--ink)">Important — this is a template, not a finished paper. Read before use.</b>
+        <ul style="margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--ink-2);line-height:1.65">
+          <li><b>Replace the data with your own.</b> All content — especially data, results, statistics, figures, and worked examples — is AI-generated and illustrative. Substitute every number and finding with your own actual research and analysis.</li>
+          <li><b>Accuracy is not guaranteed.</b> AI output can be wrong, incomplete, biased, or fabricated. Independently verify every claim, statistic, and citation; confirm each reference with the DOI Finder and your target database.</li>
+          <li><b>Academic integrity is your responsibility.</b> Submitting AI-generated text as your own original work may breach your institution's or publisher's authorship and integrity rules. Disclose AI assistance where required; never use this to deceive reviewers or evade AI-detection.</li>
+          <li><b>You are the author and owner.</b> You are solely responsible for the final content — its accuracy, originality, ethics, and any consequences of its use. ItsMyResearch provides a drafting aid only and accepts no liability.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
   <div class="card">
     <span class="overline">Step 1 · Paper type</span>
     <h2>What kind of paper?</h2>
@@ -109,7 +124,7 @@ Rewiseed.billingStatus().then(b => {
     $('run-note').textContent = `Generates the complete paper in one pass · ${c} credits, deducted once when you start`;
   }
 }).catch(() => {});
-$('ai-disc').innerHTML = Rewiseed.aiDisclaimer() + '<br/><b style="color:var(--accent-strong)">On citations especially:</b> AI-suggested references may not be real. Verify every one with the DOI Finder and replace any that don’t resolve before you cite them.';
+$('ai-disc').innerHTML = Rewiseed.aiDisclaimer() + '<br/><b style="color:var(--accent-strong)">On references:</b> these are real works pulled from the OpenAlex index, but confirm each resolves (DOI Finder) and is indexed in your target database, and that it genuinely supports the sentence it is attached to. <b>The body text — data, results, and examples — is illustrative and must be replaced with your own research.</b>';
 
 // ---------- paper structures (section word-weights sum ~= 1) ----------
 // Structures follow the official APA 7 sample papers: the Introduction is the
@@ -502,8 +517,9 @@ table { border-collapse: collapse; } td, th { border: 1px solid #444; padding: 4
   a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   toast('Word document downloaded \u2014 Times New Roman 12pt, 1.5 spacing, 1-inch margins, justified');
 }
+const DISCLAIMER = `> **AI-generated template — not a finished paper.** Replace all data, results, statistics, and examples with your own actual research before use. AI output is not guaranteed accurate: verify every claim, number, and citation independently. Submitting this as original work may breach academic-integrity and authorship rules — disclose AI assistance as required. You, the author, are solely responsible for the final content, its accuracy, originality, ethics, and use. ItsMyResearch is a drafting aid and accepts no liability.`;
 function assemble() {
-  return `# ${meta.topic}\n\n*${TYPES[paperType].name} paper — AI-generated draft from ItsMyResearch. Verify all claims and citations before use.*\n\n` +
+  return `# ${meta.topic}\n\n*${TYPES[paperType].name} template — generated with ItsMyResearch.*\n\n${DISCLAIMER}\n\n` +
     plan.map(s => {
       const v = sections[s.title];
       if (!v || v === false) return `## ${s.title}\n\n*(not yet generated — regenerate this section)*`;

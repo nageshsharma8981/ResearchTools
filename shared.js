@@ -310,7 +310,7 @@
       { href: 'qualitative-coding-assistant.html', icon: 'dna', name: 'Qualitative Coding Assistant' },
     ]},
     { n: 'VII', name: 'Interpret, write & report', tools: [
-      { href: 'paper-generator.html', icon: 'doc', name: 'Research Paper Generator' },
+      { href: 'paper-generator.html', icon: 'doc', name: 'Research Paper Template Generator' },
       { href: 'abstract-generator.html', icon: 'doc', name: 'Abstract & Summary Studio' },
       { href: 'writing-polisher.html', icon: 'pen', name: 'Academic Writing Polisher' },
       { href: 'originality-checker.html', icon: 'shield', name: 'Originality & AI Checker' },

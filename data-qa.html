@@ -251,7 +251,7 @@ function renderChat() {
   $('chatlog').innerHTML = chat.map(m => `
     <div class="msg ${m.role === 'user' ? 'user' : 'ai'}">
       <span class="who">${m.role === 'user' ? 'You' : icon('logo', 16)}</span>
-      <div class="bubble">${m.role === 'user' ? esc(m.content) : md(m.content || '')}</div>
+      <div class="bubble">${m.role === 'user' ? esc(m.content) : (m.error ? `<div class="error-box">${icon('alert', 15)}<span>${esc(m.error)}</span></div>` : md(m.content || ''))}</div>
     </div>`).join('');
   $('suggests').style.display = chat.length ? 'none' : 'flex';
 }
@@ -314,9 +314,8 @@ async function ask() {
     if (!acc.trim()) chat[idx].content = '_(no answer returned — try rephrasing)_';
     Rewiseed.track('run');
   } catch (e) {
-    chat.splice(idx, 1); renderChat();
-    if (!/credits|Pro|sign in|API key/i.test(e.message)) toast(e.message, 'error', 6000);
-    else $('chatlog').insertAdjacentHTML('beforeend', `<div class="msg ai"><span class="who">!</span><div class="bubble"><div class="error-box">${icon('alert', 15)}<span>${esc(e.message)}</span></div></div></div>`);
+    chat[idx].content = ''; chat[idx].error = e.message; // keep the turn; finally's renderChat shows it
+    toast(e.message, 'error', 6000);
   } finally { busy = false; $('send').disabled = false; renderChat(); }
 }
 $('send').onclick = ask;

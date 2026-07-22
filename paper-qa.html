@@ -156,7 +156,7 @@ function renderChat() {
   $('chatlog').innerHTML = chat.map(m => `
     <div class="msg ${m.role === 'user' ? 'user' : 'ai'}">
       <span class="who">${m.role === 'user' ? 'You' : icon('logo', 16)}</span>
-      <div class="bubble">${m.role === 'user' ? esc(m.content) : renderAnswer(m.content)}</div>
+      <div class="bubble">${m.role === 'user' ? esc(m.content) : (m.error ? `<div class="error-box">${icon('alert', 15)}<span>${esc(m.error)}</span></div>` : renderAnswer(m.content))}</div>
     </div>`).join('');
   $('suggests').style.display = chat.length ? 'none' : 'flex';
 }
@@ -207,11 +207,11 @@ async function ask() {
     if (!acc.trim()) { chat[idx].content = '_(no answer returned — try rephrasing)_'; }
     Rewiseed.track('run');
   } catch (e) {
+    // keep the assistant turn and show the error inside it, so the finally's
+    // renderChat() preserves it (inserting into the DOM directly gets wiped)
     chat[idx].content = '';
-    chat.splice(idx, 1); // drop the empty assistant turn
-    renderChat();
-    if (!/credits|Pro|sign in|API key/i.test(e.message)) toast(e.message, 'error', 6000);
-    else $('chatlog').insertAdjacentHTML('beforeend', `<div class="msg ai"><span class="who">!</span><div class="bubble"><div class="error-box">${icon('alert', 15)}<span>${esc(e.message)}</span></div></div></div>`);
+    chat[idx].error = e.message;
+    toast(e.message, 'error', 6000);
   } finally {
     busy = false; $('send').disabled = false; renderChat();
     $('chat-card').scrollIntoView({ block: 'end', behavior: 'smooth' });
