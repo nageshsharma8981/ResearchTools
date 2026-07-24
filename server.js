@@ -964,32 +964,66 @@ app.get('/api/data', async (req, res) => {
 // so browsers can't call it reliably. We proxy it: same-origin (no CORS), cached, and able to
 // attach a free S2 API key server-side (SEMANTIC_SCHOLAR_API_KEY) for a much higher rate limit.
 const S2_KEY = (process.env.SEMANTIC_SCHOLAR_API_KEY || process.env.S2_API_KEY || '').trim();
-const s2Cache = new Map();             // query -> { at, body }
-const S2_TTL = 24 * 3600_000;          // author metrics change slowly — cache a day
-app.get('/api/s2-author', async (req, res) => {
-  if (!rateLimit('s2:' + req.ip, 40, 15 * 60_000)) return res.status(429).json({ error: 'Too many lookups — wait a few minutes.' });
-  const q = String(req.query.query || '').trim().slice(0, 160);
-  if (!q) return res.status(400).json({ error: 'Missing query.' });
-  const fields = 'name,hIndex,citationCount,paperCount,affiliations,url,externalIds';
-  const url = `https://api.semanticscholar.org/graph/v1/author/search?query=${encodeURIComponent(q)}&limit=10&fields=${fields}`;
-  const hit = s2Cache.get(q.toLowerCase());
+const s2Cache = new Map();             // cacheKey -> { at, body }
+const S2_TTL = 24 * 3600_000;          // author/paper metrics change slowly — cache a day
+
+// Shared upstream fetcher: same 24h cache, optional server-side key, and uniform
+// error mapping (429 passthrough so the client can degrade to its primary source).
+async function s2Proxy(res, cacheKey, upstreamUrl) {
+  const hit = s2Cache.get(cacheKey);
   if (hit && now() - hit.at < S2_TTL) { res.setHeader('X-Cache', 'HIT'); return res.type('application/json').send(hit.body); }
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 15_000);
     const headers = { 'User-Agent': 'ItsMyResearch/1.0 (+https://www.itsmyresearch.com)' };
     if (S2_KEY) headers['x-api-key'] = S2_KEY;
-    const r = await fetch(url, { signal: ctrl.signal, headers });
+    const r = await fetch(upstreamUrl, { signal: ctrl.signal, headers });
     clearTimeout(timer);
     const body = await r.text();
-    if (!r.ok) return res.status(r.status === 429 ? 429 : 502).json({ error: `Semantic Scholar returned ${r.status}.` });
-    if (s2Cache.size > 3000) s2Cache.clear();
-    s2Cache.set(q.toLowerCase(), { at: now(), body });
+    if (!r.ok) return res.status(r.status === 429 ? 429 : (r.status === 404 ? 404 : 502)).json({ error: `Semantic Scholar returned ${r.status}.` });
+    if (s2Cache.size > 4000) s2Cache.clear();
+    s2Cache.set(cacheKey, { at: now(), body });
     res.setHeader('X-Cache', 'MISS');
     res.type('application/json').send(body);
   } catch {
     res.status(504).json({ error: 'Semantic Scholar did not respond in time.' });
   }
+}
+
+// Graph API — author search (second author-metrics source for Author & Institution Profiles)
+app.get('/api/s2-author', (req, res) => {
+  if (!rateLimit('s2:' + req.ip, 60, 15 * 60_000)) return res.status(429).json({ error: 'Too many lookups — wait a few minutes.' });
+  const q = String(req.query.query || '').trim().slice(0, 160);
+  if (!q) return res.status(400).json({ error: 'Missing query.' });
+  const fields = 'name,hIndex,citationCount,paperCount,affiliations,url,externalIds';
+  const url = `https://api.semanticscholar.org/graph/v1/author/search?query=${encodeURIComponent(q)}&limit=10&fields=${fields}`;
+  return s2Proxy(res, 'author:' + q.toLowerCase(), url);
+});
+
+// Graph API — single paper by ID (DOI:/ ARXIV:/ SHA / CorpusId:) or best title match.
+// Surfaces S2's distinctive signals: TLDR, influentialCitationCount, open-access PDF, fields of study.
+const S2_PAPER_FIELDS = 'paperId,corpusId,externalIds,url,title,abstract,venue,year,publicationDate,referenceCount,citationCount,influentialCitationCount,isOpenAccess,openAccessPdf,fieldsOfStudy,publicationTypes,tldr,authors';
+app.get('/api/s2-paper', (req, res) => {
+  if (!rateLimit('s2:' + req.ip, 60, 15 * 60_000)) return res.status(429).json({ error: 'Too many lookups — wait a few minutes.' });
+  const id = String(req.query.id || '').trim().slice(0, 200);
+  const title = String(req.query.title || '').trim().slice(0, 300);
+  if (!id && !title) return res.status(400).json({ error: 'Provide an id or title.' });
+  const url = id
+    ? `https://api.semanticscholar.org/graph/v1/paper/${encodeURIComponent(id)}?fields=${S2_PAPER_FIELDS}`
+    : `https://api.semanticscholar.org/graph/v1/paper/search/match?query=${encodeURIComponent(title)}&fields=${S2_PAPER_FIELDS}`;
+  return s2Proxy(res, 'paper:' + (id || 't:' + title).toLowerCase(), url);
+});
+
+// Recommendations API — papers similar to a single seed paper (by S2 paperId or DOI:/ARXIV: id).
+app.get('/api/s2-recommendations', (req, res) => {
+  if (!rateLimit('s2:' + req.ip, 60, 15 * 60_000)) return res.status(429).json({ error: 'Too many lookups — wait a few minutes.' });
+  const id = String(req.query.paperId || '').trim().slice(0, 200);
+  if (!id) return res.status(400).json({ error: 'Missing paperId.' });
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 8, 1), 20);
+  const from = req.query.from === 'all-cs' ? 'all-cs' : 'recent';
+  const fields = 'title,year,authors,venue,url,externalIds,citationCount,isOpenAccess,openAccessPdf';
+  const url = `https://api.semanticscholar.org/recommendations/v1/papers/forpaper/${encodeURIComponent(id)}?fields=${fields}&limit=${limit}&from=${from}`;
+  return s2Proxy(res, `rec:${from}:${limit}:${id.toLowerCase()}`, url);
 });
 
 // ---------- reference library ----------

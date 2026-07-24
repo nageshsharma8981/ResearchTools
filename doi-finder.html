@@ -37,6 +37,9 @@ button.mode-tab.active { background: var(--accent-soft); color: var(--accent-str
 .match { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
 .match .alt { font-size: 13px; color: var(--muted); margin-top: 8px; padding-left: 12px; border-left: 2px solid var(--border); }
 .ref-input { font-size: 13px; color: var(--muted); font-family: var(--font-mono); overflow-wrap: anywhere; }
+.s2-box { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-top: 6px; background: var(--surface-2); }
+.s2-recs-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.s2-rec { padding-left: 12px; border-left: 2px solid var(--accent); }
 @media (max-width: 640px) { .kv { grid-template-columns: 1fr; gap: 2px 0; } .kv dt { margin-top: 8px; } }
 </style>
 </head>
@@ -55,7 +58,7 @@ button.mode-tab.active { background: var(--accent-soft); color: var(--accent-str
   <section id="panel-lookup">
     <div class="card">
       <h2>Look up a DOI</h2>
-      <p class="hint">Any format works: <code>10.1038/nature14539</code>, <code>https://doi.org/10.1038/…</code>, or <code>doi:10.1038/…</code>. Data comes from Crossref, with the abstract filled in from OpenAlex when Crossref lacks one.</p>
+      <p class="hint">Any format works: <code>10.1038/nature14539</code>, <code>https://doi.org/10.1038/…</code>, or <code>doi:10.1038/…</code>. Data comes from Crossref, with the abstract filled in from OpenAlex when Crossref lacks one, plus a Semantic Scholar cross-check (TL;DR summary, influential-citation count, and AI-recommended similar papers).</p>
       <div class="search-row">
         <input id="doi-in" type="search" autocomplete="off" spellcheck="false" placeholder="e.g. 10.1038/s41586-021-03819-2" aria-label="DOI"/>
         <button id="lookup"></button>
@@ -168,6 +171,53 @@ $('tab-find').onclick = () => setMode('find');
 document.querySelectorAll('.chip[data-ex]').forEach(c => c.onclick = () => { $('doi-in').value = c.dataset.ex; $('lookup').click(); });
 $('doi-in').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('lookup').click(); });
 
+// ---------- Semantic Scholar enrichment (Graph API record + Recommendations API) ----------
+function s2AuthorsLine(a) {
+  const names = (a || []).map(x => x.name).filter(Boolean);
+  return names.length > 4 ? names.slice(0, 4).join(', ') + ' et al.' : names.join(', ');
+}
+function s2RecRow(p) {
+  const doi = p.externalIds?.DOI;
+  const href = p.url || (doi ? 'https://doi.org/' + doi : null);
+  const meta = [s2AuthorsLine(p.authors), p.year, p.citationCount != null ? `${p.citationCount.toLocaleString()} citations` : null].filter(Boolean).join(' · ');
+  return `<div class="s2-rec">
+    ${href ? `<a class="link" href="${esc(href)}" target="_blank" rel="noreferrer">${esc(p.title || 'Untitled')}</a>` : `<span>${esc(p.title || 'Untitled')}</span>`}
+    <div class="hint" style="margin:2px 0 0;font-size:12.5px">${esc(meta)}${p.isOpenAccess && p.openAccessPdf?.url ? ` · <a class="link" href="${esc(p.openAccessPdf.url)}" target="_blank" rel="noreferrer">PDF</a>` : ''}</div>
+  </div>`;
+}
+async function renderS2(p) {
+  const zone = $('s2-zone');
+  if (!zone) return;
+  zone.innerHTML = `<div class="hint" style="margin-top:16px"><span class="spinner" style="width:13px;height:13px;vertical-align:-2px"></span> Checking Semantic Scholar…</div>`;
+  const s2 = await RewiseedDiscovery.semanticScholarPaper({ doi: p.doi }).catch(() => null);
+  if (!s2 || !s2.paperId) { zone.innerHTML = ''; return; } // not indexed there, or rate-limited — degrade silently
+  const fos = (s2.fieldsOfStudy || []).slice(0, 6);
+  zone.innerHTML = `
+    <span class="overline" style="display:block;margin-top:18px">On Semantic Scholar</span>
+    <div class="s2-box">
+      ${s2.tldr?.text ? `<p style="font-size:14px;margin:0 0 10px"><b>TL;DR</b> <span style="color:var(--ink-2)">${esc(s2.tldr.text)}</span></p>` : ''}
+      <dl class="kv" style="margin:6px 0">
+        <dt>Citations</dt><dd>${s2.citationCount != null ? s2.citationCount.toLocaleString() : '—'}${s2.influentialCitationCount != null ? ` · <b>${s2.influentialCitationCount.toLocaleString()}</b> influential` : ''}</dd>
+        ${fos.length ? `<dt>Fields</dt><dd>${fos.map(f => `<span class="badge">${esc(f)}</span>`).join(' ')}</dd>` : ''}
+      </dl>
+      <div class="row" style="gap:10px;align-items:center">
+        <a class="link" href="${esc(s2.url)}" target="_blank" rel="noreferrer">View on Semantic Scholar ${icon('external', 12)}</a>
+        ${s2.isOpenAccess && s2.openAccessPdf?.url ? `<a class="link" href="${esc(s2.openAccessPdf.url)}" target="_blank" rel="noreferrer">Open-access PDF ${icon('external', 12)}</a>` : ''}
+        <button class="ghost" id="s2-recs" style="min-height:34px;padding:4px 12px;font-size:12.5px">${icon('graph', 14)} Recommended similar papers</button>
+      </div>
+      <div id="s2-recs-out"></div>
+    </div>`;
+  $('s2-recs').onclick = async (e) => {
+    e.currentTarget.disabled = true;
+    const ro = $('s2-recs-out');
+    ro.innerHTML = `<div class="hint" style="margin-top:10px"><span class="spinner" style="width:13px;height:13px;vertical-align:-2px"></span> Finding recommendations…</div>`;
+    const recs = await RewiseedDiscovery.semanticScholarRecommendations(s2.paperId, { limit: 8 });
+    ro.innerHTML = recs.length
+      ? `<div class="s2-recs-list">${recs.map(s2RecRow).join('')}</div><p class="hint" style="margin:10px 0 0">Recommendations from Semantic Scholar's model — a starting point, not a systematic search.</p>`
+      : `<p class="hint" style="margin:10px 0 0">No recommendations available for this paper right now.</p>`;
+  };
+}
+
 $('lookup').onclick = async () => {
   const doi = extractDoi($('doi-in').value);
   const out = $('lookup-out');
@@ -218,8 +268,10 @@ $('lookup').onclick = async () => {
           <button class="ghost" id="copy-bib">${icon('copy', 15)} Copy BibTeX</button>
           <button class="ghost" id="dl-bib">${icon('download', 15)} .bib</button>
         </div>
+        <div id="s2-zone"></div>
       </article>`;
     Rewiseed.track('search');
+    renderS2(p); // best-effort Semantic Scholar enrichment (second source + recommendations)
     $('show-related').onclick = (e) => {
       e.currentTarget.disabled = true;
       let panel = document.getElementById('related-panel');

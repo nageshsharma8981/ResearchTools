@@ -154,8 +154,33 @@
   // Shown wherever a list may contain paywalled papers.
   const PAYWALL_NOTE = 'About paywalled papers: details shown here come from public metadata and the abstract only. For complete and authoritative content — full methods, results, tables, and exact quotations — please consult the publisher’s version via the DOI link or your institution’s library access.';
 
+  // Semantic Scholar paper lookup (Graph API) — via our proxy. Accepts a DOI (or S2/ArXiv id),
+  // else a title for best-match. Returns S2's distinctive signals (tldr, influentialCitationCount,
+  // openAccessPdf, fieldsOfStudy). Returns null on any miss/rate-limit so callers can degrade.
+  async function semanticScholarPaper({ doi, id, title } = {}) {
+    const key = id || (doi ? 'DOI:' + String(doi).replace(/^https?:\/\/doi\.org\//i, '') : '');
+    const qs = key ? `id=${encodeURIComponent(key)}` : (title ? `title=${encodeURIComponent(title)}` : '');
+    if (!qs) return null;
+    let r;
+    try { r = await T(`/api/s2-paper?${qs}`); } catch { return null; }
+    if (!r.ok) return null;
+    return (await r.json().catch(() => null)) || null;
+  }
+
+  // Semantic Scholar recommendations (Recommendations API) — papers similar to one seed paper.
+  // Seed by S2 paperId (preferred) or a DOI:/ARXIV: id. Returns [] on miss/rate-limit.
+  async function semanticScholarRecommendations(seedId, { limit = 8, from = 'recent' } = {}) {
+    if (!seedId) return [];
+    let r;
+    try { r = await T(`/api/s2-recommendations?paperId=${encodeURIComponent(seedId)}&limit=${limit}&from=${from}`); }
+    catch { return []; }
+    if (!r.ok) return [];
+    return (await r.json().catch(() => null))?.recommendedPapers || [];
+  }
+
   window.RewiseedDiscovery = {
     relatedFor, byTopics, renderRelated, paperCard, wireSaveButtons,
-    authorSearch, institutionSearch, entityById, topWorks, semanticScholarAuthor, shortId, authorLine, PAYWALL_NOTE,
+    authorSearch, institutionSearch, entityById, topWorks, semanticScholarAuthor,
+    semanticScholarPaper, semanticScholarRecommendations, shortId, authorLine, PAYWALL_NOTE,
   };
 })();
