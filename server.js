@@ -996,7 +996,9 @@ app.get('/api/s2-author', (req, res) => {
   const q = String(req.query.query || '').trim().slice(0, 160);
   if (!q) return res.status(400).json({ error: 'Missing query.' });
   const fields = 'name,hIndex,citationCount,paperCount,affiliations,url,externalIds';
-  const url = `https://api.semanticscholar.org/graph/v1/author/search?query=${encodeURIComponent(q)}&limit=10&fields=${fields}`;
+  // limit=100: S2 relevance ranking often buries an author's canonical (merged) record below many
+  // fragment duplicates, so a small window can miss it entirely — the client picks the best match.
+  const url = `https://api.semanticscholar.org/graph/v1/author/search?query=${encodeURIComponent(q)}&limit=100&fields=${fields}`;
   return s2Proxy(res, 'author:' + q.toLowerCase(), url);
 });
 

@@ -148,7 +148,20 @@
     const byName = surname.length > 1 ? data.filter(a => String(a.name || '').toLowerCase().includes(surname)) : [];
     const pool = byName.length ? byName : data;
     pool.sort((a, b) => (b.citationCount || 0) - (a.citationCount || 0));
-    return shapeS2(pool[0], 'name');
+    const pick = pool[0];
+    if (!pick) return null;
+    // Plausibility guard: S2 author search can return ONLY fragmented duplicate records (a
+    // prolific researcher split into many tiny profiles), and its canonical record may be absent.
+    // Showing a fragment's h-index=4 beside OpenAlex's real number is worse than showing nothing,
+    // so accept the pick only if it is in the same ballpark as the OpenAlex record for this author.
+    const oaCites = author.cited_by_count || 0;
+    const oaH = author.summary_stats?.h_index || 0;
+    const plausible =
+      (oaCites === 0 && oaH === 0) ||                       // nothing to validate against — accept
+      (oaCites > 0 && (pick.citationCount || 0) >= 0.1 * oaCites) ||
+      (oaH > 0 && (pick.hIndex || 0) >= 0.4 * oaH);
+    if (!plausible) return null;
+    return shapeS2(pick, 'name');
   }
 
   // Shown wherever a list may contain paywalled papers.
